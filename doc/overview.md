@@ -4,7 +4,7 @@
 
 ### Tasks
 - [ ] Set up project repo (frontend + backend)
-- [ ] Choose tech stack (e.g. React + Django / Next.js + Node.js / Odoo module)
+- [ ] Choose tech stack (e.g. React + Falsk / Next.js)
 - [ ] Set up hosting (e.g. AWS / Vercel / Render)
 - [ ] Create database schema
 
