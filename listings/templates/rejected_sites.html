@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rejected Sites</title>
+</head>
+<body>
+
+<h2>Rejected Sites</h2>
+
+{% if sites %}
+    {% for site in sites %}
+        <div style="border:1px solid red; padding:10px; margin:10px;">
+            <h3>{{ site.name }}</h3>
+            <p>Location: {{ site.location }}</p>
+            <p>Area: {{ site.area }}</p>
+            <p>Price: ₹{{ site.price }}</p>
+            <p>Owner: {{ site.owner }}</p>
+
+            {% if site.image %}
+                <img src="{{ site.image }}" width="200">
+            {% endif %}
+        </div>
+    {% endfor %}
+{% else %}
+    <p>No rejected sites found.</p>
+{% endif %}
+
+
+<br>
+<a href="{% url 'admin_dashboard' %}">Back to Admin Dashboard</a>
+
+</body>
+</html>

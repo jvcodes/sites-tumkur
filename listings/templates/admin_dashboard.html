@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+</head>
+<body>
+
+<h2>Admin Dashboard</h2>
+
+<!-- ===== STATUS SUMMARY ===== -->
+<div style="display:flex; gap:20px; margin-bottom:20px;">
+    <div style="border:1px solid black; padding:10px;">
+        <b>Pending:</b> {{ pending }}
+    </div>
+
+    <div style="border:1px solid green; padding:10px;">
+        <b>Approved:</b> {{ approved }}
+    </div>
+
+    <div style="border:1px solid red; padding:10px;">
+        <b>Rejected:</b> {{ rejected }}
+    </div>
+</div>
+
+<!-- ===== NAVIGATION ===== -->
+<a href="{% url 'approved_sites_admin' %}">View Approved Sites (Admin)</a>
+&nbsp; | &nbsp;
+<a href="{% url 'rejected_sites' %}">View Rejected Sites</a>
+
+<br><br>
+
+<h3>Pending Site Approvals</h3>
+
+{% if sites %}
+    {% for site in sites %}
+        <div style="border:1px solid black; padding:10px; margin:10px;">
+            <h3>{{ site.name }}</h3>
+
+            <p><b>Site Code:</b> {{ site.site_code }}</p>
+            <p><b>Location:</b> {{ site.location }}</p>
+            <p><b>Area:</b> {{ site.area }} sq.ft</p>
+            <p><b>Price:</b> ₹{{ site.price }}</p>
+            <p><b>Owner:</b> {{ site.owner }}</p>
+
+            <br>
+
+            <!-- EDIT -->
+            <a href="{% url 'edit_site' site.id_str %}">
+                <button>Edit</button>
+            </a>
+
+            <!-- APPROVE -->
+            <a href="{% url 'approve_site' site.id_str %}">
+                <button style="background:green; color:white;">Approve</button>
+            </a>
+
+            <!-- REJECT -->
+            <a href="{% url 'reject_site' site.id_str %}">
+                <button style="background:red; color:white;">Reject</button>
+            </a>
+        </div>
+    {% endfor %}
+{% else %}
+    <p>No pending sites.</p>
+{% endif %}
+
+</body>
+</html>

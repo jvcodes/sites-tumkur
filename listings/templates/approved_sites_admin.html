@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Approved Sites (Admin)</title>
+</head>
+<body>
+
+<h2>Approved Sites – Admin View</h2>
+
+<a href="{% url 'admin_dashboard' %}">⬅ Back to Dashboard</a>
+<br><br>
+
+{% if sites %}
+    {% for site in sites %}
+        <div style="border:1px solid black; padding:10px; margin:10px;">
+            <h3>{{ site.name }}</h3>
+
+            <p><b>Site Code:</b> {{ site.site_code }}</p>
+            <p><b>Location:</b> {{ site.location }}</p>
+            <p><b>Area:</b> {{ site.area }} sq.ft</p>
+            <p><b>Price:</b> ₹{{ site.price }}</p>
+            <p><b>Owner:</b> {{ site.owner }}</p>
+
+            <!-- ✅ ADMIN EDIT -->
+            <a href="{% url 'edit_site' site.id_str %}">
+                <button>Edit</button>
+            </a>
+        </div>
+    {% endfor %}
+{% else %}
+    <p>No approved sites.</p>
+{% endif %}
+
+</body>
+</html>

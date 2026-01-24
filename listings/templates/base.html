@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}SiteHub{% endblock %}</title>
+</head>
+<body>
+
+{% block content %}
+{% endblock %}
+
+<!-- 🔽 CHAT WIDGET (ADD HERE) -->
+<!-- CHAT WIDGET -->
+<div id="chat-box" style="
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    border: 1px solid #333;
+    background: #fff;
+    padding: 10px;
+">
+
+    <b>🤖 Ask AI about your requirement</b>
+
+    <div id="chat-messages" style="
+        height: 150px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        margin: 10px 0;
+        padding: 5px;
+        font-size: 14px;
+    "></div>
+
+    <input type="text" id="chat-input"
+           placeholder="e.g. site in tumkur under 25 lakhs"
+           style="width:100%;">
+
+    <button onclick="sendMessage()" style="width:100%; margin-top:5px;">
+        Send
+    </button>
+</div>
+
+<script>
+function sendMessage() {
+    const input = document.getElementById("chat-input");
+    const messages = document.getElementById("chat-messages");
+
+    let msg = input.value;
+    if (!msg) return;
+
+    messages.innerHTML += "<b>You:</b> " + msg + "<br>";
+    input.value = "";
+
+    fetch("/chat/", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: new URLSearchParams({ message: msg })
+    })
+    .then(res => res.json())
+    .then(data => {
+        messages.innerHTML += "<b>AI:</b><pre>" + data.reply + "</pre>";
+        messages.scrollTop = messages.scrollHeight;
+    });
+}
+</script>
+
+</body>
+</html>

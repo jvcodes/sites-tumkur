@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Site Map</title>
+
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+
+<h2>{{ site.name }} ({{ site.site_code }})</h2>
+
+{% if site.latitude and site.longitude %}
+    <div id="map" style="height:500px;"></div>
+
+    <script>
+        // Convert values safely to numbers
+        const lat = parseFloat("{{ site.latitude }}");
+        const lng = parseFloat("{{ site.longitude }}");
+
+        if (!isNaN(lat) && !isNaN(lng)) {
+            var map = L.map('map').setView([lat, lng], 15);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup("{{ site.name|escapejs }}")
+                .openPopup();
+        } else {
+            document.getElementById("map").innerHTML =
+                "<p>Invalid location coordinates</p>";
+        }
+    </script>
+{% else %}
+    <p><b>Location not available for this site.</b></p>
+{% endif %}
+
+<br>
+<a href="{% url 'site_list' %}">← Back to Site List</a>
+
+</body>
+</html>

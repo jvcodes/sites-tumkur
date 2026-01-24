@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Site Listings</title>
+</head>
+<body>
+
+<h2>Approved Sites</h2>
+
+<!-- ================= FILTER FORM ================= -->
+<form method="get" style="border:1px solid #ccc; padding:10px; margin-bottom:20px;">
+    <h3>Filter & Sort Sites</h3>
+
+    <input type="text" name="location" placeholder="Location / City"
+           value="{{ request.GET.location }}">
+
+    <input type="number" name="min_price" placeholder="Min Price"
+           value="{{ request.GET.min_price }}">
+
+    <input type="number" name="max_price" placeholder="Max Price"
+           value="{{ request.GET.max_price }}">
+
+    <input type="number" name="min_area" placeholder="Min Area (sq.ft)"
+           value="{{ request.GET.min_area }}">
+
+    <select name="sort_price">
+        <option value="">Sort by Price</option>
+        <option value="low_high" {% if request.GET.sort_price == "low_high" %}selected{% endif %}>
+            Price: Low to High
+        </option>
+        <option value="high_low" {% if request.GET.sort_price == "high_low" %}selected{% endif %}>
+            Price: High to Low
+        </option>
+    </select>
+
+    <br><br>
+    <button type="submit">Apply Filters</button>
+    <a href="{% url 'site_list' %}">Clear Filters</a>
+</form>
+
+<hr>
+
+<!-- ================= SITE LIST ================= -->
+{% if sites %}
+    {% for site in sites %}
+    <div style="border:1px solid #000; padding:15px; margin:15px; width:380px;">
+        <h3>{{ site.name }}</h3>
+        <p><b>Location:</b> {{ site.location }}</p>
+        <p><b>Area:</b> {{ site.area }} sq.ft</p>
+        <p><b>Price:</b> ₹{{ site.price }}</p>
+
+        <a href="{% url 'site_detail' site.id_str %}">
+            <button>View Details</button>
+        </a>
+    </div>
+    {% endfor %}
+{% else %}
+    <p>No matching sites found.</p>
+{% endif %}
+
+<br>
+<a href="{% url 'upload_site' %}">Upload New Site</a>
+
+<!-- ================= CHAT WIDGET ================= -->
+<div id="chat-box" style="
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    border: 1px solid #333;
+    background: #fff;
+    padding: 10px;
+    z-index: 1000;
+">
+
+    <b>🤖 AI Site Assistant</b>
+
+    <div id="chat-messages" style="
+        height: 160px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        margin: 10px 0;
+        padding: 5px;
+        font-size: 14px;
+        white-space: pre-wrap;
+    "></div>
+
+    <input type="text" id="chat-input"
+           placeholder="e.g. site in tumkur under 500000"
+           style="width:100%;">
+
+    <button onclick="sendMessage()" style="width:100%; margin-top:5px;">
+        Send
+    </button>
+
+    <!-- CSRF TOKEN -->
+    <input type="hidden" id="csrf_token" value="{{ csrf_token }}">
+</div>
+
+<!-- ================= CHAT SCRIPT ================= -->
+<script>
+function sendMessage() {
+    const input = document.getElementById("chat-input");
+    const messages = document.getElementById("chat-messages");
+    const csrfToken = document.getElementById("csrf_token").value;
+
+    let msg = input.value.trim();
+    if (!msg) return;
+
+    messages.innerHTML += "<b>You:</b> " + msg + "<br>";
+    input.value = "";
+
+    fetch("/chat/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": csrfToken
+        },
+        body: "message=" + encodeURIComponent(msg)
+    })
+    .then(res => res.json())
+    .then(data => {
+        messages.innerHTML += "<b>AI:</b> " + data.reply + "<br><br>";
+        messages.scrollTop = messages.scrollHeight;
+    })
+    .catch(err => {
+        messages.innerHTML += "<b>Error:</b> Unable to connect.<br>";
+        console.error(err);
+    });
+}
+
+// Send on ENTER key
+document.getElementById("chat-input").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+        sendMessage();
+    }
+});
+</script>
+
+</body>
+</html>

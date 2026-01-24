@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ site.name|default:"Site Details" }}</title>
+
+    <!-- Leaflet CSS & JS -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+
+<h2>{{ site.name|default:"Unnamed Site" }}</h2>
+
+<!-- ================= SITE BASIC DETAILS ================= -->
+
+<p>
+    <b>Site Code:</b>
+    {{ site.site_code|default:"NOT AVAILABLE" }}
+</p>
+
+<p>
+    <b>Location:</b>
+    {{ site.location|default:"NOT AVAILABLE" }}
+</p>
+
+<p>
+    <b>Area:</b>
+    {{ site.area|default:"N/A" }} sq.ft
+</p>
+
+<p>
+    <b>Price:</b>
+    ₹{{ site.price|default:"N/A" }}
+</p>
+
+<p>
+    <b>Owner:</b>
+    {{ site.owner|default:"NOT AVAILABLE" }}
+</p>
+
+{% if site.image %}
+    <img src="{{ site.image }}" width="300">
+{% else %}
+    <p><i>No image uploaded</i></p>
+{% endif %}
+
+<hr>
+
+<!-- ================= MAP SECTION ================= -->
+
+<h3>Site Location</h3>
+
+<div id="map" style="height: 400px; border:1px solid #ccc;"></div>
+
+<script>
+    var lat = parseFloat("{{ site.latitude|default:'0' }}");
+    var lng = parseFloat("{{ site.longitude|default:'0' }}");
+
+    if (!lat || !lng) {
+        document.getElementById("map").innerHTML =
+            "<p><i>Location not available for this site.</i></p>";
+    } else {
+        var map = L.map('map').setView([lat, lng], 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        L.marker([lat, lng]).addTo(map)
+            .bindPopup("{{ site.name|default:'Site' }}")
+            .openPopup();
+    }
+</script>
+
+<hr>
+
+
+<br>
+<a href="{% url 'site_list' %}">⬅ Back to Sites</a>
+
+</body>
+</html>

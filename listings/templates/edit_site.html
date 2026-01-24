@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Site</title>
+</head>
+<body>
+
+<h2>Edit Site</h2>
+
+<form method="post">
+    {% csrf_token %}
+
+    <p>
+        <b>Site Code:</b>
+        <input type="text" value="{{ site.site_code }}" readonly>
+    </p>
+
+    <p>
+        <label>Name</label><br>
+        <input type="text" name="name" value="{{ site.name }}" required>
+    </p>
+
+    <p>
+        <label>Location</label><br>
+        <input type="text" name="location" value="{{ site.location }}" required>
+    </p>
+
+    <p>
+        <label>Area</label><br>
+        <input type="number" name="area" value="{{ site.area }}" required>
+    </p>
+
+    <p>
+        <label>Price</label><br>
+        <input type="number" name="price" value="{{ site.price }}" required>
+    </p>
+
+    <p>
+        <label>Owner</label><br>
+        <input type="text" name="owner" value="{{ site.owner }}" required>
+    </p>
+
+    <button type="submit">Save Changes</button>
+    <a href="{% url 'admin_dashboard' %}">Cancel</a>
+</form>
+
+</body>
+</html>
