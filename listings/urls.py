@@ -10,7 +10,7 @@ urlpatterns = [
     path('edit/<str:site_id>/', views.upload_site, name='edit_site'),
 
     # Admin
-    path('admin/', views.admin_dashboard, name='admin_dashboard'),
+    path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('approve/<str:site_id>/', views.approve_site, name='approve_site'),
     path('reject/<str:site_id>/', views.reject_site, name='reject_site'),
     path('rejected/', views.rejected_sites, name='rejected_sites'),
@@ -20,8 +20,8 @@ urlpatterns = [
 
     path('site/<str:site_id>/', views.site_detail, name='site_detail'),
     path('chat/', views.chat, name='chat'),
-    path('admin/edit/<str:site_id>/', views.edit_site, name='edit_site'),
-    path('admin/approved/', views.approved_sites_admin, name='approved_sites_admin'),
+    path('dashboard/edit/<str:site_id>/', views.edit_site, name='edit_site'),
+    path('dashboard/approved/', views.approved_sites_admin, name='approved_sites_admin'),
 
 
 
