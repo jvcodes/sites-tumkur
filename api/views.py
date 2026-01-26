@@ -79,6 +79,7 @@ def filter_sites_api(request):
     query = {"status": "approved"}
 
     location = request.GET.get("location")
+    search = request.GET.get("search")  # General search term
     min_price = request.GET.get("min_price")
     max_price = request.GET.get("max_price")
     site_code = request.GET.get("site_code")
@@ -88,7 +89,15 @@ def filter_sites_api(request):
         query["location"] = {"$regex": location, "$options": "i"}
 
     if site_code:
-        query["site_code"] = {"$regex": site_code, "$options": "i"}
+         query["site_code"] = {"$regex": site_code, "$options": "i"}
+
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"location": {"$regex": search, "$options": "i"}},
+            {"landmark": {"$regex": search, "$options": "i"}},
+            {"site_code": {"$regex": search, "$options": "i"}},
+        ]
 
     if min_price or max_price:
         query["price"] = {}
@@ -103,6 +112,14 @@ def filter_sites_api(request):
         cursor = cursor.sort("price", 1)
     elif sort == "price_high":
         cursor = cursor.sort("price", -1)
+
+    # ---------------- PAGINATION ----------------
+    page = int(request.GET.get("page", 1))
+    limit = int(request.GET.get("limit", 12))
+    skip = (page - 1) * limit
+
+    total = site_collection.count_documents(query)
+    cursor = cursor.skip(skip).limit(limit)
 
     sites = list(cursor)
 
@@ -119,7 +136,12 @@ def filter_sites_api(request):
             s["image"] = ""
 
     serializer = SiteSerializer(sites, many=True)
-    return Response(serializer.data)
+    return Response({
+        "results": serializer.data,
+        "total": total,
+        "page": page,
+        "limit": limit
+    })
 
 
 # --------------------------------------------------

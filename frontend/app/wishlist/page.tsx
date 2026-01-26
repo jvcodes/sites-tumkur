@@ -1,102 +1,76 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import SiteCard from "../components/SiteCard";
 
-interface Site {
-  site_code: string;
-  name: string;
-  location: string;
-  price: number;
-  image?: string;
-}
-
 export default function WishlistPage() {
-  const [wishlist, setWishlist] = useState<Site[]>([]);
+  const { user, token } = useAuth();
+  const [sites, setSites] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // ----------------------------------
-  // LOAD & DEDUPLICATE WISHLIST (TYPE SAFE)
-  // ----------------------------------
   useEffect(() => {
-    const raw: Site[] = JSON.parse(
-      localStorage.getItem("wishlist") || "[]"
-    );
+    if (user && token) {
+      fetchWishlistItems();
+    } else {
+      setLoading(false);
+    }
+  }, [user, token]);
 
-    const unique: Site[] = Array.from(
-      new Map<string, Site>(
-        raw.map((item) => [item.site_code, item])
-      ).values()
-    );
-
-    setWishlist(unique);
-  }, []);
-
-  // ----------------------------------
-  // REMOVE FROM WISHLIST
-  // ----------------------------------
-  const removeFromWishlist = (site_code: string) => {
-    const updated: Site[] = wishlist.filter(
-      (item) => item.site_code !== site_code
-    );
-
-    setWishlist(updated);
-    localStorage.setItem(
-      "wishlist",
-      JSON.stringify(updated)
-    );
+  const fetchWishlistItems = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/api/wishlist/", {
+        headers: { Authorization: `Token ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSites(data);
+      }
+    } catch (err) {
+      console.error("Failed to load wishlist", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ----------------------------------
-  // EMPTY STATE
-  // ----------------------------------
-  if (wishlist.length === 0) {
+  if (!user) {
     return (
-      <div className="max-w-6xl mx-auto p-6 text-center">
-        <h2 className="text-xl font-semibold mb-2">
-          My Wishlist
-        </h2>
-        <p className="text-gray-500">
-          Your wishlist is empty ❤️
-        </p>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Login Required</h2>
+          <p className="text-gray-500 mb-4">Please login to view your saved sites.</p>
+          <a href="/login" className="text-[var(--color-primary)] font-medium hover:underline">Go to Login</a>
+        </div>
       </div>
     );
   }
 
-  // ----------------------------------
-  // MAIN UI
-  // ----------------------------------
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <h2 className="text-2xl font-semibold mb-6">
-        My Wishlist
-      </h2>
+    <main className="min-h-screen bg-gray-50 px-6 py-12">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-[var(--color-primary)] mb-8">
+          My Wishlist ❤️
+        </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {wishlist.map((site) => (
-          <div
-            key={site.site_code}   // ✅ STABLE UNIQUE KEY
-            className="relative"
-          >
-            {/* REMOVE BUTTON */}
-            <button
-              onClick={() =>
-                removeFromWishlist(site.site_code)
-              }
-              className="absolute top-2 left-2 bg-white border border-red-600 text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50 z-10"
-            >
-              ❌ Remove
-            </button>
-
-            <SiteCard
-              name={site.name}
-              location={site.location}
-              price={site.price}
-              code={site.site_code}
-              image={site.image}
-            />
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]"></div>
           </div>
-        ))}
+        ) : sites.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-xl shadow-sm">
+            <p className="text-gray-500 text-lg">Your wishlist is empty.</p>
+            <a href="/" className="inline-block mt-4 text-[var(--color-accent)] font-medium hover:underline">
+              Browse Sites
+            </a>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {sites.map((site) => (
+              <SiteCard key={site._id || site.id} site={site} />
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </main>
   );
 }

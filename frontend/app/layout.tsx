@@ -1,5 +1,7 @@
 import "./globals.css";
 import Navbar from "./components/Navbar";
+import { AuthProvider } from "./context/AuthContext";
+import { WishlistProvider } from "./context/WishlistContext";
 
 export const metadata = {
   title: "Site Hub",
@@ -14,8 +16,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-gray-100">
-        <Navbar />
-        {children}
+        <AuthProvider>
+          <WishlistProvider>
+            <Navbar />
+            {children}
+          </WishlistProvider>
+        </AuthProvider>
       </body>
     </html>
   );

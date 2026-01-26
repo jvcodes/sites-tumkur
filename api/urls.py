@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, auth_views, wishlist_views
 
 urlpatterns = [
     path('sites/', views.approved_sites_api),                    # GET
@@ -19,6 +19,14 @@ urlpatterns = [
 
 
 
+
+    # Auth
+    # Auth (Google)
+    path("auth/google/", auth_views.google_auth_api),
+
+    # Wishlist (MongoDB)
+    path("wishlist/", wishlist_views.get_wishlist),
+    path("wishlist/toggle/", wishlist_views.toggle_wishlist),
 
 ]
 
