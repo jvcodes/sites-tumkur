@@ -148,7 +148,7 @@ export default function SiteDetails() {
     );
 
     setInCart(true);
-    alert("Added to cart 🛒");
+    alert("Added to Visit List 📋");
   };
 
   // ----------------------------------
@@ -229,23 +229,21 @@ export default function SiteDetails() {
             <button
               onClick={addToCart}
               disabled={inCart}
-              className={`px-6 py-2 rounded text-white ${
-                inCart
+              className={`px-6 py-2 rounded text-white ${inCart
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-red-600 hover:bg-red-700"
-              }`}
+                }`}
             >
-              {inCart ? "Added to Cart" : "Add to Cart"}
+              {inCart ? "Added to Visit List" : "Add to Visit"}
             </button>
 
             <button
               onClick={addToWishlist}
               disabled={inWishlist}
-              className={`px-6 py-2 rounded border ${
-                inWishlist
+              className={`px-6 py-2 rounded border ${inWishlist
                   ? "border-gray-400 text-gray-400 cursor-not-allowed"
                   : "border-red-600 text-red-600 hover:bg-red-50"
-              }`}
+                }`}
             >
               {inWishlist ? "❤️ In Wishlist" : "❤️ Wishlist"}
             </button>

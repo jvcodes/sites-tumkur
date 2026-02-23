@@ -53,7 +53,7 @@ export default function UploadSitePage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="bg-white shadow-xl rounded-xl w-full max-w-xl p-8">
         <h1 className="text-2xl font-bold text-red-600 mb-6 text-center">
-          Upload Your Site
+          Upload My Site
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">

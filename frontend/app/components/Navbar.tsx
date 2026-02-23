@@ -57,7 +57,7 @@ export default function Navbar() {
             href="/cart"
             className="text-gray-700 hover:text-[var(--color-accent)] transition-colors"
           >
-            🛒 Cart
+            📋 Visit List
           </Link>
 
           {user ? (
@@ -78,7 +78,7 @@ export default function Navbar() {
                 href="/upload-site"
                 className="border border-[var(--color-primary)] text-[var(--color-primary)] px-4 py-2 rounded-lg hover:bg-[var(--color-primary)] hover:text-white transition-all"
               >
-                ➕ Upload
+                ➕ Upload my site
               </Link>
             </>
           ) : (
