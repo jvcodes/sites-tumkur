@@ -114,10 +114,10 @@ export default function CartPage() {
     return (
       <div className="max-w-4xl mx-auto p-10 text-center">
         <h2 className="text-2xl font-semibold mb-3">
-          Your Visit List is Empty 📋
+          Your Cart is Empty 🛒
         </h2>
         <p className="text-gray-500 mb-6">
-          {message || "Please add sites to your visit list to continue"}
+          {message || "Please add sites to your cart to continue"}
         </p>
         <Link
           href="/"
@@ -135,7 +135,7 @@ export default function CartPage() {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-6">
-        My Visit List ({cart.length})
+        My Cart ({cart.length})
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

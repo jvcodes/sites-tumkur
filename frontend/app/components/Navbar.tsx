@@ -2,13 +2,37 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useWishlist } from "../context/WishlistContext";
 
 export default function Navbar() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const { user, logout } = useAuth();
+  const { wishlist } = useWishlist();
+  const [visitListCount, setVisitListCount] = useState(0);
+
+  // Update visit list count periodically to reflect changes from other components
+  useEffect(() => {
+    const updateCount = () => {
+      const raw = JSON.parse(localStorage.getItem("cart") || "[]");
+      setVisitListCount(raw.length);
+    };
+
+    updateCount(); // Initial load
+
+    // Listen for storage changes (works across tabs)
+    window.addEventListener("storage", updateCount);
+
+    // Polling as a fallback for same-tab changes since localStorage doesn't trigger 'storage' event in the same tab easily without custom events
+    const intervalId = setInterval(updateCount, 1000);
+
+    return () => {
+      window.removeEventListener("storage", updateCount);
+      clearInterval(intervalId);
+    };
+  }, []);
 
   // 🔍 Trigger search on Enter
   const handleSearch = (
@@ -48,16 +72,26 @@ export default function Navbar() {
         <div className="flex items-center gap-5">
           <Link
             href="/wishlist"
-            className="text-gray-700 hover:text-[var(--color-accent)] transition-colors"
+            className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
           >
             ❤️ Wishlist
+            {wishlist.length > 0 && (
+              <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
+                {wishlist.length}
+              </span>
+            )}
           </Link>
 
           <Link
             href="/cart"
-            className="text-gray-700 hover:text-[var(--color-accent)] transition-colors"
+            className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
           >
             📋 Visit List
+            {visitListCount > 0 && (
+              <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
+                {visitListCount}
+              </span>
+            )}
           </Link>
 
           {user ? (
@@ -84,7 +118,7 @@ export default function Navbar() {
           ) : (
             <Link
               href="/login"
-              className="bg-[var(--color-primary)] text-white px-6 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-light)] transition-all shadow-md"
+              className="bg-[var(--color-primary)] text-white px-4 md:px-6 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-light)] transition-all shadow-md text-sm md:text-base"
             >
               Login
             </Link>

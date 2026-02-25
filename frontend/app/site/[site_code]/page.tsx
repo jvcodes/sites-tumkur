@@ -22,7 +22,7 @@ export default function SiteDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [inCart, setInCart] = useState(false);
+  const [inVisitList, setInVisitList] = useState(false);
   const [inWishlist, setInWishlist] = useState(false);
 
   // ----------------------------------
@@ -68,7 +68,7 @@ export default function SiteDetails() {
       localStorage.getItem("wishlist") || "[]"
     );
 
-    setInCart(
+    setInVisitList(
       cartRaw.some(
         (item: any) =>
           (item.site_code || item.code) === site.site_code
@@ -118,10 +118,10 @@ export default function SiteDetails() {
   };
 
   // ----------------------------------
-  // 🛒 ADD TO CART (SAFE)
+  // 🛒 ADD TO VISIT LIST (SAFE)
   // ----------------------------------
-  const addToCart = () => {
-    if (!site || inCart) return;
+  const addToVisitList = () => {
+    if (!site || inVisitList) return;
 
     const raw = JSON.parse(
       localStorage.getItem("cart") || "[]"
@@ -147,7 +147,7 @@ export default function SiteDetails() {
       JSON.stringify(unique)
     );
 
-    setInCart(true);
+    setInVisitList(true);
     alert("Added to Visit List 📋");
   };
 
@@ -227,22 +227,22 @@ export default function SiteDetails() {
           {/* ACTION BUTTONS */}
           <div className="flex gap-4 mt-8">
             <button
-              onClick={addToCart}
-              disabled={inCart}
-              className={`px-6 py-2 rounded text-white ${inCart
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-red-600 hover:bg-red-700"
+              onClick={addToVisitList}
+              disabled={inVisitList}
+              className={`px-6 py-2 rounded text-white ${inVisitList
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-red-600 hover:bg-red-700"
                 }`}
             >
-              {inCart ? "Added to Visit List" : "Add to Visit"}
+              {inVisitList ? "In Visit List" : "Add to Visit List"}
             </button>
 
             <button
               onClick={addToWishlist}
               disabled={inWishlist}
               className={`px-6 py-2 rounded border ${inWishlist
-                  ? "border-gray-400 text-gray-400 cursor-not-allowed"
-                  : "border-red-600 text-red-600 hover:bg-red-50"
+                ? "border-gray-400 text-gray-400 cursor-not-allowed"
+                : "border-red-600 text-red-600 hover:bg-red-50"
                 }`}
             >
               {inWishlist ? "❤️ In Wishlist" : "❤️ Wishlist"}

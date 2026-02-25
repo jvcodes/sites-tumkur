@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useWishlist } from '../context/WishlistContext';
+import { useState, useEffect } from 'react';
 
 interface SiteCardProps {
   site: {
@@ -21,6 +22,31 @@ export default function SiteCard({ site }: SiteCardProps) {
   const { toggleWishlist, isInWishlist } = useWishlist();
   const displayId = site.site_code || site.id_str || site._id || '';
   const isLiked = isInWishlist(displayId);
+  const [inVisitList, setInVisitList] = useState(false);
+
+  useEffect(() => {
+    const raw = JSON.parse(localStorage.getItem("cart") || "[]");
+    setInVisitList(raw.some((item: any) => (item.site_code || item.code) === displayId));
+  }, [displayId]);
+
+  const addToVisitList = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (inVisitList) return;
+
+    const raw = JSON.parse(localStorage.getItem("cart") || "[]");
+    const siteToAdd = {
+      site_code: displayId,
+      name: site.name,
+      location: site.location,
+      price: site.price,
+      image: site.image,
+    };
+
+    const normalized = [...raw, siteToAdd];
+    const unique = Array.from(new Map(normalized.map((i: any) => [i.site_code, i])).values());
+    localStorage.setItem("cart", JSON.stringify(unique));
+    setInVisitList(true);
+  };
 
   // Graceful fallback for ID and Image
   const siteId = site.id_str || site._id || '#';
@@ -99,13 +125,25 @@ export default function SiteCard({ site }: SiteCardProps) {
           </div>
         </div>
 
-        {/* Action */}
-        <Link
-          href={`/site/${siteId}`}
-          className="block w-full text-center py-2.5 rounded-lg border border-[var(--color-primary)] text-[var(--color-primary)] font-medium hover:bg-[var(--color-primary)] hover:text-white transition-colors"
-        >
-          View Details
-        </Link>
+        {/* Actions */}
+        <div className="flex gap-2">
+          <Link
+            href={`/site/${siteId}`}
+            className="flex-1 text-center py-2.5 rounded-lg border border-[var(--color-primary)] text-[var(--color-primary)] font-medium hover:bg-[var(--color-primary)] hover:text-white transition-colors text-sm"
+          >
+            View Details
+          </Link>
+          <button
+            onClick={addToVisitList}
+            disabled={inVisitList}
+            className={`flex-1 text-center py-2.5 rounded-lg border transition-colors text-sm font-medium ${inVisitList
+              ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white cursor-not-allowed opacity-80'
+              : 'border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white'
+              }`}
+          >
+            {inVisitList ? 'In Visit List' : 'Add to Visit'}
+          </button>
+        </div>
       </div>
     </div>
   );
