@@ -15,10 +15,44 @@ class SiteSerializer(serializers.Serializer):
 
     price = serializers.FloatField()
     owner = serializers.CharField()
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True
+    )
 
     image = serializers.CharField(
         required=False,
         allow_blank=True,
+        allow_null=True
+    )
+    
+    user_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    dimension = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    facing = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    road_width = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    landmark = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    
+    corner_site = serializers.BooleanField(default=False)
+    boundary_marked = serializers.BooleanField(default=False)
+    levelled_land = serializers.BooleanField(default=False)
+    negotiable = serializers.BooleanField(default=False)
+    loan_facility = serializers.BooleanField(default=False)
+    
+    bbmp_approved = serializers.BooleanField(default=False)
+    a_khata = serializers.BooleanField(default=False)
+    clear_title = serializers.BooleanField(default=False)
+    bank_loan_approved = serializers.BooleanField(default=False)
+    layout_approved = serializers.BooleanField(default=False)
+    
+    borewell_water = serializers.BooleanField(default=False)
+    electricity_nearby = serializers.BooleanField(default=False)
+    drainage_connection = serializers.BooleanField(default=False)
+    asphalt_road_access = serializers.BooleanField(default=False)
+    
+    images = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
         allow_null=True
     )
 

@@ -54,11 +54,16 @@ def approved_sites_api(request):
         s["area"] = s.get("area", 0)
         s["owner"] = s.get("owner", "")
 
-        # ✅ FIX: normalize image
+        # ✅ Ensure full URL for images
         if s.get("image"):
             s["image"] = normalize_image(request, s["image"])
         else:
             s["image"] = ""
+            
+        if s.get("images"):
+            s["images"] = [normalize_image(request, img) for img in s["images"]]
+        else:
+            s["images"] = []
 
     serializer = SiteSerializer(sites, many=True)
 
@@ -134,6 +139,11 @@ def filter_sites_api(request):
             s["image"] = normalize_image(request, s["image"])
         else:
             s["image"] = ""
+            
+        if s.get("images"):
+            s["images"] = [normalize_image(request, img) for img in s["images"]]
+        else:
+            s["images"] = []
 
     serializer = SiteSerializer(sites, many=True)
     return Response({
@@ -145,31 +155,109 @@ def filter_sites_api(request):
 
 
 # --------------------------------------------------
+# 🔹 GET: My Sites (User Profile)
+# --------------------------------------------------
+@api_view(['GET'])
+def my_sites_api(request):
+    user_id = request.GET.get("user_id")
+    owner = request.GET.get("owner")
+    
+    if not user_id and not owner:
+        return Response({"error": "User ID or Owner required"}, status=400)
+        
+    query = {}
+    if user_id and owner:
+        query["$or"] = [{"user_id": user_id}, {"owner": {"$regex": f"^{owner}$", "$options": "i"}}]
+    elif user_id:
+        query["user_id"] = user_id
+    else:
+        query["owner"] = {"$regex": f"^{owner}$", "$options": "i"}
+        
+    cursor = site_collection.find(query).sort("created_at", -1)
+    sites = list(cursor)
+
+    for s in sites:
+        s["id"] = str(s["_id"])
+        s["site_code"] = s.get("site_code", "")
+        s["area"] = s.get("area", 0)
+        s["owner"] = s.get("owner", "")
+
+        # ✅ FULL IMAGE URL
+        if s.get("image"):
+            s["image"] = normalize_image(request, s["image"])
+        else:
+            s["image"] = ""
+            
+        if s.get("images"):
+            s["images"] = [normalize_image(request, img) for img in s["images"]]
+        else:
+            s["images"] = []
+
+    from .serializers import SiteSerializer
+    serializer = SiteSerializer(sites, many=True)
+    return Response(serializer.data)
+
+
+# --------------------------------------------------
 # 🔹 POST: Create Site (Image Upload FIXED)
 # --------------------------------------------------
 @csrf_exempt
 @api_view(['POST'])
 def create_site_api(request):
     try:
-        name = request.POST.get("name")
+        name = request.POST.get("name", "Site")
         location = request.POST.get("location")
         price = request.POST.get("price")
         area = request.POST.get("area")
         owner = request.POST.get("owner")
-        image = request.FILES.get("image")
-
-        if not name or not location or not price:
-            return Response(
-                {"error": "Missing required fields"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        dimension = request.POST.get("dimension", "")
+        facing = request.POST.get("facing", "")
+        # For authenticated users, grab user info (frontend passes user_id or email)
+        user_id = request.POST.get("user_id", "")
+        
+        # New comprehensive fields
+        # Booleans can be passed as "true" / "false" strings
+        def get_bool(key):
+            val = request.POST.get(key, "false").lower()
+            return val in ["true", "1", "yes"]
 
         site_data = {
             "site_code": generate_site_code(),
             "name": name,
             "location": location,
-            "price": int(price),
-            "status": "pending"
+            "price": int(price) if price else 0,
+            "dimension": dimension,
+            "facing": facing,
+            "status": request.POST.get("status", "pending"),  # Usually pending initial upload
+            "user_id": user_id,
+            "created_at": datetime.now(),
+            "updated_at": datetime.now(),
+            
+            # Additional strings
+            "road_width": request.POST.get("road_width", ""),
+            "landmark": request.POST.get("landmark", ""),
+            
+            # Booleans: Specs
+            "corner_site": get_bool("corner_site"),
+            "boundary_marked": get_bool("boundary_marked"),
+            "levelled_land": get_bool("levelled_land"),
+            
+            # Booleans: Commerce
+            "negotiable": get_bool("negotiable"),
+            "loan_facility": get_bool("loan_facility"),
+            
+            # Booleans: Legal & Approval
+            "bbmp_approved": get_bool("bbmp_approved"),
+            "a_khata": get_bool("a_khata"),
+            "clear_title": get_bool("clear_title"),
+            "bank_loan_approved": get_bool("bank_loan_approved"),
+            "layout_approved": get_bool("layout_approved"),
+            
+            # Booleans: Utilities
+            "borewell_water": get_bool("borewell_water"),
+            "electricity_nearby": get_bool("electricity_nearby"),
+            "drainage_connection": get_bool("drainage_connection"),
+            "asphalt_road_access": get_bool("asphalt_road_access"),
         }
 
         if area:
@@ -177,13 +265,25 @@ def create_site_api(request):
 
         if owner:
             site_data["owner"] = owner
+            
+        description = request.POST.get("description")
+        if description:
+            site_data["description"] = description
 
-        # ✅ SAVE IMAGE PROPERLY
-        if image:
-            image_path = default_storage.save(
-                f"sites/{image.name}", image
-            )
-            site_data["image"] = image_path
+        # ✅ SAVE MULTIPLE IMAGES PROPERLY
+        images = request.FILES.getlist("images")
+        image_paths = []
+        for img in images:
+            path = default_storage.save(f"sites/{img.name}", img)
+            image_paths.append(path)
+            
+        site_data["images"] = image_paths
+        
+        # Keep `image` field for backwards compatibility with first image
+        if image_paths:
+            site_data["image"] = image_paths[0]
+        else:
+            site_data["image"] = ""
 
         site_collection.insert_one(site_data)
 
@@ -208,8 +308,13 @@ def update_site_by_code_api(request, site_code):
     update_data = {}
 
     allowed_fields = [
-        "name", "location", "area",
-        "price", "owner", "status"
+        "name", "location", "area", "description",
+        "price", "owner", "status",
+        "dimension", "facing", "road_width", "landmark",
+        "corner_site", "boundary_marked", "levelled_land",
+        "negotiable", "loan_facility", 
+        "bbmp_approved", "a_khata", "clear_title", "bank_loan_approved", "layout_approved",
+        "borewell_water", "electricity_nearby", "drainage_connection", "asphalt_road_access"
     ]
 
     for field in allowed_fields:
@@ -238,6 +343,9 @@ def update_site_by_code_api(request, site_code):
 
     if site.get("image"):
         site["image"] = normalize_image(request, site["image"])
+        
+    if site.get("images"):
+        site["images"] = [normalize_image(request, img) for img in site["images"]]
 
     serializer = SiteSerializer(site)
     return Response(serializer.data)
@@ -385,6 +493,11 @@ def site_detail_by_code_api(request, site_code):
         site["image"] = normalize_image(request, site["image"])
     else:
         site["image"] = ""
+        
+    if site.get("images"):
+        site["images"] = [normalize_image(request, img) for img in site["images"]]
+    else:
+        site["images"] = []
 
     serializer = SiteSerializer(site)
     return Response(serializer.data)

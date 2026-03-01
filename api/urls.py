@@ -7,6 +7,7 @@ urlpatterns = [
     path('sites/create/', views.create_site_api),                # POST
     path('sites/update-by-code/<str:site_code>/', views.update_site_by_code_api),  # PUT
     path('sites/delete-by-code/<str:site_code>/', views.delete_site_by_code_api),  # DELETE
+    path('sites/my-sites/', views.my_sites_api),                 # GET My Sites
     path("bookings/create/", views.create_booking_api),
     path("bookings/admin/", views.admin_bookings_api),
     path("admin/bookings/", views.admin_bookings_page),

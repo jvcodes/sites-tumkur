@@ -6,4 +6,4 @@ def generate_site_code():
         {"$inc": {"seq": 1}},
         return_document=True
     )
-    return f"TUMK-{counter['seq']:04d}"
+    return f"SITE-{counter['seq']:04d}"

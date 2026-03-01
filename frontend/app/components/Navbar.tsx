@@ -98,7 +98,9 @@ export default function Navbar() {
             <>
               <div className="flex flex-col items-end mr-2">
                 <span className="text-xs text-gray-500">Welcome,</span>
-                <span className="text-sm font-bold text-[var(--color-primary)]">{user.name}</span>
+                <Link href="/profile/my-sites" className="text-sm font-bold text-[var(--color-primary)] hover:underline">
+                  {user.name}
+                </Link>
               </div>
 
               <button
