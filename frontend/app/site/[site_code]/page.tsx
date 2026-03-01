@@ -73,6 +73,16 @@ export default function SiteDetails() {
         const data: Site = await res.json();
         setSite(data);
         setError(null);
+
+        // Record Analytics Visit
+        if (user?.email) {
+          fetch("http://127.0.0.1:8000/api/sites/visits/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: user.email, site_code: siteCode })
+          }).catch(console.error); // Silently ignore tracking errors
+        }
+
       } catch {
         setError("Failed to load site details");
       } finally {
@@ -164,7 +174,7 @@ export default function SiteDetails() {
             </span>
             <h1 className="text-3xl font-extrabold text-gray-900 mb-2">{site.name || "Real Estate Plot"}</h1>
             <p className="text-gray-600 text-lg flex items-center">
-              📍 {site.location} {site.landmark ? `(Near ${site.landmark})` : ""}
+              📍 {site.location} {site.landmark ? (site.landmark.toLowerCase().startsWith('near') ? `(${site.landmark})` : `(Near ${site.landmark})`) : ""}
             </p>
           </div>
 

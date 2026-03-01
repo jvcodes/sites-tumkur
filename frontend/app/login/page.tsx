@@ -6,14 +6,16 @@ import { useAuth } from "../context/AuthContext";
 export default function LoginPage() {
     const { login, loading } = useAuth();
     const [formData, setFormData] = useState({
-        name: "John Doe",
-        email: "john@example.com"
+        name: "",
+        email: ""
     });
 
     const handleLogin = async () => {
         // In a real app, this would trigger the Google Popup
         // Here we simulate getting the data back from Google
-        await login(formData.email, formData.name);
+        const email = formData.email.trim() || "john@example.com";
+        const name = formData.name.trim() || "John Doe";
+        await login(email, name);
     };
 
     return (

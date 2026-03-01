@@ -39,6 +39,25 @@ def google_auth_api(request):
     # 2. Get or Create Token
     token, _ = Token.objects.get_or_create(user=user)
     
+    from listings.mongo import user_profiles_collection
+    from datetime import datetime
+    
+    # Update or Create User Profile in MongoDB
+    user_profile = user_profiles_collection.find_one({"email": email})
+    if not user_profile:
+        user_profiles_collection.insert_one({
+            "email": email,
+            "name": name or username,
+            "role": "Buyer", # Default role
+            "phone": "",
+            "created_at": datetime.now()
+        })
+    elif name and not user_profile.get("name"):
+        user_profiles_collection.update_one({"email": email}, {"$set": {"name": name}})
+        
+    # Fetch latest profile
+    profile_data = user_profiles_collection.find_one({"email": email})
+
     return Response({
         "message": f"Successfully {action}",
         "token": token.key,
@@ -46,6 +65,27 @@ def google_auth_api(request):
             "id": user.id,
             "username": user.username,
             "email": user.email,
-            "name": user.first_name
+            "name": profile_data.get("name", user.first_name),
+            "role": profile_data.get("role", "Buyer"),
+            "phone": profile_data.get("phone", "")
         }
     })
+
+
+@api_view(['GET'])
+def my_profile_api(request):
+    """Fetch complete profile from normalized user_profiles_collection"""
+    email = request.GET.get('email')
+    if not email:
+        return Response({"error": "Email is required"}, status=400)
+        
+    from listings.mongo import user_profiles_collection
+    profile = user_profiles_collection.find_one({"email": email})
+    
+    if not profile:
+        return Response({"error": "Profile not found"}, status=404)
+        
+    profile["id"] = str(profile["_id"])
+    del profile["_id"]
+    
+    return Response(profile)

@@ -57,3 +57,7 @@ class SiteSerializer(serializers.Serializer):
     )
 
     status = serializers.CharField(read_only=True)
+    
+    # Optional visit tracking fields
+    visit_date = serializers.DateTimeField(required=False, allow_null=True)
+    visit_status = serializers.CharField(required=False, allow_null=True)

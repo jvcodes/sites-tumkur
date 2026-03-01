@@ -75,8 +75,8 @@ export default function MySitesPage() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto p-6 min-h-screen">
-            <h1 className="text-3xl font-bold text-gray-800 mb-8 border-b pb-4">My Sites Dashboard</h1>
+        <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-800 border-b pb-4">My Uploaded Sites</h1>
 
             {loading ? (
                 <p className="text-gray-500">Loading your sites...</p>
@@ -114,9 +114,9 @@ export default function MySitesPage() {
                                     <td className="px-6 py-4">₹{site.price.toLocaleString()}</td>
                                     <td className="px-6 py-4">
                                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${site.status === "approved" ? "bg-green-100 text-green-700" :
-                                                site.status === "pending" ? "bg-yellow-100 text-yellow-700" :
-                                                    site.status === "sold" ? "bg-red-100 text-red-700" :
-                                                        "bg-gray-100 text-gray-700"
+                                            site.status === "pending" ? "bg-yellow-100 text-yellow-700" :
+                                                site.status === "sold" ? "bg-red-100 text-red-700" :
+                                                    "bg-gray-100 text-gray-700"
                                             }`}>
                                             {site.status.toUpperCase()}
                                         </span>

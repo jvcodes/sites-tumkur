@@ -23,7 +23,67 @@ import os
 def normalize_image(request, image_path):
     if not image_path:
         return ""
+    if image_path.startswith("http"):
+        return image_path
     return f"{request.scheme}://{request.get_host()}{settings.MEDIA_URL}{image_path}"
+
+
+# --------------------------------------------------
+# 🔹 Helper: Hydrate Sites with Locations and Images
+# --------------------------------------------------
+def hydrate_sites(request, sites):
+    from listings.mongo import locations_collection, site_images_collection
+    
+    # 1. Fetch Locations
+    loc_ids = []
+    for s in sites:
+        if s.get("location_id"):
+            try:
+                loc_ids.append(ObjectId(s["location_id"]))
+            except:
+                pass
+                
+    locations = {}
+    if loc_ids:
+        for loc in locations_collection.find({"_id": {"$in": loc_ids}}):
+            locations[str(loc["_id"])] = loc.get("city", "")
+
+    # 2. Fetch Images
+    site_codes = [s.get("site_code") for s in sites if s.get("site_code")]
+    images_map = {}
+    if site_codes:
+        for img in site_images_collection.find({"site_code": {"$in": site_codes}}).sort("created_at", 1):
+            images_map.setdefault(img["site_code"], []).append(img["image_url"])
+
+    for s in sites:
+        s["id"] = str(s["_id"])
+        s["site_code"] = s.get("site_code", "")
+        s["area"] = s.get("area", 0)
+        s["owner"] = s.get("owner", "")
+        
+        # Hydrate text location from location_id
+        if s.get("location_id") and str(s["location_id"]) in locations:
+            s["location"] = locations[str(s["location_id"])]
+        
+        # Hydrate images
+        s_images = images_map.get(s["site_code"], [])
+        
+        # Backward compatibility for sites created before normalization
+        legacy_images = s.get("images", [])
+        if not s_images and legacy_images:
+            s_images = legacy_images
+            
+        if s_images:
+            s["image"] = normalize_image(request, s_images[0])
+            s["images"] = [normalize_image(request, i) for i in s_images]
+        elif s.get("image"):
+            s["image"] = normalize_image(request, s["image"])
+            s["images"] = [s["image"]]
+        else:
+            s["image"] = ""
+            s["images"] = []
+            
+    return sites
 
 
 # --------------------------------------------------
@@ -36,34 +96,18 @@ def approved_sites_api(request):
     skip = (page - 1) * limit
 
     total = site_collection.count_documents(
-        {"status": "approved"}
+        {"status": "approved", "is_deleted": {"$ne": True}}
     )
 
     cursor = (
         site_collection
-        .find({"status": "approved"})
+        .find({"status": "approved", "is_deleted": {"$ne": True}})
         .skip(skip)
         .limit(limit)
     )
 
     sites = list(cursor)
-
-    for s in sites:
-        s["id"] = str(s["_id"])
-        s["site_code"] = s.get("site_code", "")
-        s["area"] = s.get("area", 0)
-        s["owner"] = s.get("owner", "")
-
-        # ✅ Ensure full URL for images
-        if s.get("image"):
-            s["image"] = normalize_image(request, s["image"])
-        else:
-            s["image"] = ""
-            
-        if s.get("images"):
-            s["images"] = [normalize_image(request, img) for img in s["images"]]
-        else:
-            s["images"] = []
+    sites = hydrate_sites(request, sites)
 
     serializer = SiteSerializer(sites, many=True)
 
@@ -81,7 +125,7 @@ def approved_sites_api(request):
 # --------------------------------------------------
 @api_view(['GET'])
 def filter_sites_api(request):
-    query = {"status": "approved"}
+    query = {"status": "approved", "is_deleted": {"$ne": True}}
 
     location = request.GET.get("location")
     search = request.GET.get("search")  # General search term
@@ -128,22 +172,8 @@ def filter_sites_api(request):
 
     sites = list(cursor)
 
-    for s in sites:
-        s["id"] = str(s["_id"])
-        s["site_code"] = s.get("site_code", "")
-        s["area"] = s.get("area", 0)
-        s["owner"] = s.get("owner", "")
-
-        # ✅ FULL IMAGE URL
-        if s.get("image"):
-            s["image"] = normalize_image(request, s["image"])
-        else:
-            s["image"] = ""
-            
-        if s.get("images"):
-            s["images"] = [normalize_image(request, img) for img in s["images"]]
-        else:
-            s["images"] = []
+    sites = list(cursor)
+    sites = hydrate_sites(request, sites)
 
     serializer = SiteSerializer(sites, many=True)
     return Response({
@@ -176,22 +206,8 @@ def my_sites_api(request):
     cursor = site_collection.find(query).sort("created_at", -1)
     sites = list(cursor)
 
-    for s in sites:
-        s["id"] = str(s["_id"])
-        s["site_code"] = s.get("site_code", "")
-        s["area"] = s.get("area", 0)
-        s["owner"] = s.get("owner", "")
-
-        # ✅ FULL IMAGE URL
-        if s.get("image"):
-            s["image"] = normalize_image(request, s["image"])
-        else:
-            s["image"] = ""
-            
-        if s.get("images"):
-            s["images"] = [normalize_image(request, img) for img in s["images"]]
-        else:
-            s["images"] = []
+    sites = list(cursor)
+    sites = hydrate_sites(request, sites)
 
     from .serializers import SiteSerializer
     serializer = SiteSerializer(sites, many=True)
@@ -213,18 +229,41 @@ def create_site_api(request):
         dimension = request.POST.get("dimension", "")
         facing = request.POST.get("facing", "")
         # For authenticated users, grab user info (frontend passes user_id or email)
+        # Authenticated user
         user_id = request.POST.get("user_id", "")
         
-        # New comprehensive fields
+        from listings.mongo import locations_collection, site_images_collection
+        
+        # 1. Normalize Location
+        loc_doc = locations_collection.find_one({"city": location, "area": location})
+        if not loc_doc:
+            loc_result = locations_collection.insert_one({"city": location, "area": location})
+            location_id = str(loc_result.inserted_id)
+        else:
+            location_id = str(loc_doc["_id"])
+            
+        # 2. Duplicate Check
+        if user_id and dimension:
+            existing = site_collection.find_one({
+                "user_id": user_id,
+                "dimension": dimension,
+                "location_id": location_id,
+                "is_deleted": {"$ne": True}
+            })
+            if existing:
+                return Response({"error": "You have already uploaded a site with this dimension in this location."}, status=400)
+                
+        site_code = generate_site_code()
+
         # Booleans can be passed as "true" / "false" strings
         def get_bool(key):
             val = request.POST.get(key, "false").lower()
             return val in ["true", "1", "yes"]
 
         site_data = {
-            "site_code": generate_site_code(),
+            "site_code": site_code,
             "name": name,
-            "location": location,
+            "location_id": location_id,
             "price": int(price) if price else 0,
             "dimension": dimension,
             "facing": facing,
@@ -232,6 +271,7 @@ def create_site_api(request):
             "user_id": user_id,
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
+            "is_deleted": False,
             
             # Additional strings
             "road_width": request.POST.get("road_width", ""),
@@ -270,20 +310,16 @@ def create_site_api(request):
         if description:
             site_data["description"] = description
 
-        # ✅ SAVE MULTIPLE IMAGES PROPERLY
+        # ✅ SAVE MULTIPLE IMAGES PROPERLY IN NORMALIZED COLLECTION
         images = request.FILES.getlist("images")
-        image_paths = []
+        
         for img in images:
             path = default_storage.save(f"sites/{img.name}", img)
-            image_paths.append(path)
-            
-        site_data["images"] = image_paths
-        
-        # Keep `image` field for backwards compatibility with first image
-        if image_paths:
-            site_data["image"] = image_paths[0]
-        else:
-            site_data["image"] = ""
+            site_images_collection.insert_one({
+                "site_code": site_code,
+                "image_url": path,
+                "created_at": datetime.now()
+            })
 
         site_collection.insert_one(site_data)
 
@@ -293,6 +329,8 @@ def create_site_api(request):
         )
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return Response(
             {"error": str(e)},
             status=status.HTTP_400_BAD_REQUEST
@@ -339,13 +377,7 @@ def update_site_by_code_api(request, site_code):
         )
 
     site = site_collection.find_one({"site_code": site_code})
-    site["id"] = str(site["_id"])
-
-    if site.get("image"):
-        site["image"] = normalize_image(request, site["image"])
-        
-    if site.get("images"):
-        site["images"] = [normalize_image(request, img) for img in site["images"]]
+    site = hydrate_sites(request, [site])[0]
 
     serializer = SiteSerializer(site)
     return Response(serializer.data)
@@ -356,7 +388,10 @@ def update_site_by_code_api(request, site_code):
 # --------------------------------------------------
 @api_view(['DELETE'])
 def delete_site_by_code_api(request, site_code):
-    result = site_collection.delete_one({"site_code": site_code})
+    result = site_collection.update_one(
+        {"site_code": site_code},
+        {"$set": {"is_deleted": True}}
+    )
 
     if result.deleted_count == 0:
         return Response(
@@ -474,7 +509,7 @@ def update_booking_status_api(request, booking_id):
 def site_detail_by_code_api(request, site_code):
     site = site_collection.find_one({
         "site_code": site_code,
-        "status": "approved"
+        "is_deleted": {"$ne": True}
     })
 
     if not site:
@@ -483,21 +518,7 @@ def site_detail_by_code_api(request, site_code):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    site["id"] = str(site["_id"])
-    site["site_code"] = site.get("site_code", "")
-    site["area"] = site.get("area", 0)
-    site["owner"] = site.get("owner", "")
-
-    # ✅ normalize image
-    if site.get("image"):
-        site["image"] = normalize_image(request, site["image"])
-    else:
-        site["image"] = ""
-        
-    if site.get("images"):
-        site["images"] = [normalize_image(request, img) for img in site["images"]]
-    else:
-        site["images"] = []
+    site = hydrate_sites(request, [site])[0]
 
     serializer = SiteSerializer(site)
     return Response(serializer.data)

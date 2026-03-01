@@ -96,26 +96,40 @@ export default function Navbar() {
 
           {user ? (
             <>
-              <div className="flex flex-col items-end mr-2">
-                <span className="text-xs text-gray-500">Welcome,</span>
-                <Link href="/profile/my-sites" className="text-sm font-bold text-[var(--color-primary)] hover:underline">
-                  {user.name}
-                </Link>
+              <div className="relative group">
+                <button className="flex items-center gap-2 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-gray-200">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
+                    {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                  <div className="flex flex-col items-start hidden sm:flex">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Profile</span>
+                    <span className="text-sm font-bold text-gray-800 line-clamp-1 max-w-[100px]">{user.name}</span>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+
+                {/* DROPDOWN MENU */}
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 transform origin-top-right scale-95 group-hover:scale-100">
+                  <div className="p-2 space-y-1">
+                    <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">👤</span> My Profile
+                    </Link>
+                    <Link href="/profile/visits" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">👁️</span> My Visits
+                    </Link>
+                    <Link href="/profile/booked" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">📅</span> Booked for Visit
+                    </Link>
+                    <Link href="/profile/my-sites" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">🏠</span> My Uploaded Sites
+                    </Link>
+                    <div className="h-px bg-gray-100 my-1"></div>
+                    <button onClick={logout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg font-bold transition-colors">
+                      <span className="opacity-80">🚪</span> Logout
+                    </button>
+                  </div>
+                </div>
               </div>
-
-              <button
-                onClick={logout}
-                className="text-gray-500 hover:text-red-600 text-sm font-medium"
-              >
-                Logout
-              </button>
-
-              <Link
-                href="/upload-site"
-                className="border border-[var(--color-primary)] text-[var(--color-primary)] px-4 py-2 rounded-lg hover:bg-[var(--color-primary)] hover:text-white transition-all"
-              >
-                ➕ Upload my site
-              </Link>
             </>
           ) : (
             <Link
