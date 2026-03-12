@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import { useAuth } from "../context/AuthContext";
+
 interface CartItem {
   site_code: string;
   name: string;
@@ -12,10 +14,12 @@ interface CartItem {
 }
 
 export default function CartPage() {
+  const { user } = useAuth(); // Fix for crash
   const [cart, setCart] = useState<CartItem[]>([]);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
   const [message, setMessage] = useState("");
 
   // ----------------------------------
@@ -75,8 +79,8 @@ export default function CartPage() {
   // SUBMIT BOOKING
   // ----------------------------------
   const submitBooking = async () => {
-    if (!name || !phone || !date) {
-      alert("Please fill all booking details");
+    if (!name || !phone || !date || !time) {
+      alert("Please fill all booking details including time");
       return;
     }
 
@@ -84,6 +88,8 @@ export default function CartPage() {
       name,
       phone,
       date,
+      time,
+      email: user?.email || undefined,
       sites: cart,
     };
 
@@ -117,7 +123,7 @@ export default function CartPage() {
           Your Cart is Empty 🛒
         </h2>
         <p className="text-gray-500 mb-6">
-          {message || "Please add sites to continue"}
+          {message || "Please add sites to your cart to continue"}
         </p>
         <Link
           href="/"
@@ -203,28 +209,33 @@ export default function CartPage() {
             className="w-full border rounded px-3 py-2 mb-3"
           />
 
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full border rounded px-3 py-2 mb-4"
-          />
-
-          <div className="flex justify-between text-sm mb-2">
-            <span>Total Sites</span>
-            <span>{cart.length}</span>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-1/2 border rounded px-3 py-2"
+              required
+            />
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-1/2 border rounded px-3 py-2"
+              required
+            />
           </div>
 
-          <div className="flex justify-between text-lg font-semibold mb-6">
-            <span>Total Amount</span>
-            <span>₹ {totalPrice}</span>
+          <div className="flex justify-between text-sm mb-6 pb-4 border-b">
+            <span className="text-gray-600 font-medium">Total Sites Checked Out</span>
+            <span className="font-bold">{cart.length}</span>
           </div>
 
           <button
             onClick={submitBooking}
             className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700"
           >
-            Submit Booking
+            Submit Visiting
           </button>
 
           {message && (

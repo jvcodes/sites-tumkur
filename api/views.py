@@ -23,7 +23,67 @@ import os
 def normalize_image(request, image_path):
     if not image_path:
         return ""
+    if image_path.startswith("http"):
+        return image_path
     return f"{request.scheme}://{request.get_host()}{settings.MEDIA_URL}{image_path}"
+
+
+# --------------------------------------------------
+# 🔹 Helper: Hydrate Sites with Locations and Images
+# --------------------------------------------------
+def hydrate_sites(request, sites):
+    from listings.mongo import locations_collection, site_images_collection
+    
+    # 1. Fetch Locations
+    loc_ids = []
+    for s in sites:
+        if s.get("location_id"):
+            try:
+                loc_ids.append(ObjectId(s["location_id"]))
+            except:
+                pass
+                
+    locations = {}
+    if loc_ids:
+        for loc in locations_collection.find({"_id": {"$in": loc_ids}}):
+            locations[str(loc["_id"])] = loc.get("city", "")
+
+    # 2. Fetch Images
+    site_codes = [s.get("site_code") for s in sites if s.get("site_code")]
+    images_map = {}
+    if site_codes:
+        for img in site_images_collection.find({"site_code": {"$in": site_codes}}).sort("created_at", 1):
+            images_map.setdefault(img["site_code"], []).append(img["image_url"])
+
+    for s in sites:
+        s["id"] = str(s["_id"])
+        s["site_code"] = s.get("site_code", "")
+        s["area"] = s.get("area", 0)
+        s["owner"] = s.get("owner", "")
+        
+        # Hydrate text location from location_id
+        if s.get("location_id") and str(s["location_id"]) in locations:
+            s["location"] = locations[str(s["location_id"])]
+        
+        # Hydrate images
+        s_images = images_map.get(s["site_code"], [])
+        
+        # Backward compatibility for sites created before normalization
+        legacy_images = s.get("images", [])
+        if not s_images and legacy_images:
+            s_images = legacy_images
+            
+        if s_images:
+            s["image"] = normalize_image(request, s_images[0])
+            s["images"] = [normalize_image(request, i) for i in s_images]
+        elif s.get("image"):
+            s["image"] = normalize_image(request, s["image"])
+            s["images"] = [s["image"]]
+        else:
+            s["image"] = ""
+            s["images"] = []
+            
+    return sites
 
 
 # --------------------------------------------------
@@ -36,29 +96,18 @@ def approved_sites_api(request):
     skip = (page - 1) * limit
 
     total = site_collection.count_documents(
-        {"status": "approved"}
+        {"status": "approved", "is_deleted": {"$ne": True}}
     )
 
     cursor = (
         site_collection
-        .find({"status": "approved"})
+        .find({"status": "approved", "is_deleted": {"$ne": True}})
         .skip(skip)
         .limit(limit)
     )
 
     sites = list(cursor)
-
-    for s in sites:
-        s["id"] = str(s["_id"])
-        s["site_code"] = s.get("site_code", "")
-        s["area"] = s.get("area", 0)
-        s["owner"] = s.get("owner", "")
-
-        # ✅ FIX: normalize image
-        if s.get("image"):
-            s["image"] = normalize_image(request, s["image"])
-        else:
-            s["image"] = ""
+    sites = hydrate_sites(request, sites)
 
     serializer = SiteSerializer(sites, many=True)
 
@@ -76,9 +125,10 @@ def approved_sites_api(request):
 # --------------------------------------------------
 @api_view(['GET'])
 def filter_sites_api(request):
-    query = {"status": "approved"}
+    query = {"status": "approved", "is_deleted": {"$ne": True}}
 
     location = request.GET.get("location")
+    search = request.GET.get("search")  # General search term
     min_price = request.GET.get("min_price")
     max_price = request.GET.get("max_price")
     site_code = request.GET.get("site_code")
@@ -88,7 +138,15 @@ def filter_sites_api(request):
         query["location"] = {"$regex": location, "$options": "i"}
 
     if site_code:
-        query["site_code"] = {"$regex": site_code, "$options": "i"}
+         query["site_code"] = {"$regex": site_code, "$options": "i"}
+
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"location": {"$regex": search, "$options": "i"}},
+            {"landmark": {"$regex": search, "$options": "i"}},
+            {"site_code": {"$regex": search, "$options": "i"}},
+        ]
 
     if min_price or max_price:
         query["price"] = {}
@@ -104,20 +162,54 @@ def filter_sites_api(request):
     elif sort == "price_high":
         cursor = cursor.sort("price", -1)
 
+    # ---------------- PAGINATION ----------------
+    page = int(request.GET.get("page", 1))
+    limit = int(request.GET.get("limit", 12))
+    skip = (page - 1) * limit
+
+    total = site_collection.count_documents(query)
+    cursor = cursor.skip(skip).limit(limit)
+
     sites = list(cursor)
 
-    for s in sites:
-        s["id"] = str(s["_id"])
-        s["site_code"] = s.get("site_code", "")
-        s["area"] = s.get("area", 0)
-        s["owner"] = s.get("owner", "")
+    sites = list(cursor)
+    sites = hydrate_sites(request, sites)
 
-        # ✅ FULL IMAGE URL
-        if s.get("image"):
-            s["image"] = normalize_image(request, s["image"])
-        else:
-            s["image"] = ""
+    serializer = SiteSerializer(sites, many=True)
+    return Response({
+        "results": serializer.data,
+        "total": total,
+        "page": page,
+        "limit": limit
+    })
 
+
+# --------------------------------------------------
+# 🔹 GET: My Sites (User Profile)
+# --------------------------------------------------
+@api_view(['GET'])
+def my_sites_api(request):
+    user_id = request.GET.get("user_id")
+    owner = request.GET.get("owner")
+    
+    if not user_id and not owner:
+        return Response({"error": "User ID or Owner required"}, status=400)
+        
+    query = {}
+    if user_id and owner:
+        query["$or"] = [{"user_id": user_id}, {"owner": {"$regex": f"^{owner}$", "$options": "i"}}]
+    elif user_id:
+        query["user_id"] = user_id
+    else:
+        query["owner"] = {"$regex": f"^{owner}$", "$options": "i"}
+        
+    cursor = site_collection.find(query).sort("created_at", -1)
+    sites = list(cursor)
+
+    sites = list(cursor)
+    sites = hydrate_sites(request, sites)
+
+    from .serializers import SiteSerializer
     serializer = SiteSerializer(sites, many=True)
     return Response(serializer.data)
 
@@ -129,25 +221,83 @@ def filter_sites_api(request):
 @api_view(['POST'])
 def create_site_api(request):
     try:
-        name = request.POST.get("name")
+        name = request.POST.get("name", "Site")
         location = request.POST.get("location")
         price = request.POST.get("price")
         area = request.POST.get("area")
         owner = request.POST.get("owner")
-        image = request.FILES.get("image")
+        dimension = request.POST.get("dimension", "")
+        facing = request.POST.get("facing", "")
+        # For authenticated users, grab user info (frontend passes user_id or email)
+        # Authenticated user
+        user_id = request.POST.get("user_id", "")
+        
+        from listings.mongo import locations_collection, site_images_collection
+        
+        # 1. Normalize Location
+        loc_doc = locations_collection.find_one({"city": location, "area": location})
+        if not loc_doc:
+            loc_result = locations_collection.insert_one({"city": location, "area": location})
+            location_id = str(loc_result.inserted_id)
+        else:
+            location_id = str(loc_doc["_id"])
+            
+        # 2. Duplicate Check
+        if user_id and dimension:
+            existing = site_collection.find_one({
+                "user_id": user_id,
+                "dimension": dimension,
+                "location_id": location_id,
+                "is_deleted": {"$ne": True}
+            })
+            if existing:
+                return Response({"error": "You have already uploaded a site with this dimension in this location."}, status=400)
+                
+        site_code = generate_site_code()
 
-        if not name or not location or not price:
-            return Response(
-                {"error": "Missing required fields"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Booleans can be passed as "true" / "false" strings
+        def get_bool(key):
+            val = request.POST.get(key, "false").lower()
+            return val in ["true", "1", "yes"]
 
         site_data = {
-            "site_code": generate_site_code(),
+            "site_code": site_code,
             "name": name,
-            "location": location,
-            "price": int(price),
-            "status": "pending"
+            "location_id": location_id,
+            "price": int(price) if price else 0,
+            "dimension": dimension,
+            "facing": facing,
+            "status": request.POST.get("status", "pending"),  # Usually pending initial upload
+            "user_id": user_id,
+            "created_at": datetime.now(),
+            "updated_at": datetime.now(),
+            "is_deleted": False,
+            
+            # Additional strings
+            "road_width": request.POST.get("road_width", ""),
+            "landmark": request.POST.get("landmark", ""),
+            
+            # Booleans: Specs
+            "corner_site": get_bool("corner_site"),
+            "boundary_marked": get_bool("boundary_marked"),
+            "levelled_land": get_bool("levelled_land"),
+            
+            # Booleans: Commerce
+            "negotiable": get_bool("negotiable"),
+            "loan_facility": get_bool("loan_facility"),
+            
+            # Booleans: Legal & Approval
+            "bbmp_approved": get_bool("bbmp_approved"),
+            "a_khata": get_bool("a_khata"),
+            "clear_title": get_bool("clear_title"),
+            "bank_loan_approved": get_bool("bank_loan_approved"),
+            "layout_approved": get_bool("layout_approved"),
+            
+            # Booleans: Utilities
+            "borewell_water": get_bool("borewell_water"),
+            "electricity_nearby": get_bool("electricity_nearby"),
+            "drainage_connection": get_bool("drainage_connection"),
+            "asphalt_road_access": get_bool("asphalt_road_access"),
         }
 
         if area:
@@ -155,13 +305,21 @@ def create_site_api(request):
 
         if owner:
             site_data["owner"] = owner
+            
+        description = request.POST.get("description")
+        if description:
+            site_data["description"] = description
 
-        # ✅ SAVE IMAGE PROPERLY
-        if image:
-            image_path = default_storage.save(
-                f"sites/{image.name}", image
-            )
-            site_data["image"] = image_path
+        # ✅ SAVE MULTIPLE IMAGES PROPERLY IN NORMALIZED COLLECTION
+        images = request.FILES.getlist("images")
+        
+        for img in images:
+            path = default_storage.save(f"sites/{img.name}", img)
+            site_images_collection.insert_one({
+                "site_code": site_code,
+                "image_url": path,
+                "created_at": datetime.now()
+            })
 
         site_collection.insert_one(site_data)
 
@@ -171,6 +329,8 @@ def create_site_api(request):
         )
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return Response(
             {"error": str(e)},
             status=status.HTTP_400_BAD_REQUEST
@@ -186,8 +346,13 @@ def update_site_by_code_api(request, site_code):
     update_data = {}
 
     allowed_fields = [
-        "name", "location", "area",
-        "price", "owner", "status"
+        "name", "location", "area", "description",
+        "price", "owner", "status",
+        "dimension", "facing", "road_width", "landmark",
+        "corner_site", "boundary_marked", "levelled_land",
+        "negotiable", "loan_facility", 
+        "bbmp_approved", "a_khata", "clear_title", "bank_loan_approved", "layout_approved",
+        "borewell_water", "electricity_nearby", "drainage_connection", "asphalt_road_access"
     ]
 
     for field in allowed_fields:
@@ -212,10 +377,7 @@ def update_site_by_code_api(request, site_code):
         )
 
     site = site_collection.find_one({"site_code": site_code})
-    site["id"] = str(site["_id"])
-
-    if site.get("image"):
-        site["image"] = normalize_image(request, site["image"])
+    site = hydrate_sites(request, [site])[0]
 
     serializer = SiteSerializer(site)
     return Response(serializer.data)
@@ -226,7 +388,10 @@ def update_site_by_code_api(request, site_code):
 # --------------------------------------------------
 @api_view(['DELETE'])
 def delete_site_by_code_api(request, site_code):
-    result = site_collection.delete_one({"site_code": site_code})
+    result = site_collection.update_one(
+        {"site_code": site_code},
+        {"$set": {"is_deleted": True}}
+    )
 
     if result.deleted_count == 0:
         return Response(
@@ -251,11 +416,12 @@ def create_booking_api(request):
     name = data.get("name")
     phone = data.get("phone")
     date = data.get("date")
+    time_str = data.get("time")
     sites = data.get("sites")
 
-    if not name or not phone or not date or not sites:
+    if not name or not phone or not date or not time_str or not sites:
         return Response(
-            {"error": "Missing booking details"},
+            {"error": "Missing booking details including time"},
             status=400
         )
 
@@ -263,6 +429,7 @@ def create_booking_api(request):
         "name": name,
         "phone": phone,
         "date": date,
+        "time": time_str,
         "sites": sites,
         "status": "pending",
         "created_at": datetime.now()
@@ -270,11 +437,59 @@ def create_booking_api(request):
 
     booking_collection.insert_one(booking)
 
+    # Upsert user profile to ensure phone is recorded as primary ID
+    from listings.mongo import user_profiles_collection
+    
+    # If the frontend passes email, link it to the profile
+    email = data.get("email")
+    if email:
+        user_profiles_collection.update_one(
+            {"email": email},
+            {"$set": {"phone": phone, "name": name}},
+            upsert=True
+        )
+    else:
+        # Fallback if unauthenticated: just ensure a profile with this phone exists
+        user_profiles_collection.update_one(
+            {"phone": phone},
+            {"$set": {"name": name}},
+            upsert=True
+        )
+
     return Response(
-        {"message": "Booking request submitted"},
+        {"message": "Visiting request submitted"},
         status=201
     )
 
+@api_view(['GET'])
+def my_bookings_api(request):
+    phone = request.GET.get("phone")
+    email = request.GET.get("email")
+    
+    if not phone and not email:
+        return Response({"error": "Phone number or email required"}, status=400)
+        
+    from listings.mongo import user_profiles_collection
+    
+    # Resolve phone number if only email is provided
+    if not phone and email:
+        profile = user_profiles_collection.find_one({"email": email})
+        if profile and profile.get("phone"):
+            phone = profile["phone"]
+            
+    if not phone:
+        # If still no phone, try fetching bookings by email directly (if associated)
+        query = {"email": email} if email else {}
+    else:
+        query = {"phone": phone}
+
+    bookings = list(booking_collection.find(query).sort("created_at", -1))
+    
+    for b in bookings:
+        b["id"] = str(b["_id"])
+        del b["_id"]
+        
+    return Response(bookings)
 
 @api_view(['GET'])
 def admin_bookings_api(request):
@@ -290,18 +505,46 @@ def admin_bookings_api(request):
 
 
 def admin_bookings_page(request):
+    search_phone = request.GET.get("phone", "")
+    
+    query = {}
+    if search_phone:
+        query["phone"] = search_phone
+        
     bookings = list(
-        booking_collection.find().sort("created_at", -1)
+        booking_collection.find(query).sort("date", 1)  # Sort by date for better conflict visualization
     )
+    
+    # Needs to be sorted by created_at ideally, but let's let python sort or maintain sort
+    bookings.sort(key=lambda x: x.get("created_at", datetime.min), reverse=True)
 
+    from listings.mongo import agents_collection
+    agents = list(agents_collection.find({"is_active": {"$ne": False}}))
+    for a in agents:
+        a["id"] = str(a["_id"])
+
+    # Basic Conflict Detection (same date)
+    date_counts = {}
+    for b in bookings:
+        d = b.get("date")
+        if d and b.get("status") in ("pending", "approved"):
+            date_counts[d] = date_counts.get(d, 0) + 1
+            
     for b in bookings:
         b["id"] = str(b["_id"])
         del b["_id"]
+        # Mark conflict if multiple active bookings exist on that day
+        d = b.get("date")
+        b["has_conflict"] = date_counts.get(d, 0) > 1
 
     return render(
         request,
         "admin_bookings.html",
-        {"bookings": bookings}
+        {
+            "bookings": bookings,
+            "search_phone": search_phone,
+            "agents": agents
+        }
     )
 
 
@@ -344,7 +587,7 @@ def update_booking_status_api(request, booking_id):
 def site_detail_by_code_api(request, site_code):
     site = site_collection.find_one({
         "site_code": site_code,
-        "status": "approved"
+        "is_deleted": {"$ne": True}
     })
 
     if not site:
@@ -353,16 +596,7 @@ def site_detail_by_code_api(request, site_code):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    site["id"] = str(site["_id"])
-    site["site_code"] = site.get("site_code", "")
-    site["area"] = site.get("area", 0)
-    site["owner"] = site.get("owner", "")
-
-    # ✅ normalize image
-    if site.get("image"):
-        site["image"] = normalize_image(request, site["image"])
-    else:
-        site["image"] = ""
+    site = hydrate_sites(request, [site])[0]
 
     serializer = SiteSerializer(site)
     return Response(serializer.data)

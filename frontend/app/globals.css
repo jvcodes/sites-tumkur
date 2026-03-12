@@ -1,5 +1,44 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: #0f172a; /* Slate 900 */
+  --color-primary-light: #1e293b; /* Slate 800 */
+  --color-accent: #d97706; /* Amber 600 */
+  --color-accent-hover: #b45309; /* Amber 700 */
+  --color-bg-base: #f8fafc; /* Slate 50 */
+  --color-text-main: #1e293b;
+  --color-text-muted: #64748b;
+  
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
 
+/* Custom Base Styles for Maintainability */
+:root {
+  --foreground-rgb: 15, 23, 42;
+  --background-start-rgb: 248, 250, 252;
+  --background-end-rgb: 255, 255, 255;
+}
 
+body {
+  color: var(--color-text-main);
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
+/* Component Utilities */
+@layer components {
+  .btn-primary {
+    @apply bg-[var(--color-primary)] text-white px-6 py-2 rounded-lg font-medium transition-colors hover:bg-[var(--color-primary-light)];
+  }
+  
+  .btn-accent {
+    @apply bg-[var(--color-accent)] text-white px-6 py-2 rounded-lg font-medium transition-colors hover:bg-[var(--color-accent-hover)];
+  }
+}
