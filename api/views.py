@@ -416,11 +416,12 @@ def create_booking_api(request):
     name = data.get("name")
     phone = data.get("phone")
     date = data.get("date")
+    time_str = data.get("time")
     sites = data.get("sites")
 
-    if not name or not phone or not date or not sites:
+    if not name or not phone or not date or not time_str or not sites:
         return Response(
-            {"error": "Missing booking details"},
+            {"error": "Missing booking details including time"},
             status=400
         )
 
@@ -428,6 +429,7 @@ def create_booking_api(request):
         "name": name,
         "phone": phone,
         "date": date,
+        "time": time_str,
         "sites": sites,
         "status": "pending",
         "created_at": datetime.now()
@@ -435,11 +437,59 @@ def create_booking_api(request):
 
     booking_collection.insert_one(booking)
 
+    # Upsert user profile to ensure phone is recorded as primary ID
+    from listings.mongo import user_profiles_collection
+    
+    # If the frontend passes email, link it to the profile
+    email = data.get("email")
+    if email:
+        user_profiles_collection.update_one(
+            {"email": email},
+            {"$set": {"phone": phone, "name": name}},
+            upsert=True
+        )
+    else:
+        # Fallback if unauthenticated: just ensure a profile with this phone exists
+        user_profiles_collection.update_one(
+            {"phone": phone},
+            {"$set": {"name": name}},
+            upsert=True
+        )
+
     return Response(
-        {"message": "Booking request submitted"},
+        {"message": "Visiting request submitted"},
         status=201
     )
 
+@api_view(['GET'])
+def my_bookings_api(request):
+    phone = request.GET.get("phone")
+    email = request.GET.get("email")
+    
+    if not phone and not email:
+        return Response({"error": "Phone number or email required"}, status=400)
+        
+    from listings.mongo import user_profiles_collection
+    
+    # Resolve phone number if only email is provided
+    if not phone and email:
+        profile = user_profiles_collection.find_one({"email": email})
+        if profile and profile.get("phone"):
+            phone = profile["phone"]
+            
+    if not phone:
+        # If still no phone, try fetching bookings by email directly (if associated)
+        query = {"email": email} if email else {}
+    else:
+        query = {"phone": phone}
+
+    bookings = list(booking_collection.find(query).sort("created_at", -1))
+    
+    for b in bookings:
+        b["id"] = str(b["_id"])
+        del b["_id"]
+        
+    return Response(bookings)
 
 @api_view(['GET'])
 def admin_bookings_api(request):
@@ -455,18 +505,46 @@ def admin_bookings_api(request):
 
 
 def admin_bookings_page(request):
+    search_phone = request.GET.get("phone", "")
+    
+    query = {}
+    if search_phone:
+        query["phone"] = search_phone
+        
     bookings = list(
-        booking_collection.find().sort("created_at", -1)
+        booking_collection.find(query).sort("date", 1)  # Sort by date for better conflict visualization
     )
+    
+    # Needs to be sorted by created_at ideally, but let's let python sort or maintain sort
+    bookings.sort(key=lambda x: x.get("created_at", datetime.min), reverse=True)
 
+    from listings.mongo import agents_collection
+    agents = list(agents_collection.find({"is_active": {"$ne": False}}))
+    for a in agents:
+        a["id"] = str(a["_id"])
+
+    # Basic Conflict Detection (same date)
+    date_counts = {}
+    for b in bookings:
+        d = b.get("date")
+        if d and b.get("status") in ("pending", "approved"):
+            date_counts[d] = date_counts.get(d, 0) + 1
+            
     for b in bookings:
         b["id"] = str(b["_id"])
         del b["_id"]
+        # Mark conflict if multiple active bookings exist on that day
+        d = b.get("date")
+        b["has_conflict"] = date_counts.get(d, 0) > 1
 
     return render(
         request,
         "admin_bookings.html",
-        {"bookings": bookings}
+        {
+            "bookings": bookings,
+            "search_phone": search_phone,
+            "agents": agents
+        }
     )
 
 

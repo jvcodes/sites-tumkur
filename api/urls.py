@@ -14,16 +14,11 @@ urlpatterns = [
     path('auth/profile/me/', auth_views.my_profile_api),        # GET My Profile
     
     path("bookings/create/", views.create_booking_api),
+    path("bookings/me/", views.my_bookings_api),
     path("bookings/admin/", views.admin_bookings_api),
     path("admin/bookings/", views.admin_bookings_page),
     path("bookings/update/<str:booking_id>/", views.update_booking_status_api),
     path("sites/<str:site_code>/", views.site_detail_by_code_api),
-
-   
-
-
-
-
 
 
     # Auth

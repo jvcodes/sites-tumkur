@@ -13,6 +13,7 @@ locations_collection = db["locations"]
 site_images_collection = db["site_images"]
 visits_collection = db["visits"]
 user_profiles_collection = db["user_profiles"]
+agents_collection = db["agents"]
 
 def setup_database_indexes():
     """Create indexes for scalability and data integrity."""
