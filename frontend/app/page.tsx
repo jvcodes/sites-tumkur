@@ -1,269 +1,142 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import SiteCard from "./components/SiteCard";
-import SiteCardSkeleton from "./components/SiteCardSkeleton";
-
-interface Site {
-  site_code: string;
-  name: string;
-  location: string;
-  price: number;
-  image?: string;
-}
 
 export default function Home() {
-  const searchParams = useSearchParams();
-  const searchQuery = searchParams.get("q");
-
-  const [sites, setSites] = useState<Site[]>([]);
+  const [sites, setSites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
 
-  // 🔍 filters
-  const [location, setLocation] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [sort, setSort] = useState("");
-
-  // 📄 pagination
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const limit = 9;
-
-  // 🔹 Load data when page or search changes
+  // Initial Fetch & Search
   useEffect(() => {
-    if (searchQuery) {
-      applySearch(searchQuery);
-    } else {
-      fetchAllSites();
-    }
-  }, [searchQuery, page]);
-
-  // 🔹 Fetch paginated approved sites
-  const fetchAllSites = async () => {
-    try {
+    const fetchSites = async () => {
       setLoading(true);
+      try {
+        let url = `/api/sites/?`;
 
-      const res = await fetch(
-        `http://127.0.0.1:8000/api/sites/?page=${page}&limit=${limit}`
-      );
+        // Switch to filter endpoint if we have filters
+        if (searchTerm || locationFilter) {
+          url = `/api/sites/filter/?`;
+          if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+          if (locationFilter) url += `&location=${encodeURIComponent(locationFilter)}`;
+        }
 
-      const data = await res.json();
+        console.log("Fetching URL:", url); // DEBUG
+        const res = await fetch(url);
 
-      setSites(data.results || []);
-      setTotal(data.total || 0);
-      setError("");
-    } catch {
-      setError("Failed to fetch sites");
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (!res.ok) {
+          throw new Error(`Server status: ${res.status}`);
+        }
 
-  // 🔹 Apply sidebar filters (resets page)
-  const applyFilters = async () => {
-    try {
-      setLoading(true);
-      setPage(1);
+        const data = await res.json();
+        console.log("API Response Data:", data); // DEBUG
 
-      let url =
-        "http://127.0.0.1:8000/api/sites/filter/?";
-
-      if (location) {
-        url += `location=${encodeURIComponent(location)}&`;
+        // Handle new paginated response structure { results: [], total: 0 }
+        if (data.results) {
+          setSites(data.results);
+        } else if (Array.isArray(data)) {
+          setSites(data);
+        } else {
+          setSites([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch sites", error);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      if (maxPrice) {
-        url += `max_price=${maxPrice}&`;
-      }
+    // Debounce slightly to prevent spam
+    const timeoutId = setTimeout(() => {
+      fetchSites();
+    }, 500);
 
-      if (sort) {
-        url += `sort=${sort}`;
-      }
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      setSites(data);
-      setTotal(data.length);
-      setError("");
-    } catch {
-      setError("Failed to apply filters");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 🔹 Search (site_code OR location)
-  const applySearch = async (query: string) => {
-    try {
-      setLoading(true);
-      setPage(1);
-
-      const isSiteCode = /\d/.test(query);
-
-      let url =
-        "http://127.0.0.1:8000/api/sites/filter/?";
-
-      if (isSiteCode) {
-        url += `site_code=${encodeURIComponent(query)}`;
-      } else {
-        url += `location=${encodeURIComponent(query)}`;
-      }
-
-      if (sort) {
-        url += `&sort=${sort}`;
-      }
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      setSites(data);
-      setTotal(data.length);
-      setError("");
-    } catch {
-      setError("Search failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, locationFilter]);
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto p-6">
-        <h1 className="text-2xl font-semibold mb-6">
-          Approved Sites
-        </h1>
+    <main className="min-h-screen bg-[var(--color-bg-base)]">
+      {/* ---------------- HERO SECTION ---------------- */}
+      <section className="relative bg-[var(--color-primary)] text-white py-24 px-6 overflow-hidden">
+        {/* Background Pattern (Optional) */}
+        <div className="absolute inset-0 opacity-10 bg-[url('/pattern.png')]"></div>
 
-        {error && (
-          <p className="text-red-500 mb-4">{error}</p>
-        )}
+        <div className="relative max-w-4xl mx-auto text-center space-y-6">
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
+            Find Your Perfect <span className="text-[var(--color-accent)]">Site</span> in Tumkur
+          </h1>
+          <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto">
+            Discover premium residential plots, commercial lands, and agricultural sites verified for you.
+          </p>
 
-        <div className="flex gap-6">
-          {/* FILTER SIDEBAR */}
-          <div className="w-1/4 bg-white rounded-lg shadow p-4 h-fit">
-            <h2 className="font-semibold text-lg mb-4">
-              Filters
-            </h2>
-
-            <label className="block text-sm mb-1">
-              Location
-            </label>
+          {/* Search Bar */}
+          <div className="flex flex-col md:flex-row gap-3 max-w-2xl mx-auto mt-8 p-2 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl">
             <input
               type="text"
-              value={location}
-              onChange={(e) =>
-                setLocation(e.target.value)
-              }
-              placeholder="Enter city"
-              className="w-full border rounded px-3 py-2 mb-4"
+              placeholder="Search by landmark, area..."
+              className="flex-1 px-6 py-3 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-
-            <label className="block text-sm mb-1">
-              Max Price
-            </label>
-            <input
-              type="number"
-              value={maxPrice}
-              onChange={(e) =>
-                setMaxPrice(e.target.value)
-              }
-              placeholder="₹ Max"
-              className="w-full border rounded px-3 py-2 mb-4"
-            />
-
-            <label className="block text-sm mb-1">
-              Sort by Price
-            </label>
             <select
-              value={sort}
-              onChange={(e) =>
-                setSort(e.target.value)
-              }
-              className="w-full border rounded px-3 py-2 mb-4"
+              className="px-6 py-3 rounded-xl bg-gray-50 text-gray-800 border-l border-gray-200 focus:outline-none cursor-pointer"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
             >
-              <option value="">Default</option>
-              <option value="price_low">
-                Low to High
-              </option>
-              <option value="price_high">
-                High to Low
-              </option>
+              <option value="">All Locations</option>
+              <option value="Tumkur">Tumkur</option>
+              <option value="Gubbi">Gubbi</option>
+              <option value="Kunigal">Kunigal</option>
+              <option value="Sira">Sira</option>
+              <option value="Tiptur">Tiptur</option>
             </select>
-
-            <button
-              onClick={applyFilters}
-              className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700"
-            >
-              Apply Filters
+            <button className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg transform hover:scale-105">
+              Search
             </button>
-
-            <button
-              onClick={() => {
-                setPage(1);
-                fetchAllSites();
-              }}
-              className="w-full mt-2 border border-red-600 text-red-600 py-2 rounded hover:bg-red-50"
-            >
-              Reset
-            </button>
-          </div>
-
-          {/* RESULTS */}
-          <div className="w-3/4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {loading &&
-                Array.from({ length: 6 }).map((_, i) => (
-                  <SiteCardSkeleton key={i} />
-                ))}
-
-              {!loading && sites.length === 0 && (
-                <p className="text-gray-500">
-                  No sites found.
-                </p>
-              )}
-
-              {!loading &&
-                sites.map((site) => (
-                  <SiteCard
-                    key={site.site_code}
-                    name={site.name}
-                    location={site.location}
-                    price={site.price}
-                    code={site.site_code}
-                    image={site.image}
-                  />
-                ))}
-            </div>
-
-            {/* PAGINATION */}
-            {!loading && total > limit && (
-              <div className="flex justify-center gap-4 mt-8">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                  className="px-4 py-2 border rounded disabled:opacity-50"
-                >
-                  Prev
-                </button>
-
-                <span className="px-4 py-2">
-                  Page {page}
-                </span>
-
-                <button
-                  disabled={page * limit >= total}
-                  onClick={() => setPage(page + 1)}
-                  className="px-4 py-2 border rounded disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            )}
           </div>
         </div>
+      </section>
+
+      {/* ---------------- CONTENT SECTION ---------------- */}
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-2xl font-bold text-[var(--color-primary)]">
+            Latest Listings
+          </h2>
+          <span className="text-gray-500 text-sm">Showing {sites.length} sites</span>
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 ">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-96 bg-gray-100 rounded-2xl animate-pulse"></div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && sites.length === 0 && (
+          <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+            <p className="text-gray-500 text-lg">No sites found matching your criteria.</p>
+            <button
+              onClick={() => { setSearchTerm(''); setLocationFilter(''); }}
+              className="mt-4 text-[var(--color-accent)] font-medium hover:underline"
+            >
+              Clear Filters
+            </button>
+          </div>
+        )}
+
+        {/* Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {sites.map((site) => (
+            <SiteCard key={site._id || site.id_str} site={site} />
+          ))}
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,48 +1,164 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>Edit Site</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Site | SiteHub</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --primary-light: #1e293b;
+            --accent: #d97706;
+            --accent-hover: #b45309;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --gray: #64748b;
+            --white: #ffffff;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--gray);
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            /* Fix padding issue */
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+        }
+
+        input[readonly] {
+            background-color: #f1f5f9;
+            color: var(--gray);
+            cursor: not-allowed;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-light);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--gray);
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f1f5f9;
+            color: var(--text);
+        }
+    </style>
 </head>
+
 <body>
 
-<h2>Edit Site</h2>
+    <div class="container">
+        <h2>Edit Site Details</h2>
 
-<form method="post">
-    {% csrf_token %}
+        <form method="post">
+            {% csrf_token %}
 
-    <p>
-        <b>Site Code:</b>
-        <input type="text" value="{{ site.site_code }}" readonly>
-    </p>
+            <div class="form-group">
+                <label>Site Code</label>
+                <input type="text" value="{{ site.site_code }}" readonly>
+            </div>
 
-    <p>
-        <label>Name</label><br>
-        <input type="text" name="name" value="{{ site.name }}" required>
-    </p>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="name" value="{{ site.name }}" required>
+            </div>
 
-    <p>
-        <label>Location</label><br>
-        <input type="text" name="location" value="{{ site.location }}" required>
-    </p>
+            <div class="form-group">
+                <label>Location</label>
+                <input type="text" name="location" value="{{ site.location }}" required>
+            </div>
 
-    <p>
-        <label>Area</label><br>
-        <input type="number" name="area" value="{{ site.area }}" required>
-    </p>
+            <div class="form-group">
+                <label>Area (sq.ft)</label>
+                <input type="number" name="area" value="{{ site.area }}" required>
+            </div>
 
-    <p>
-        <label>Price</label><br>
-        <input type="number" name="price" value="{{ site.price }}" required>
-    </p>
+            <div class="form-group">
+                <label>Price (₹)</label>
+                <input type="number" name="price" value="{{ site.price }}" required>
+            </div>
 
-    <p>
-        <label>Owner</label><br>
-        <input type="text" name="owner" value="{{ site.owner }}" required>
-    </p>
+            <div class="form-group">
+                <label>Owner Name</label>
+                <input type="text" name="owner" value="{{ site.owner }}" required>
+            </div>
 
-    <button type="submit">Save Changes</button>
-    <a href="{% url 'admin_dashboard' %}">Cancel</a>
-</form>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
 
 </body>
+
 </html>

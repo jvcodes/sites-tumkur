@@ -2,11 +2,37 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useWishlist } from "../context/WishlistContext";
 
 export default function Navbar() {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const { user, logout } = useAuth();
+  const { wishlist } = useWishlist();
+  const [visitListCount, setVisitListCount] = useState(0);
+
+  // Update visit list count periodically to reflect changes from other components
+  useEffect(() => {
+    const updateCount = () => {
+      const raw = JSON.parse(localStorage.getItem("cart") || "[]");
+      setVisitListCount(raw.length);
+    };
+
+    updateCount(); // Initial load
+
+    // Listen for storage changes (works across tabs)
+    window.addEventListener("storage", updateCount);
+
+    // Polling as a fallback for same-tab changes since localStorage doesn't trigger 'storage' event in the same tab easily without custom events
+    const intervalId = setInterval(updateCount, 1000);
+
+    return () => {
+      window.removeEventListener("storage", updateCount);
+      clearInterval(intervalId);
+    };
+  }, []);
 
   // 🔍 Trigger search on Enter
   const handleSearch = (
@@ -24,7 +50,7 @@ export default function Navbar() {
         {/* LOGO */}
         <Link
           href="/"
-          className="text-2xl font-bold text-red-600"
+          className="text-2xl font-bold text-[var(--color-primary)] tracking-wide"
         >
           SiteHub
         </Link>
@@ -38,7 +64,7 @@ export default function Navbar() {
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleSearch}
             className="w-full border border-gray-300 rounded-full px-4 py-2
-                       focus:outline-none focus:ring-2 focus:ring-red-500"
+                       focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] bg-gray-50"
           />
         </div>
 
@@ -46,30 +72,80 @@ export default function Navbar() {
         <div className="flex items-center gap-5">
           <Link
             href="/wishlist"
-            className="text-gray-700 hover:text-red-600"
+            className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
           >
             ❤️ Wishlist
+            {wishlist.length > 0 && (
+              <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
+                {wishlist.length}
+              </span>
+            )}
           </Link>
 
           <Link
             href="/cart"
-            className="text-gray-700 hover:text-red-600"
+            className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
           >
-            🛒 Cart
+            📋 Visit List
+            {visitListCount > 0 && (
+              <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
+                {visitListCount}
+              </span>
+            )}
           </Link>
 
-          <Link
-            href="/upload-site"
-            className="border border-red-600 text-red-600 px-4 py-2 rounded hover:bg-red-50"
-          >
-            ➕ Upload Site
-          </Link>
+          {user ? (
+            <>
+              <div className="relative group">
+                <button className="flex items-center gap-2 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-gray-200">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
+                    {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                  <div className="flex flex-col items-start hidden sm:flex">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Profile</span>
+                    <span className="text-sm font-bold text-gray-800 line-clamp-1 max-w-[100px]">{user.name}</span>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+
+                {/* DROPDOWN MENU */}
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 transform origin-top-right scale-95 group-hover:scale-100">
+                  <div className="p-2 space-y-1">
+                    <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">👤</span> My Profile
+                    </Link>
+                    <Link href="/profile/visits" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">👁️</span> My Visits
+                    </Link>
+                    <Link href="/profile/booked" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">📅</span> Booked for Visit
+                    </Link>
+                    <Link href="/profile/my-sites" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">🏠</span> My Uploaded Sites
+                    </Link>
+                    <div className="h-px bg-gray-100 my-1"></div>
+                    <button onClick={logout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg font-bold transition-colors">
+                      <span className="opacity-80">🚪</span> Logout
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="bg-[var(--color-primary)] text-white px-4 md:px-6 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-light)] transition-all shadow-md text-sm md:text-base"
+            >
+              Login
+            </Link>
+          )}
 
           <Link
             href="/dashboard"
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            className="text-gray-400 hover:text-[var(--color-primary)] ml-2 text-sm"
+            title="Admin Access"
           >
-            Admin
+            🛠️
           </Link>
         </div>
       </div>
