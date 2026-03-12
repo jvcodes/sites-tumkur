@@ -5,6 +5,12 @@ To secure site management, custom administrative interfaces were written separat
 ## Booking Administration (`/admin/bookings/`)
 Located natively via Python templating at `listings/templates/admin_bookings.html`.
 
+### Default Credentials
+To access the dashboard and perform actions, use the Superuser account:
+- **Username**: `admin`
+- **Password**: `admin123`
+*(Note: If you need to reset this password or create a new superuser, run the script `python debug/create_superuser.py`)*
+
 ### The Controller (`admin_bookings_page` inside `api/views.py`)
 - **Security:** Access routed directly using Django's HTTP responses (typically requires custom middleware for authentication, currently leverages default).
 - **Data Gathering:** Iterates `booking_collection` and `agents_collection` dynamically.

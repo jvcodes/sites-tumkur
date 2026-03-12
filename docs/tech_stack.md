@@ -2,6 +2,15 @@
 
 This real estate listing and booking platform utilizes a modern decoupled setup separated into a frontend application and a backend API server.
 
+## Required Technologies (Prerequisites)
+To successfully run, build, or deploy this project, the following core technologies must be installed:
+- **Python (v3.10+)**: Required for the Django backend API.
+- **Node.js (LTS v18+)**: Required for the Next.js frontend and React ecosystem.
+- **MongoDB**: A running local or cloud instance of MongoDB Server.
+- **Git**: For version control and cloning the repository.
+- **npm (or yarn)**: For managing frontend packages.
+- **Pip**: For managing Python dependencies (included with Python).
+
 ## Frontend Architecture
 - **Framework:** Next.js (React) utilizing the newer App Router (`app/` directory).
 - **Styling:** Tailwind CSS for responsive and consistent visual design.
