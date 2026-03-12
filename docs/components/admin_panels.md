@@ -1,5 +1,7 @@
 # Component: Custom Admin Panels
 
+> See [admin_agent_portal.md](./admin_agent_portal.md) for full details on the Admin Hub, Agent Portal, default credentials, and navigation flow.
+
 To secure site management, custom administrative interfaces were written separating logic away from Django's default Admin dashboard.
 
 ## Booking Administration (`/admin/bookings/`)

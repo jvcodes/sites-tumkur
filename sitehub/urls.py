@@ -1,36 +1,44 @@
 """
 URL configuration for sitehub project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-
-
-
 
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from api import views as api_views
 
 
 urlpatterns = [
-
     path('api/', include('api.urls')),
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),   # Django built-in admin (moved to avoid conflict)
     path('', include('listings.urls')),
-   
 
+    # -----------------------------------------------
+    # Short-form Admin Hub URLs (without /api/ prefix)
+    # -----------------------------------------------
+    path('admin/hub/', api_views.admin_hub_page),
+    path('admin/agents/', api_views.admin_agents_page),
+    path('admin/agents/add/', api_views.admin_add_agent),
+    path('admin/agents/toggle/', api_views.admin_toggle_agent),
+    path('admin/sites/pending/', api_views.admin_sites_pending_page),
+    path('admin/sites/approve/', api_views.admin_approve_site),
+    path('admin/sites/upload/', api_views.admin_upload_site_page),
+    path('admin/sites/edit/', api_views.admin_edit_site),
+    path('admin/bookings/', api_views.admin_bookings_page),
+    path('admin/bookings/update/<str:booking_id>/', api_views.admin_update_booking),
+    path('admin/user-profile/', api_views.admin_user_profile),
+    path('bookings/update/<str:booking_id>/', api_views.update_booking_status_api),
+
+    # -----------------------------------------------
+    # Short-form Agent Portal URLs (without /api/ prefix)
+    # -----------------------------------------------
+    path('agent/portal/', api_views.agent_portal_page),
+    path('agent/portal/login/', api_views.agent_portal_login),
+    path('agent/portal/logout/', api_views.agent_portal_logout),
+    path('agent/visits/', api_views.agent_visits_page),
+    path('agent/visits/complete/', api_views.agent_complete_visit),
+    path('agent/sites/', api_views.agent_sites_page),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Assigned Visits — SiteHub Agent Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin:0; font-family:'Inter',sans-serif; background:#f1f5f9; }
+    .layout { display:flex; min-height:100vh; }
+    .agent-sidebar { width:220px; min-height:100vh; background:#1e3a5f; padding:0; flex-shrink:0; }
+    .main { flex:1; padding:32px; overflow-y:auto; }
+    .nav-a { display:flex; align-items:center; gap:10px; padding:10px 16px; color:#94a3b8; text-decoration:none; font-size:14px; font-weight:500; border-radius:8px; margin:2px 8px; transition:background 0.15s;}
+    .nav-a:hover, .nav-a.active { background:rgba(255,255,255,0.1); color:#fff; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- Agent Sidebar -->
+  <aside class="agent-sidebar">
+    <div style="padding:20px 16px 16px; border-bottom:1px solid rgba(255,255,255,0.08);">
+      <div style="font-size:16px; font-weight:800; color:#fff;">🏢 Agent Portal</div>
+      <div style="font-size:11px; color:#64748b; margin-top:3px;">Welcome, {{ agent_name }}</div>
+    </div>
+    <nav style="padding:8px 0;">
+      <a href="/agent/visits/" class="nav-a active">📅 My Visits</a>
+      <a href="/agent/sites/" class="nav-a">🏗️ Site Reviews</a>
+    </nav>
+    <div style="padding:12px 8px; border-top:1px solid rgba(255,255,255,0.07); margin-top:auto;">
+      <a href="/admin/hub/" class="nav-a" style="border:1px solid rgba(255,255,255,0.1); margin-bottom:8px;">⚙️ Admin Hub</a>
+      <a href="http://localhost:3000" target="_blank" class="nav-a" style="border:1px solid rgba(255,255,255,0.1); margin-bottom:8px;">🏠 Back to SiteHub</a>
+      <a href="/agent/portal/logout/" class="nav-a" style="color:#f87171;">← Logout</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div style="margin-bottom:24px;">
+      <h1 style="font-size:22px; font-weight:800; color:#0f172a; margin:0;">My Assigned Visits</h1>
+      <p style="color:#64748b; margin:4px 0 0;">Visits assigned to you — review details and mark as completed.</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:18px;">
+      {% for booking in visits %}
+      <div style="background:#fff; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.07); border:1px solid #e2e8f0;">
+        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:14px;">
+          <div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">{{ booking.name }}</div>
+            <div style="font-size:13px; color:#64748b; margin-top:2px;">📞 {{ booking.phone }}</div>
+          </div>
+          <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;
+            {% if booking.status == 'approved' %}background:#dcfce7; color:#166534;
+            {% elif booking.status == 'completed' %}background:#dbeafe; color:#1e40af;
+            {% else %}background:#fef3c7; color:#92400e;{% endif %}">
+            {{ booking.status|upper }}
+          </span>
+        </div>
+
+        <div style="background:#f8fafc; border-radius:8px; padding:10px 12px; margin-bottom:14px; display:flex; justify-content:space-between;">
+          <div>
+            <div style="font-size:10px; color:#94a3b8; font-weight:600;">DATE</div>
+            <div style="font-size:14px; font-weight:600; color:#0f172a;">{{ booking.date }}</div>
+          </div>
+          {% if booking.time %}
+          <div style="text-align:right;">
+            <div style="font-size:10px; color:#94a3b8; font-weight:600;">TIME</div>
+            <div style="font-size:14px; font-weight:600; color:#3b82f6;">{{ booking.time }}</div>
+          </div>
+          {% endif %}
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11px; color:#94a3b8; font-weight:600; margin-bottom:6px;">SITES TO VISIT</div>
+          {% for site in booking.sites %}
+          <div style="font-size:13px; background:#f8fafc; padding:5px 10px; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:4px;">
+            <strong>{{ site.site_code }}</strong> — {{ site.name }}
+          </div>
+          {% endfor %}
+        </div>
+
+        {% if booking.status == 'approved' %}
+        <form method="post" action="/agent/visits/complete/">
+          {% csrf_token %}
+          <input type="hidden" name="booking_id" value="{{ booking.id }}">
+          <button type="submit" style="width:100%; background:#10b981; color:#fff; padding:9px; border-radius:8px; border:none; font-size:13px; font-weight:600; cursor:pointer;">
+            ✔️ Mark as Completed
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% empty %}
+      <div style="grid-column:1/-1; text-align:center; padding:60px; background:#fff; border-radius:12px; color:#94a3b8;">
+        <div style="font-size:36px; margin-bottom:12px;">📭</div>
+        <div style="font-size:15px; font-weight:600;">No visits assigned to you yet.</div>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+</div>
+</body>
+</html>

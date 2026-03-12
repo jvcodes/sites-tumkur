@@ -543,7 +543,8 @@ def admin_bookings_page(request):
         {
             "bookings": bookings,
             "search_phone": search_phone,
-            "agents": agents
+            "agents": agents,
+            "message": request.GET.get("msg", ""),
         }
     )
 
@@ -600,3 +601,434 @@ def site_detail_by_code_api(request, site_code):
 
     serializer = SiteSerializer(site)
     return Response(serializer.data)
+
+
+# ================================================================
+# 🔷 ADMIN HUB VIEWS
+# ================================================================
+
+from listings.mongo import agents_collection, user_profiles_collection
+from django.http import HttpResponseRedirect
+
+
+def admin_hub_page(request):
+    """Main admin dashboard with summary statistics."""
+    pending_visits = booking_collection.count_documents({"status": "pending"})
+    pending_sites = site_collection.count_documents({"status": "pending", "is_deleted": {"$ne": True}})
+    active_agents = agents_collection.count_documents({"is_active": {"$ne": False}})
+    total_bookings = booking_collection.count_documents({})
+
+    recent_bookings = list(
+        booking_collection.find({"status": "pending"}).sort("created_at", -1).limit(8)
+    )
+    for b in recent_bookings:
+        b["id"] = str(b["_id"])
+        del b["_id"]
+
+    return render(request, "admin_hub.html", {
+        "pending_visits": pending_visits,
+        "pending_sites": pending_sites,
+        "active_agents": active_agents,
+        "total_bookings": total_bookings,
+        "recent_bookings": recent_bookings,
+    })
+
+
+def admin_agents_page(request):
+    """Manage all agents — list and add new agents."""
+    message = request.GET.get("msg", "")
+    error = request.GET.get("err", "")
+
+    agents = list(agents_collection.find().sort("name", 1))
+    for a in agents:
+        a["id"] = str(a["_id"])
+        del a["_id"]
+
+    return render(request, "admin_agents.html", {
+        "agents": agents,
+        "message": message,
+        "error": error,
+    })
+
+
+def admin_add_agent(request):
+    """POST: Create a new agent in the database."""
+    if request.method != "POST":
+        return HttpResponseRedirect("/admin/agents/")
+
+    name = request.POST.get("name", "").strip()
+    phone = request.POST.get("phone", "").strip()
+    email = request.POST.get("email", "").strip()
+
+    if not name or not phone:
+        return HttpResponseRedirect("/admin/agents/?err=Name+and+phone+are+required")
+
+    existing = agents_collection.find_one({"phone": phone})
+    if existing:
+        return HttpResponseRedirect(f"/admin/agents/?err=Agent+with+phone+{phone}+already+exists")
+
+    agents_collection.insert_one({
+        "name": name,
+        "phone": phone,
+        "email": email if email else None,
+        "is_active": True,
+        "created_at": datetime.now(),
+    })
+    return HttpResponseRedirect(f"/admin/agents/?msg=Agent+{name}+added+successfully")
+
+
+def admin_toggle_agent(request):
+    """POST: Toggle an agent's active status."""
+    if request.method != "POST":
+        return HttpResponseRedirect("/admin/agents/")
+
+    agent_id = request.POST.get("agent_id")
+    current_status = request.POST.get("current_status", "True")
+
+    try:
+        is_active = current_status.lower() not in ("false", "none")
+        # Toggle
+        agents_collection.update_one(
+            {"_id": ObjectId(agent_id)},
+            {"$set": {"is_active": not is_active}}
+        )
+        status_str = "deactivated" if is_active else "activated"
+        return HttpResponseRedirect(f"/admin/agents/?msg=Agent+{status_str}+successfully")
+    except Exception:
+        return HttpResponseRedirect("/admin/agents/?err=Failed+to+update+agent+status")
+
+
+def admin_sites_pending_page(request):
+    """Show all sites with pending status for admin review."""
+    message = request.GET.get("msg", "")
+    sites_cursor = site_collection.find({"status": "pending", "is_deleted": {"$ne": True}}).sort("created_at", -1)
+    sites = []
+    for s in sites_cursor:
+        s["id"] = str(s["_id"])
+        del s["_id"]
+        sites.append(s)
+    return render(request, "admin_sites_pending.html", {"sites": sites, "message": message})
+
+
+def admin_approve_site(request):
+    """POST: Approve or reject a pending site."""
+    if request.method != "POST":
+        return HttpResponseRedirect("/admin/sites/pending/")
+
+    site_code = request.POST.get("site_code")
+    action = request.POST.get("action")  # 'approved' or 'rejected'
+
+    if not site_code or action not in ("approved", "rejected"):
+        return HttpResponseRedirect("/admin/sites/pending/?msg=Invalid+action")
+
+    site_collection.update_one(
+        {"site_code": site_code},
+        {"$set": {"status": action}}
+    )
+    return HttpResponseRedirect(f"/admin/sites/pending/?msg=Site+{site_code}+marked+as+{action}")
+
+
+SITE_FEATURES = [
+    {"key": "corner_site", "label": "Corner Site"},
+    {"key": "bbmp_approved", "label": "BBMP Approved"},
+    {"key": "park_facing", "label": "Park Facing"},
+    {"key": "road_facing", "label": "Road Facing"},
+    {"key": "near_school", "label": "Near School"},
+    {"key": "near_hospital", "label": "Near Hospital"},
+    {"key": "gated_community", "label": "Gated Community"},
+    {"key": "water_connection", "label": "Water Connection"},
+    {"key": "electricity", "label": "Electricity"},
+    {"key": "paved_road", "label": "Paved Road"},
+    {"key": "east_west_road", "label": "E-W Road Access"},
+    {"key": "loan_facility", "label": "Loan Facility"},
+]
+
+
+def admin_upload_site_page(request):
+    """GET: Show site upload form. POST: Create site on behalf of a user."""
+    message = request.GET.get("msg", "")
+    error = request.GET.get("err", "")
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        location = request.POST.get("location", "").strip()
+        price = request.POST.get("price")
+        area = request.POST.get("area")
+        dimension = request.POST.get("dimension", "")
+        facing = request.POST.get("facing", "")
+        description = request.POST.get("description", "")
+        owner = request.POST.get("owner", "").strip()
+        uploaded_phone = request.POST.get("uploaded_phone", "").strip()
+        site_status = request.POST.get("status", "pending")
+
+        if not name or not location or not price or not owner or not uploaded_phone:
+            return HttpResponseRedirect("/admin/sites/upload/?err=Please+fill+all+required+fields")
+
+        from listings.utils import generate_site_code
+        site_code = generate_site_code(name)
+
+        features = {f["key"]: (request.POST.get(f["key"]) == "true") for f in SITE_FEATURES}
+
+        site_doc = {
+            "site_code": site_code,
+            "name": name,
+            "location": location,
+            "price": float(price),
+            "area": float(area) if area else None,
+            "dimension": dimension,
+            "facing": facing,
+            "description": description,
+            "owner": owner,
+            "uploaded_phone": uploaded_phone,
+            "status": site_status,
+            "is_deleted": False,
+            "created_at": datetime.now(),
+            **features,
+        }
+        site_collection.insert_one(site_doc)
+        return HttpResponseRedirect(f"/admin/sites/upload/?msg=Site+{site_code}+uploaded+successfully")
+
+    return render(request, "admin_upload_site.html", {
+        "features": SITE_FEATURES,
+        "message": message,
+        "error": error,
+    })
+
+
+# ================================================================
+# 🔶 AGENT PORTAL VIEWS
+# ================================================================
+
+def agent_portal_page(request):
+    """SiteHub Agent Portal — login page."""
+    # If already logged in, redirect to visits
+    if request.session.get("agent_phone"):
+        return HttpResponseRedirect("/agent/visits/")
+    error = request.GET.get("err", "")
+    return render(request, "agent_portal.html", {"error": error})
+
+
+def agent_portal_login(request):
+    """POST: Authenticate agent by phone number."""
+    if request.method != "POST":
+        return HttpResponseRedirect("/agent/portal/")
+
+    phone = request.POST.get("phone", "").strip()
+    agent = agents_collection.find_one({"phone": phone, "is_active": {"$ne": False}})
+
+    if not agent:
+        return HttpResponseRedirect("/agent/portal/?err=No+active+agent+found+with+this+phone")
+
+    request.session["agent_phone"] = phone
+    request.session["agent_name"] = agent.get("name", "Agent")
+    return HttpResponseRedirect("/agent/visits/")
+
+
+def agent_portal_logout(request):
+    """Clear agent session and redirect to login."""
+    request.session.flush()
+    return HttpResponseRedirect("/agent/portal/")
+
+
+def agent_visits_page(request):
+    """Show visits assigned to the logged-in agent."""
+    agent_phone = request.session.get("agent_phone")
+    if not agent_phone:
+        return HttpResponseRedirect("/agent/portal/")
+
+    agent_name = request.session.get("agent_name", "Agent")
+    agent = agents_collection.find_one({"phone": agent_phone})
+    if not agent:
+        return HttpResponseRedirect("/agent/portal/?err=Agent+not+found")
+
+    # Match by agent name stored in booking
+    visits = list(
+        booking_collection.find({"broker_name": agent.get("name")}).sort("date", 1)
+    )
+    for v in visits:
+        v["id"] = str(v["_id"])
+        del v["_id"]
+
+    return render(request, "agent_visits.html", {"visits": visits, "agent_name": agent_name})
+
+
+def agent_complete_visit(request):
+    """POST: Agent marks a visit as completed."""
+    if request.method != "POST":
+        return HttpResponseRedirect("/agent/visits/")
+    if not request.session.get("agent_phone"):
+        return HttpResponseRedirect("/agent/portal/")
+
+    booking_id = request.POST.get("booking_id")
+    try:
+        booking_collection.update_one(
+            {"_id": ObjectId(booking_id)},
+            {"$set": {"status": "completed"}}
+        )
+    except Exception:
+        pass
+    return HttpResponseRedirect("/agent/visits/")
+
+
+def agent_sites_page(request):
+    """Show pending site listings for agent review."""
+    if not request.session.get("agent_phone"):
+        return HttpResponseRedirect("/agent/portal/")
+
+    agent_name = request.session.get("agent_name", "Agent")
+    sites = list(
+        site_collection.find({"status": "pending", "is_deleted": {"$ne": True}}).sort("created_at", -1).limit(20)
+    )
+    for s in sites:
+        s["id"] = str(s["_id"])
+        del s["_id"]
+
+    return render(request, "agent_sites.html", {"sites": sites, "agent_name": agent_name})
+
+
+# ================================================================
+# 🔷 ADMIN BOOKING UPDATE (Form-based — redirects back after save)
+# ================================================================
+
+def admin_update_booking(request, booking_id):
+    """POST: Update booking status, agent, date, and time. Redirects back to /admin/bookings/."""
+    if request.method != "POST":
+        return HttpResponseRedirect("/admin/bookings/")
+
+    status_value = request.POST.get("status", "").strip()
+    broker_name  = request.POST.get("broker_name", "").strip()
+    date_value   = request.POST.get("date", "").strip()
+    time_value   = request.POST.get("time", "").strip()
+
+    update_data = {}
+    if status_value:
+        update_data["status"] = status_value
+    if broker_name:
+        update_data["broker_name"] = broker_name
+    elif "broker_name" in request.POST:
+        # Explicit empty = clear assignment
+        update_data["broker_name"] = ""
+    if date_value:
+        update_data["date"] = date_value
+    if time_value:
+        update_data["time"] = time_value
+
+    try:
+        booking_collection.update_one(
+            {"_id": ObjectId(booking_id)},
+            {"$set": update_data}
+        )
+    except Exception:
+        pass
+
+    return HttpResponseRedirect("/admin/bookings/?msg=Booking+updated+successfully")
+
+
+# ================================================================
+# 🔷 ADMIN SITE EDIT (Inline edit from pending sites page)
+# ================================================================
+
+def admin_edit_site(request):
+    """POST: Edit a pending site's details, optionally approve immediately."""
+    if request.method != "POST":
+        return HttpResponseRedirect("/admin/sites/pending/")
+
+    site_code   = request.POST.get("site_code", "").strip()
+    action      = request.POST.get("action", "save")  # 'save' or 'save_approve'
+    name        = request.POST.get("name", "").strip()
+    location    = request.POST.get("location", "").strip()
+    price       = request.POST.get("price")
+    area        = request.POST.get("area")
+    plot_size   = request.POST.get("plot_size", "")
+    dimension   = request.POST.get("dimension", "")
+    facing      = request.POST.get("facing", "")
+    ownership_type = request.POST.get("ownership_type", "")
+    availability = request.POST.get("availability", "")
+    road_width  = request.POST.get("road_width", "")
+    landmark    = request.POST.get("landmark", "")
+    distance_to_main_road = request.POST.get("distance_to_main_road", "")
+    zoning_type = request.POST.get("zoning_type", "")
+    category    = request.POST.get("category", "")
+    description = request.POST.get("description", "")
+
+    if not site_code:
+        return HttpResponseRedirect("/admin/sites/pending/?msg=Invalid+site")
+
+    update_data = {
+        "name": name,
+        "location": location,
+        "plot_size": plot_size,
+        "dimension": dimension,
+        "facing": facing,
+        "ownership_type": ownership_type,
+        "availability": availability,
+        "road_width": road_width,
+        "landmark": landmark,
+        "distance_to_main_road": distance_to_main_road,
+        "zoning_type": zoning_type,
+        "category": category,
+        "description": description,
+    }
+    if price:
+        update_data["price"] = float(price)
+    if area:
+        update_data["area"] = float(area)
+    if action == "save_approve":
+        update_data["status"] = "approved"
+
+    site_collection.update_one(
+        {"site_code": site_code},
+        {"$set": update_data}
+    )
+
+    if action == "save_approve":
+        return HttpResponseRedirect(f"/admin/sites/pending/?msg=Site+{site_code}+saved+and+approved")
+    return HttpResponseRedirect(f"/admin/sites/pending/?msg=Site+{site_code}+updated+successfully")
+
+
+# ================================================================
+# 🔷 ADMIN USER PROFILE — JSON endpoint for the profile drawer
+# ================================================================
+
+def admin_user_profile(request):
+    """GET ?phone=xxx  — Returns user profile, bookings, sites, and visits."""
+    from django.http import JsonResponse
+    phone = request.GET.get("phone", "").strip()
+    if not phone:
+        return JsonResponse({"error": "Phone is required"}, status=400)
+
+    from listings.mongo import user_profiles_collection
+
+    # Profile
+    profile = user_profiles_collection.find_one({"phone": phone}) or {}
+    if profile:
+        profile["id"] = str(profile.pop("_id", ""))
+
+    # Bookings by this phone
+    bookings = list(booking_collection.find({"phone": phone}).sort("created_at", -1).limit(10))
+    for b in bookings:
+        b["id"] = str(b["_id"])
+        del b["_id"]
+
+    # Sites uploaded by this phone
+    sites = list(site_collection.find({"uploaded_phone": phone}).sort("created_at", -1).limit(10))
+    for s in sites:
+        s["id"] = str(s["_id"])
+        del s["_id"]
+
+    # Visits (from visits_collection) by this phone or user
+    from listings.mongo import visits_collection
+    visits = []
+    if profile.get("email"):
+        visits = list(visits_collection.find({"user_id": profile.get("email")}).sort("created_at", -1).limit(10))
+        for v in visits:
+            v["id"] = str(v["_id"])
+            del v["_id"]
+
+    return JsonResponse({
+        "profile": profile,
+        "bookings": bookings,
+        "sites": sites,
+        "visits": visits,
+    })
+

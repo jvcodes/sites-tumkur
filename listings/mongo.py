@@ -41,6 +41,10 @@ def setup_database_indexes():
     visits_collection.create_index("site_code")
     visits_collection.create_index([("user_id", 1), ("site_code", 1)], unique=True)
 
+    # Agents — phone is primary unique identifier
+    agents_collection.create_index("phone", unique=True)
+    agents_collection.create_index("is_active")
+
 # Run index setup
 try:
     setup_database_indexes()

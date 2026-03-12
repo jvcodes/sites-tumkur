@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Site Reviews — SiteHub Agent Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin:0; font-family:'Inter',sans-serif; background:#f1f5f9; }
+    .layout { display:flex; min-height:100vh; }
+    .agent-sidebar { width:220px; min-height:100vh; background:#1e3a5f; padding:0; flex-shrink:0; }
+    .main { flex:1; padding:32px; overflow-y:auto; }
+    .nav-a { display:flex; align-items:center; gap:10px; padding:10px 16px; color:#94a3b8; text-decoration:none; font-size:14px; font-weight:500; border-radius:8px; margin:2px 8px; transition:background 0.15s;}
+    .nav-a:hover, .nav-a.active { background:rgba(255,255,255,0.1); color:#fff; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="agent-sidebar">
+    <div style="padding:20px 16px 16px; border-bottom:1px solid rgba(255,255,255,0.08);">
+      <div style="font-size:16px; font-weight:800; color:#fff;">🏢 Agent Portal</div>
+      <div style="font-size:11px; color:#64748b; margin-top:3px;">Welcome, {{ agent_name }}</div>
+    </div>
+    <nav style="padding:8px 0;">
+      <a href="/agent/visits/" class="nav-a">📅 My Visits</a>
+      <a href="/agent/sites/" class="nav-a active">🏗️ Site Reviews</a>
+    </nav>
+    <div style="padding:12px 8px; border-top:1px solid rgba(255,255,255,0.07); margin-top:auto;">
+      <a href="/admin/hub/" class="nav-a" style="border:1px solid rgba(255,255,255,0.1); margin-bottom:8px;">⚙️ Admin Hub</a>
+      <a href="http://localhost:3000" target="_blank" class="nav-a" style="border:1px solid rgba(255,255,255,0.1); margin-bottom:8px;">🏠 Back to SiteHub</a>
+      <a href="/agent/portal/logout/" class="nav-a" style="color:#f87171;">← Logout</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div style="margin-bottom:24px;">
+      <h1 style="font-size:22px; font-weight:800; color:#0f172a; margin:0;">Site Reviews</h1>
+      <p style="color:#64748b; margin:4px 0 0;">Review pending site submissions and recommend approval or rejection.</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:18px;">
+      {% for site in sites %}
+      <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); overflow:hidden; border:1px solid #e2e8f0;">
+        <div style="padding:16px 20px; border-bottom:1px solid #f1f5f9;">
+          <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase;">{{ site.site_code }}</div>
+          <div style="font-size:15px; font-weight:700; color:#0f172a; margin-top:2px;">{{ site.name }}</div>
+        </div>
+        <div style="padding:16px 20px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; font-size:13px;">
+            <div><span style="color:#94a3b8;">Price:</span> <strong>₹{{ site.price|default:"—" }}</strong></div>
+            <div><span style="color:#94a3b8;">Area:</span> <strong>{{ site.area|default:"—" }} sq ft</strong></div>
+            <div><span style="color:#94a3b8;">Location:</span> {{ site.location|default:"—" }}</div>
+            <div><span style="color:#94a3b8;">Owner:</span> {{ site.owner|default:"—" }}</div>
+          </div>
+          <div style="font-size:12px; color:#64748b; font-style:italic; background:#f8fafc; padding:8px 10px; border-radius:6px;">
+            Agent review only — final approval is by admin.
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div style="grid-column:1/-1; text-align:center; padding:60px; background:#fff; border-radius:12px; color:#94a3b8;">
+        <div style="font-size:40px; margin-bottom:12px;">🎉</div>
+        No pending sites to review right now.
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+</div>
+</body>
+</html>

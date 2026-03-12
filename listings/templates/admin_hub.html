@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Hub — SiteHub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin:0; font-family: 'Inter', sans-serif; background:#f1f5f9; }
+    .layout { display:flex; min-height:100vh; }
+    .main { flex:1; padding:32px; overflow-y:auto; }
+    .stat-card { background:#fff; border-radius:12px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.07); }
+    .quick-link { display:flex; flex-direction:column; background:#fff; border-radius:12px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.07); text-decoration:none; border:2px solid transparent; transition:border 0.15s, transform 0.15s; }
+    .quick-link:hover { border-color:#2563eb; transform:translateY(-2px); }
+  </style>
+</head>
+<body>
+<div class="layout">
+  {% include "partials/admin_nav.html" %}
+
+  <main class="main">
+    <div style="margin-bottom:28px;">
+      <h1 style="font-size:26px; font-weight:800; color:#0f172a; margin:0;">Admin Dashboard</h1>
+      <p style="color:#64748b; margin:4px 0 0;">Full control center for SiteHub operations.</p>
+    </div>
+
+    <!-- Stats Row -->
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px;">
+      <div class="stat-card">
+        <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Pending Visits</div>
+        <div style="font-size:36px; font-weight:800; color:#f59e0b; margin-top:8px;">{{ pending_visits }}</div>
+        <a href="/api/admin/bookings/" style="font-size:12px; color:#2563eb; text-decoration:none; margin-top:8px; display:inline-block;">Review →</a>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Pending Sites</div>
+        <div style="font-size:36px; font-weight:800; color:#ef4444; margin-top:8px;">{{ pending_sites }}</div>
+        <a href="/admin/sites/pending/" style="font-size:12px; color:#2563eb; text-decoration:none; margin-top:8px; display:inline-block;">Review →</a>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Active Agents</div>
+        <div style="font-size:36px; font-weight:800; color:#10b981; margin-top:8px;">{{ active_agents }}</div>
+        <a href="/admin/agents/" style="font-size:12px; color:#2563eb; text-decoration:none; margin-top:8px; display:inline-block;">Manage →</a>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Total Bookings</div>
+        <div style="font-size:36px; font-weight:800; color:#6366f1; margin-top:8px;">{{ total_bookings }}</div>
+        <a href="/api/admin/bookings/" style="font-size:12px; color:#2563eb; text-decoration:none; margin-top:8px; display:inline-block;">View all →</a>
+      </div>
+    </div>
+
+    <!-- Quick Links -->
+    <h2 style="font-size:16px; font-weight:700; color:#0f172a; margin-bottom:14px;">Quick Actions</h2>
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:32px;">
+      <a href="/admin/agents/" class="quick-link">
+        <span style="font-size:28px; margin-bottom:10px;">👥</span>
+        <strong style="color:#0f172a; font-size:15px;">Add / Manage Agents</strong>
+        <span style="font-size:13px; color:#64748b; margin-top:4px;">Create, activate, or deactivate agents</span>
+      </a>
+      <a href="/admin/sites/upload/" class="quick-link">
+        <span style="font-size:28px; margin-bottom:10px;">⬆️</span>
+        <strong style="color:#0f172a; font-size:15px;">Upload a Site Listing</strong>
+        <span style="font-size:13px; color:#64748b; margin-top:4px;">Post a site on behalf of any user</span>
+      </a>
+      <a href="/admin/sites/pending/" class="quick-link">
+        <span style="font-size:28px; margin-bottom:10px;">⏳</span>
+        <strong style="color:#0f172a; font-size:15px;">Approve / Reject Sites</strong>
+        <span style="font-size:13px; color:#64748b; margin-top:4px;">Review user-uploaded site submissions</span>
+      </a>
+      <a href="/api/admin/bookings/" class="quick-link">
+        <span style="font-size:28px; margin-bottom:10px;">📅</span>
+        <strong style="color:#0f172a; font-size:15px;">Visit Approvals</strong>
+        <span style="font-size:13px; color:#64748b; margin-top:4px;">Approve visits and assign agents</span>
+      </a>
+      <a href="/agent/portal/" class="quick-link" target="_blank">
+        <span style="font-size:28px; margin-bottom:10px;">🔗</span>
+        <strong style="color:#0f172a; font-size:15px;">SiteHub Agent Portal</strong>
+        <span style="font-size:13px; color:#64748b; margin-top:4px;">Agent-facing dashboard (opens in new tab)</span>
+      </a>
+    </div>
+
+    <!-- Recent Bookings Preview -->
+    <h2 style="font-size:16px; font-weight:700; color:#0f172a; margin-bottom:14px;">Recent Pending Visits</h2>
+    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); overflow:hidden;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+            <th style="text-align:left; padding:12px 16px; font-size:12px; color:#64748b; text-transform:uppercase;">Name</th>
+            <th style="text-align:left; padding:12px 16px; font-size:12px; color:#64748b; text-transform:uppercase;">Phone</th>
+            <th style="text-align:left; padding:12px 16px; font-size:12px; color:#64748b; text-transform:uppercase;">Date</th>
+            <th style="text-align:left; padding:12px 16px; font-size:12px; color:#64748b; text-transform:uppercase;">Time</th>
+            <th style="text-align:left; padding:12px 16px; font-size:12px; color:#64748b; text-transform:uppercase;">Agent</th>
+            <th style="text-align:left; padding:12px 16px; font-size:12px; color:#64748b; text-transform:uppercase;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in recent_bookings %}
+          <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:12px 16px; font-size:14px; font-weight:600; color:#0f172a;">{{ b.name }}</td>
+            <td style="padding:12px 16px; font-size:14px; color:#475569;">{{ b.phone }}</td>
+            <td style="padding:12px 16px; font-size:14px; color:#475569;">{{ b.date }}</td>
+            <td style="padding:12px 16px; font-size:14px; color:#3b82f6;">{{ b.time|default:"—" }}</td>
+            <td style="padding:12px 16px; font-size:14px; color:#475569;">{{ b.broker_name|default:"Unassigned" }}</td>
+            <td style="padding:12px 16px;">
+              <a href="/api/admin/bookings/" style="font-size:12px; background:#2563eb; color:#fff; padding:4px 10px; border-radius:6px; text-decoration:none;">Manage</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" style="padding:24px; text-align:center; color:#94a3b8;">No pending visits right now.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

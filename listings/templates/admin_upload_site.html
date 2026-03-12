@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Site — SiteHub Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin:0; font-family:'Inter',sans-serif; background:#f1f5f9; }
+    .layout { display:flex; min-height:100vh; }
+    .main { flex:1; padding:32px; overflow-y:auto; }
+    label { font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:5px; }
+    input[type=text], input[type=number], input[type=email], select, textarea {
+      width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px;
+      font-size:14px; box-sizing:border-box; background:#fff;
+    }
+    .form-group { margin-bottom:16px; }
+    .section-title { font-size:13px; font-weight:700; color:#0f172a; padding:14px 0 10px; border-bottom:1px solid #e2e8f0; margin-bottom:16px; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  {% include "partials/admin_nav.html" %}
+
+  <main class="main">
+    <div style="margin-bottom:24px;">
+      <h1 style="font-size:24px; font-weight:800; color:#0f172a; margin:0;">Upload a Site Listing</h1>
+      <p style="color:#64748b; margin:4px 0 0;">Create a site on behalf of any user or agent. Uploaded sites go into <strong>pending</strong> status by default.</p>
+    </div>
+
+    {% if message %}
+    <div style="background:#dcfce7; border:1px solid #86efac; color:#166534; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:14px;">✅ {{ message }}</div>
+    {% endif %}
+    {% if error %}
+    <div style="background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:14px;">❌ {{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/admin/sites/upload/" enctype="multipart/form-data"
+          style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); padding:28px; max-width:800px;">
+      {% csrf_token %}
+
+      <div class="section-title">👤 Owner Information (Upload on Behalf Of)</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group">
+          <label>Owner Name</label>
+          <input type="text" name="owner" required placeholder="e.g. Ramesh Kumar">
+        </div>
+        <div class="form-group">
+          <label>Owner Phone (Primary ID)</label>
+          <input type="text" name="uploaded_phone" required placeholder="e.g. 9876543210">
+        </div>
+      </div>
+
+      <div class="section-title">🏗️ Site Details</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group">
+          <label>Site Name / Title</label>
+          <input type="text" name="name" required placeholder="e.g. Prime Corner Plot, Tumkur">
+        </div>
+        <div class="form-group">
+          <label>Location (City/Area)</label>
+          <input type="text" name="location" required placeholder="e.g. Tiptur, Tumkur">
+        </div>
+        <div class="form-group">
+          <label>Price (₹)</label>
+          <input type="number" name="price" required placeholder="e.g. 1500000">
+        </div>
+        <div class="form-group">
+          <label>Area (sq ft)</label>
+          <input type="number" name="area" placeholder="e.g. 1200">
+        </div>
+        <div class="form-group">
+          <label>Dimension</label>
+          <input type="text" name="dimension" placeholder="e.g. 30x40">
+        </div>
+        <div class="form-group">
+          <label>Facing</label>
+          <select name="facing">
+            <option value="">— Select Facing —</option>
+            <option>East</option>
+            <option>West</option>
+            <option>North</option>
+            <option>South</option>
+            <option>North-East</option>
+            <option>North-West</option>
+            <option>South-East</option>
+            <option>South-West</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" rows="3" placeholder="Additional details about the site..."></textarea>
+      </div>
+
+      <div class="section-title">🏷️ Features</div>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;">
+        {% for feature in features %}
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" name="{{ feature.key }}" value="true" style="width:auto;"> {{ feature.label }}
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="section-title">📋 Status</div>
+      <div class="form-group" style="max-width:240px;">
+        <label>Initial Status</label>
+        <select name="status">
+          <option value="pending">Pending (default)</option>
+          <option value="approved">Approved (publish immediately)</option>
+        </select>
+      </div>
+
+      <button type="submit" style="background:#2563eb; color:#fff; padding:12px 28px; border-radius:8px; border:none; font-size:14px; font-weight:700; cursor:pointer; margin-top:8px;">
+        ⬆️ Upload Site Listing
+      </button>
+    </form>
+  </main>
+</div>
+</body>
+</html>
