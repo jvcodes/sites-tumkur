@@ -3,148 +3,382 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visit Approvals — SiteHub Admin</title>
+    <title>Visit Bookings — SiteHub Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #f1f5f9; font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; background: #f0f4f8; }
+        .tab-active  { background: #1e40af; color: #fff; }
+        .tab-default { background: #fff; color: #374151; border: 1px solid #e5e7eb; }
+        .badge-pending   { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
+        .badge-approved  { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+        .badge-completed { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+        .badge-rejected  { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .badge-cancelled { background: #f5f3ff; color: #7c3aed; border: 1px solid #c4b5fd; }
+        .conflict-row    { border-left: 3px solid #ef4444; background: #fff5f5; }
+        select, input[type=text], input[type=date], input[type=time] {
+            font-family: inherit; font-size: 13px;
+        }
+        tr:hover td { background: #f8fafc; }
     </style>
 </head>
-<body class="p-8">
+<body>
 
-<div class="max-w-7xl mx-auto space-y-6">
-    <!-- Header & Nav -->
-    <div class="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm">
+<div class="max-w-screen-2xl mx-auto px-6 py-6 space-y-5">
+
+    <!-- ── HEADER ──────────────────────────────────────────── -->
+    <div class="bg-white rounded-2xl shadow-sm px-6 py-4 flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-center gap-4">
-            <a href="/admin/hub/" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; color:#2563eb; font-weight:600; text-decoration:none; padding:7px 14px; border:1px solid #bfdbfe; border-radius:8px; background:#eff6ff;">
-                ← Admin Hub
-            </a>
+            <a href="/admin/hub/" class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">← Admin Hub</a>
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Visit Approvals</h1>
-                <p class="text-gray-500 text-sm mt-0.5">Assign agents, edit visit date/time, and approve or reject bookings.</p>
+                <h1 class="text-xl font-bold text-gray-800">Visit Bookings</h1>
+                <p class="text-gray-400 text-xs mt-0.5">Manage, assign & track all site visit requests</p>
             </div>
         </div>
-
-        <form method="get" class="flex gap-2">
-            <input
-                type="text"
-                name="phone"
-                value="{{ search_phone }}"
-                placeholder="Search by Phone..."
-                class="border border-gray-300 rounded px-4 py-2 w-56 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium text-sm">Search</button>
-            {% if search_phone %}
-            <a href="?" class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 font-medium ml-1 text-sm">Clear</a>
+        <!-- Total badge -->
+        <div class="flex items-center gap-3 text-sm text-gray-500">
+            <span class="font-medium text-gray-700">Showing <strong>{{ bookings|length }}</strong> booking{% if bookings|length != 1 %}s{% endif %}</span>
+            {% if status_filter != "all" %}
+            <a href="?status=all" class="text-blue-500 hover:underline text-xs">View all</a>
             {% endif %}
-        </form>
+        </div>
     </div>
 
-    <!-- Flash Message -->
+    <!-- ── FLASH MESSAGE ─────────────────────────────────── -->
     {% if message %}
-    <div style="background:#dcfce7; border:1px solid #86efac; color:#166534; padding:12px 16px; border-radius:8px; font-size:14px; font-weight:500;">
+    <div class="bg-green-50 border border-green-200 text-green-800 px-5 py-3 rounded-xl text-sm font-medium flex items-center gap-2">
         ✅ {{ message }}
     </div>
     {% endif %}
 
-    <!-- Results Section -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for booking in bookings %}
-        <div class="bg-white rounded-xl shadow-sm border overflow-hidden {% if booking.has_conflict and booking.status != 'rejected' and booking.status != 'completed' %} border-red-400 ring-2 ring-red-100 {% else %} border-gray-200 {% endif %} relative">
-
-            {% if booking.has_conflict and booking.status != 'rejected' and booking.status != 'completed' %}
-            <div class="bg-red-50 text-red-700 px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between border-b border-red-100">
-                <span>⚠️ Conflict Detected</span>
-                <span>Multiple visits on {{ booking.date }}</span>
-            </div>
-            {% endif %}
-
-            <div class="p-6">
-                <!-- Status Badge -->
-                <div class="absolute top-4 right-4 px-2 py-1 rounded text-xs font-bold uppercase tracking-wide
-                    {% if booking.status == 'approved' %} bg-green-100 text-green-700
-                    {% elif booking.status == 'rejected' %} bg-red-100 text-red-700
-                    {% elif booking.status == 'completed' %} bg-blue-100 text-blue-700
-                    {% else %} bg-orange-100 text-orange-700 {% endif %}">
-                    {{ booking.status|default:"Pending" }}
-                </div>
-
-                <h3 class="text-xl font-bold text-gray-800 mb-1">{{ booking.name }}</h3>
-                <p class="text-sm font-medium text-gray-500 mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                    {{ booking.phone }}
-                </p>
-
-                <!-- Sites List -->
-                <div class="mb-4">
-                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Sites to Visit ({{ booking.sites|length }})</p>
-                    <ul class="space-y-1">
-                        {% for site in booking.sites %}
-                        <li class="flex items-start gap-2 bg-gray-50 px-3 py-2 rounded text-sm border">
-                            <span class="font-semibold text-gray-700 min-w-16">{{ site.site_code }}</span>
-                            <span class="text-gray-600 truncate flex-1" title="{{ site.name }}">{{ site.name }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-
-                <!-- Action Form — posts to admin view, redirects back here -->
-                <form method="post" action="/admin/bookings/update/{{ booking.id }}/" class="pt-4 border-t space-y-3">
-                    {% csrf_token %}
-
-                    <!-- Edit Date & Time -->
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">📅 Visit Date</label>
-                            <input type="date" name="date" value="{{ booking.date }}"
-                                class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">🕐 Visit Time</label>
-                            <input type="time" name="time" value="{{ booking.time }}"
-                                class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                        </div>
-                    </div>
-
-                    <!-- Agent Assignment -->
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">👤 Assign Agent</label>
-                        <select name="broker_name" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                            <option value="">-- No Agent Assigned --</option>
-                            {% for agent in agents %}
-                            <option value="{{ agent.name }}" {% if booking.broker_name == agent.name %}selected{% endif %}>
-                                {{ agent.name }} ({{ agent.phone }})
-                            </option>
-                            {% endfor %}
-                            {% if booking.broker_name and not agents %}
-                            <option value="{{ booking.broker_name }}" selected>{{ booking.broker_name }} (Legacy)</option>
-                            {% endif %}
-                        </select>
-                    </div>
-
-                    <!-- Status + Submit -->
-                    <div class="flex gap-2">
-                        <select name="status" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                            <option value="pending" {% if booking.status == 'pending' %}selected{% endif %}>Pending</option>
-                            <option value="approved" {% if booking.status == 'approved' %}selected{% endif %}>Approved</option>
-                            <option value="completed" {% if booking.status == 'completed' %}selected{% endif %}>Completed</option>
-                            <option value="rejected" {% if booking.status == 'rejected' %}selected{% endif %}>Rejected</option>
-                        </select>
-
-                        <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded text-sm font-medium hover:bg-gray-900 transition-colors">
-                            Update
-                        </button>
-                    </div>
-                </form>
-            </div>
+    {% if error %}
+    <div class="bg-red-50 border border-red-200 text-red-800 px-5 py-3 rounded-xl text-sm font-medium flex items-start gap-2">
+        <span class="mt-0.5 shrink-0">🚫</span>
+        <div>
+            <strong>Approval Blocked — Agent Conflict:</strong><br>
+            {{ error }}
         </div>
-        {% empty %}
-        <div class="col-span-1 md:col-span-2 lg:col-span-3 text-center py-16 bg-white rounded-xl shadow-sm">
-            <p class="text-gray-500 text-lg">No bookings found matching your search.</p>
-            <a href="/admin/hub/" class="inline-block mt-4 text-blue-600 font-semibold text-sm">← Back to Admin Hub</a>
-        </div>
+    </div>
+    {% endif %}
+
+    <!-- ── STATUS TABS ───────────────────────────────────── -->
+    <div class="flex flex-wrap gap-2">
+        {% for tab_status, tab_label, tab_icon in tab_list %}
+        <a href="?status={{ tab_status }}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if agent_filter %}&agent={{ agent_filter }}{% endif %}"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm
+                  {% if status_filter == tab_status %}tab-active{% else %}tab-default hover:bg-gray-50{% endif %}">
+            {{ tab_icon }} {{ tab_label }}
+            <span class="{% if status_filter == tab_status %}bg-white/20 text-white{% else %}bg-gray-100 text-gray-600{% endif %} text-xs font-bold px-2 py-0.5 rounded-full">
+                {% if tab_status == "all" %}{{ counts.all }}
+                {% elif tab_status == "pending" %}{{ counts.pending }}
+                {% elif tab_status == "approved" %}{{ counts.approved }}
+                {% elif tab_status == "completed" %}{{ counts.completed }}
+                {% else %}{{ counts.rejected }}{% endif %}
+            </span>
+        </a>
         {% endfor %}
     </div>
+
+    <!-- ── FILTER BAR ────────────────────────────────────── -->
+    <form method="get" class="bg-white rounded-2xl shadow-sm px-5 py-4 flex flex-wrap gap-3 items-end">
+        <input type="hidden" name="status" value="{{ status_filter }}">
+
+        <!-- Search -->
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs font-semibold text-gray-500 mb-1">🔍 Search (name / phone)</label>
+            <input type="text" name="q" value="{{ search_query }}"
+                   placeholder="e.g. Raju or 9876543210"
+                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <!-- Date filter -->
+        <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">📅 Visit Date</label>
+            <input type="date" name="date" value="{{ date_filter }}"
+                   class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <!-- Agent filter -->
+        <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">👤 Agent</label>
+            <select name="agent" class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[180px]">
+                <option value="">All Agents</option>
+                {% for agent in agents %}
+                <option value="{{ agent.name }}" {% if agent_filter == agent.name %}selected{% endif %}>
+                    {{ agent.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-5 py-2 rounded-lg transition shadow-sm">Apply</button>
+        {% if search_query or date_filter or agent_filter %}
+        <a href="?status={{ status_filter }}" class="text-sm text-gray-500 hover:text-red-500 font-medium py-2 px-3 rounded-lg border border-gray-200 hover:border-red-200 transition">Clear filters</a>
+        {% endif %}
+    </form>
+
+    <!-- ── BOOKINGS TABLE ─────────────────────────────────── -->
+    {% if bookings %}
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
+                        <th class="px-5 py-3 text-left font-semibold">Status</th>
+                        <th class="px-5 py-3 text-left font-semibold">Customer</th>
+                        <th class="px-5 py-3 text-left font-semibold">Sites</th>
+                        <th class="px-5 py-3 text-left font-semibold">Visit Date / Time</th>
+                        <th class="px-5 py-3 text-left font-semibold">Assigned Agent</th>
+                        <th class="px-5 py-3 text-left font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for booking in bookings %}
+                    <tr class="{% if booking.has_conflict and booking.status != 'rejected' and booking.status != 'completed' %}conflict-row{% endif %}">
+
+                        <!-- Status -->
+                        <td class="px-5 py-4 whitespace-nowrap">
+                            <span class="inline-block px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide
+                                {% if booking.status == 'approved' %}badge-approved
+                                {% elif booking.status == 'completed' %}badge-completed
+                                {% elif booking.status == 'rejected' or booking.status == 'cancelled' %}badge-rejected
+                                {% else %}badge-pending{% endif %}">
+                                {{ booking.status|default:"Pending" }}
+                            </span>
+                            {% if booking.has_conflict and booking.status != 'rejected' and booking.status != 'completed' %}
+                            <div class="mt-1 text-red-500 text-xs font-semibold flex items-center gap-1">⚠️ Conflict</div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Customer -->
+                        <td class="px-5 py-4">
+                            <div class="font-semibold text-gray-800">{{ booking.name }}</div>
+                            <div class="text-gray-400 text-xs mt-0.5">
+                                <a href="/admin/bookings/?q={{ booking.phone }}" class="hover:text-blue-500">📞 {{ booking.phone }}</a>
+                            </div>
+                        </td>
+
+                        <!-- Sites to visit -->
+                        <td class="px-5 py-4">
+                            <ul class="space-y-1">
+                                {% for site in booking.sites %}
+                                <li class="text-xs bg-gray-50 border border-gray-100 rounded px-2 py-1">
+                                    <span class="font-semibold text-gray-600">{{ site.site_code }}</span>
+                                    <span class="text-gray-500 ml-1">{{ site.name|truncatechars:30 }}</span>
+                                </li>
+                                {% empty %}
+                                <li class="text-gray-400 text-xs italic">No sites listed</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+
+                        <!-- Date / Time -->
+                        <td class="px-5 py-4 whitespace-nowrap">
+                            {% if booking.date %}
+                            <div class="font-medium text-gray-700">{{ booking.date }}</div>
+                            {% endif %}
+                            {% if booking.time %}
+                            <div class="text-gray-400 text-xs mt-0.5">🕐 {{ booking.time }}</div>
+                            {% endif %}
+                            {% if not booking.date and not booking.time %}
+                            <span class="text-gray-300 italic text-xs">Not set</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Agent -->
+                        <td class="px-5 py-4 whitespace-nowrap">
+                            {% if booking.broker_name %}
+                            <span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                👤 {{ booking.broker_name }}
+                            </span>
+                            {% else %}
+                            <span class="text-gray-300 text-xs italic">Unassigned</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Actions (inline form) -->
+                        <td class="px-5 py-4">
+                            <form method="post" action="/admin/bookings/update/{{ booking.id }}/" class="booking-form flex flex-col gap-2 min-w-[220px]" data-booking-id="{{ booking.id }}">
+                                {% csrf_token %}
+
+                                <!-- Date + Time row -->
+                                <div class="flex gap-1">
+                                    <input type="date" name="date" value="{{ booking.date }}"
+                                           class="flex-1 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                                    <input type="time" name="time" value="{{ booking.time }}"
+                                           class="flex-1 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                                </div>
+
+                                <!-- Agent selector -->
+                                <select name="broker_name" class="border border-gray-200 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                                    <option value="">-- Unassigned --</option>
+                                    {% for agent in agents %}
+                                    <option value="{{ agent.name }}" {% if booking.broker_name == agent.name %}selected{% endif %}>
+                                        {{ agent.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+
+                                <!-- Status + submit -->
+                                <div class="flex gap-1">
+                                    <select name="status" class="flex-1 border border-gray-200 rounded px-2 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                                        <option value="pending"   {% if booking.status == 'pending'   %}selected{% endif %}>Pending</option>
+                                        <option value="approved"  {% if booking.status == 'approved'  %}selected{% endif %}>Approved</option>
+                                        <option value="completed" {% if booking.status == 'completed' %}selected{% endif %}>Completed</option>
+                                        <option value="rejected"  {% if booking.status == 'rejected'  %}selected{% endif %}>Rejected</option>
+                                        <option value="cancelled" {% if booking.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                    </select>
+                                    <button type="submit"
+                                            class="save-btn bg-gray-800 hover:bg-gray-900 text-white text-xs font-semibold px-3 py-1.5 rounded transition whitespace-nowrap disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                        Save
+                                    </button>
+                                </div>
+                                <div class="conflict-msg hidden text-[11px] font-medium leading-tight px-2 py-1.5 text-center bg-gray-50 border border-gray-200 rounded"></div>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
+            <div class="text-xs text-gray-500 font-medium">
+                Page <strong>{{ current_page }}</strong> of <strong>{{ total_pages }}</strong>
+                (Total {{ total_filtered }} bookings)
+            </div>
+            <div class="flex gap-2">
+                {% if has_previous %}
+                <a href="?status={{ status_filter }}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if agent_filter %}&agent={{ agent_filter }}{% endif %}&page={{ current_page|add:'-1' }}" 
+                   class="px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-100 transition">
+                   &larr; Previous
+                </a>
+                {% endif %}
+                
+                {% if has_next %}
+                <a href="?status={{ status_filter }}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if agent_filter %}&agent={{ agent_filter }}{% endif %}&page={{ current_page|add:'1' }}" 
+                   class="px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-100 transition">
+                   Next &rarr;
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <!-- Empty state -->
+    <div class="bg-white rounded-2xl shadow-sm text-center py-20">
+        <div class="text-5xl mb-4">📭</div>
+        <p class="text-gray-500 text-lg font-medium">No bookings found</p>
+        <p class="text-gray-400 text-sm mt-1">
+            {% if status_filter == "pending" %}All pending bookings have been handled. 🎉
+            {% else %}Try adjusting your filters.{% endif %}
+        </p>
+        {% if search_query or date_filter or agent_filter %}
+        <a href="?status={{ status_filter }}" class="inline-block mt-5 text-blue-600 font-semibold text-sm hover:underline">Clear filters</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
 </div>
+
+<!-- Pass tab data via template context -->
+{% comment %}Tab list is injected below via JS for display only{% endcomment %}
+
+<script>
+// Auto-submit date filter instantly when date changes
+document.querySelectorAll('input[type=date][name=date]:not(form form *)').forEach(el => {
+    // only the top-level date filter, not inline form inputs
+});
+
+// Confirm before rejecting or cancelling
+document.querySelectorAll('form button[type=submit]').forEach(btn => {
+    btn.closest('form')?.addEventListener('submit', function(e) {
+        const statusSel = this.querySelector('select[name=status]');
+        if (statusSel && (statusSel.value === 'rejected' || statusSel.value === 'cancelled')) {
+            if (!confirm(`Set booking status to "${statusSel.value}"?`)) {
+                e.preventDefault();
+            }
+        }
+    });
+});
+
+// Dynamic conflict checking
+document.querySelectorAll('form.booking-form').forEach(form => {
+    const inputs = form.querySelectorAll('input[name=date], input[name=time], select[name=broker_name], select[name=status]');
+    const saveBtn = form.querySelector('.save-btn');
+    const msgDiv = form.querySelector('.conflict-msg');
+    
+    function checkConflict() {
+        const dateVal = form.querySelector('input[name=date]').value;
+        const timeVal = form.querySelector('input[name=time]').value;
+        const brokerVal = form.querySelector('select[name=broker_name]').value;
+        const statusVal = form.querySelector('select[name=status]').value;
+        const bookingId = form.dataset.bookingId;
+        const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        // Only check if we have a broker and the status is "approved"
+        if (!brokerVal || statusVal !== 'approved' || !dateVal) {
+            msgDiv.classList.add('hidden');
+            saveBtn.disabled = false;
+            return;
+        }
+
+        // Show loading state
+        msgDiv.classList.remove('hidden', 'text-red-700', 'bg-red-50', 'border-red-200', 'text-green-700', 'bg-green-50', 'border-green-200');
+        msgDiv.classList.add('text-gray-600', 'bg-gray-50', 'border-gray-200');
+        msgDiv.innerHTML = '<span class="animate-pulse">Checking availability...</span>';
+        saveBtn.disabled = true;
+
+        fetch('/admin/bookings/check-conflict/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf
+            },
+            body: JSON.stringify({
+                broker_name: brokerVal,
+                date: dateVal,
+                time: timeVal,
+                status: statusVal,
+                booking_id: bookingId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            msgDiv.classList.remove('text-gray-600', 'bg-gray-50', 'border-gray-200');
+            if (data.has_conflict) {
+                msgDiv.classList.add('text-red-700', 'bg-red-50', 'border-red-200');
+                msgDiv.innerHTML = '🚫 ' + data.message;
+                saveBtn.disabled = true;
+            } else {
+                msgDiv.classList.add('text-green-700', 'bg-green-50', 'border-green-200');
+                msgDiv.innerHTML = '✅ Agent Available';
+                saveBtn.disabled = false;
+            }
+        })
+        .catch(err => {
+            console.error('Error checking conflict:', err);
+            msgDiv.textContent = 'Error checking availability';
+            saveBtn.disabled = false;
+        });
+    }
+
+    // Attach listeners
+    inputs.forEach(input => {
+        input.addEventListener('change', checkConflict);
+    });
+    
+    // Check initially on load if row is already approved to make sure it's validated
+    if(form.querySelector('select[name=status]').value === 'approved' && form.querySelector('select[name=broker_name]').value) {
+         checkConflict();
+    }
+});
+</script>
 
 </body>
 </html>

@@ -505,46 +505,105 @@ def admin_bookings_api(request):
 
 
 def admin_bookings_page(request):
-    search_phone = request.GET.get("phone", "")
-    
+    """Admin: Manage visit bookings with status/date/agent/search filters. Defaults to pending."""
+
+    # ── Filters from GET params ──────────────────────────
+    status_filter = request.GET.get("status", "pending")   # default: pending
+    search_query  = request.GET.get("q", "").strip()
+    date_filter   = request.GET.get("date", "").strip()
+    agent_filter  = request.GET.get("agent", "").strip()
+
+    # ── Build MongoDB query ──────────────────────────────
     query = {}
-    if search_phone:
-        query["phone"] = search_phone
-        
+    if status_filter and status_filter != "all":
+        query["status"] = status_filter
+
+    if search_query:
+        query["$or"] = [
+            {"name":  {"$regex": search_query, "$options": "i"}},
+            {"phone": {"$regex": search_query, "$options": "i"}},
+        ]
+
+    if date_filter:
+        query["date"] = date_filter
+
+    if agent_filter:
+        query["broker_name"] = {"$regex": agent_filter, "$options": "i"}
+
+    # ── Pagination ───────────────────────────────────────
+    try:
+        page = int(request.GET.get("page", 1))
+        if page < 1: page = 1
+    except ValueError:
+        page = 1
+    page_size = 50
+
+    total_items = booking_collection.count_documents(query)
+    import math
+    total_pages = math.ceil(total_items / page_size) if total_items > 0 else 1
+
     bookings = list(
-        booking_collection.find(query).sort("date", 1)  # Sort by date for better conflict visualization
+        booking_collection.find(query)
+        .sort("created_at", -1)
+        .skip((page - 1) * page_size)
+        .limit(page_size)
     )
-    
-    # Needs to be sorted by created_at ideally, but let's let python sort or maintain sort
-    bookings.sort(key=lambda x: x.get("created_at", datetime.min), reverse=True)
 
-    from listings.mongo import agents_collection
-    agents = list(agents_collection.find({"is_active": {"$ne": False}}))
-    for a in agents:
-        a["id"] = str(a["_id"])
-
-    # Basic Conflict Detection (same date)
-    date_counts = {}
+    # ── Conflict detection ───────────────────────────────
+    date_counts: dict = {}
     for b in bookings:
         d = b.get("date")
         if d and b.get("status") in ("pending", "approved"):
             date_counts[d] = date_counts.get(d, 0) + 1
-            
+
     for b in bookings:
-        b["id"] = str(b["_id"])
+        b["id"]           = str(b["_id"])
         del b["_id"]
-        # Mark conflict if multiple active bookings exist on that day
-        d = b.get("date")
+        d                 = b.get("date")
         b["has_conflict"] = date_counts.get(d, 0) > 1
+
+    # ── Summary counts for tabs ──────────────────────────
+    counts = {
+        "all":       booking_collection.count_documents({}),
+        "pending":   booking_collection.count_documents({"status": "pending"}),
+        "approved":  booking_collection.count_documents({"status": "approved"}),
+        "completed": booking_collection.count_documents({"status": "completed"}),
+        "rejected":  booking_collection.count_documents({"status": {"$in": ["rejected", "cancelled"]}}),
+    }
+
+    # ── Active agents list for filter dropdown ───────────
+    from listings.mongo import agents_collection
+    agents = list(agents_collection.find({"is_active": {"$ne": False}}).sort("name", 1))
+    for a in agents:
+        a["id"] = str(a["_id"])
+
+    tab_list = [
+        ("pending",   "Pending",   "⏳"),
+        ("approved",  "Approved",  "✅"),
+        ("completed", "Completed", "🏁"),
+        ("rejected",  "Rejected",  "❌"),
+        ("all",       "All",       "📋"),
+    ]
 
     return render(
         request,
         "admin_bookings.html",
         {
-            "bookings": bookings,
-            "search_phone": search_phone,
-            "agents": agents,
-            "message": request.GET.get("msg", ""),
+            "bookings":       bookings,
+            "agents":         agents,
+            "counts":         counts,
+            "tab_list":       tab_list,
+            "status_filter":  status_filter,
+            "search_query":   search_query,
+            "date_filter":    date_filter,
+            "agent_filter":   agent_filter,
+            "message":        request.GET.get("msg", ""),
+            "error":          request.GET.get("err", ""),
+            "current_page":   page,
+            "total_pages":    total_pages,
+            "has_next":       page < total_pages,
+            "has_previous":   page > 1,
+            "total_filtered": total_items,
         }
     )
 
@@ -699,16 +758,81 @@ def admin_toggle_agent(request):
 
 
 def admin_sites_pending_page(request):
-    """Show all sites with pending status for admin review."""
+    """Show all sites with dynamic filtering for admin review."""
     message = request.GET.get("msg", "")
-    sites_cursor = site_collection.find({"status": "pending", "is_deleted": {"$ne": True}}).sort("created_at", -1)
+
+    # ── Filters from GET params ──────────────────────────
+    status_filter = request.GET.get("status", "pending")   # default: pending
+    search_query  = request.GET.get("q", "").strip()
+    location_filter = request.GET.get("location", "").strip()
+
+    # ── Build MongoDB query ──────────────────────────────
+    query = {"is_deleted": {"$ne": True}}
+    
+    if status_filter and status_filter != "all":
+        query["status"] = status_filter
+
+    if search_query:
+        query["$or"] = [
+            {"name": {"$regex": search_query, "$options": "i"}},
+            {"owner": {"$regex": search_query, "$options": "i"}},
+            {"uploaded_phone": {"$regex": search_query, "$options": "i"}},
+            {"site_code": {"$regex": search_query, "$options": "i"}},
+        ]
+
+    if location_filter:
+        query["location"] = {"$regex": location_filter, "$options": "i"}
+
+    # ── Pagination ───────────────────────────────────────
+    try:
+        page = int(request.GET.get("page", 1))
+        if page < 1: page = 1
+    except ValueError:
+        page = 1
+    page_size = 50
+
+    total_items = site_collection.count_documents(query)
+    import math
+    total_pages = math.ceil(total_items / page_size) if total_items > 0 else 1
+
+    sites_cursor = site_collection.find(query).sort("created_at", -1).skip((page - 1) * page_size).limit(page_size)
     sites = []
     for s in sites_cursor:
         s["id"] = str(s["_id"])
         del s["_id"]
         sites.append(s)
-    return render(request, "admin_sites_pending.html", {"sites": sites, "message": message})
+        
+    # ── Summary counts for tabs ──────────────────────────
+    base_query = {"is_deleted": {"$ne": True}}
+    counts = {
+        "all":       site_collection.count_documents(base_query),
+        "pending":   site_collection.count_documents({**base_query, "status": "pending"}),
+        "approved":  site_collection.count_documents({**base_query, "status": "approved"}),
+        "rejected":  site_collection.count_documents({**base_query, "status": "rejected"}),
+    }
 
+    tab_list = [
+        ("pending",  "Pending",  "⏳"),
+        ("approved", "Approved", "✅"),
+        ("rejected", "Rejected", "❌"),
+        ("all",      "All",      "📋"),
+    ]
+
+    return render(request, "admin_sites_pending.html", {
+        "sites": sites,
+        "features": SITE_FEATURES,
+        "message": message,
+        "counts": counts,
+        "tab_list": tab_list,
+        "status_filter": status_filter,
+        "search_query": search_query,
+        "location_filter": location_filter,
+        "current_page": page,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "has_previous": page > 1,
+        "total_filtered": total_items,
+    })
 
 def admin_approve_site(request):
     """POST: Approve or reject a pending site."""
@@ -754,8 +878,16 @@ def admin_upload_site_page(request):
         location = request.POST.get("location", "").strip()
         price = request.POST.get("price")
         area = request.POST.get("area")
+        plot_size = request.POST.get("plot_size", "")
         dimension = request.POST.get("dimension", "")
         facing = request.POST.get("facing", "")
+        ownership_type = request.POST.get("ownership_type", "")
+        availability = request.POST.get("availability", "")
+        road_width = request.POST.get("road_width", "")
+        landmark = request.POST.get("landmark", "")
+        distance_to_main_road = request.POST.get("distance_to_main_road", "")
+        zoning_type = request.POST.get("zoning_type", "")
+        category = request.POST.get("category", "")
         description = request.POST.get("description", "")
         owner = request.POST.get("owner", "").strip()
         uploaded_phone = request.POST.get("uploaded_phone", "").strip()
@@ -765,7 +897,7 @@ def admin_upload_site_page(request):
             return HttpResponseRedirect("/admin/sites/upload/?err=Please+fill+all+required+fields")
 
         from listings.utils import generate_site_code
-        site_code = generate_site_code(name)
+        site_code = generate_site_code()
 
         features = {f["key"]: (request.POST.get(f["key"]) == "true") for f in SITE_FEATURES}
 
@@ -775,8 +907,16 @@ def admin_upload_site_page(request):
             "location": location,
             "price": float(price),
             "area": float(area) if area else None,
+            "plot_size": plot_size,
             "dimension": dimension,
             "facing": facing,
+            "ownership_type": ownership_type,
+            "availability": availability,
+            "road_width": road_width,
+            "landmark": landmark,
+            "distance_to_main_road": distance_to_main_road,
+            "zoning_type": zoning_type,
+            "category": category,
             "description": description,
             "owner": owner,
             "uploaded_phone": uploaded_phone,
@@ -891,7 +1031,7 @@ def agent_sites_page(request):
 # ================================================================
 
 def admin_update_booking(request, booking_id):
-    """POST: Update booking status, agent, date, and time. Redirects back to /admin/bookings/."""
+    """POST: Update booking. Blocks approval if agent already has a conflicting approved booking."""
     if request.method != "POST":
         return HttpResponseRedirect("/admin/bookings/")
 
@@ -900,13 +1040,63 @@ def admin_update_booking(request, booking_id):
     date_value   = request.POST.get("date", "").strip()
     time_value   = request.POST.get("time", "").strip()
 
+    # ── Agent conflict guard ─────────────────────────────────────────────────
+    # If approving with an assigned agent, ensure that agent doesn't already
+    # have another APPROVED booking on the same date within 1 hour.
+    if status_value == "approved" and broker_name:
+        existing = booking_collection.find_one({"_id": ObjectId(booking_id)})
+        effective_date = date_value or (existing.get("date") if existing else "")
+        effective_time = time_value or (existing.get("time") if existing else "")
+
+        if effective_date:
+            conflict_query = {
+                "broker_name": broker_name,
+                "status":      "approved",
+                "date":        effective_date,
+                "_id":         {"$ne": ObjectId(booking_id)},
+            }
+            conflicting = list(booking_collection.find(conflict_query))
+
+            has_conflict = False
+            if conflicting and effective_time:
+                try:
+                    from datetime import datetime as dt
+                    req_t = dt.strptime(effective_time, "%H:%M")
+                    for cb in conflicting:
+                        cb_time_str = cb.get("time", "")
+                        if cb_time_str:
+                            diff_mins = abs((req_t - dt.strptime(cb_time_str, "%H:%M")).total_seconds()) / 60
+                            if diff_mins < 60:
+                                has_conflict = True
+                                break
+                        else:
+                            has_conflict = True
+                            break
+                except ValueError:
+                    has_conflict = bool(conflicting)
+            elif conflicting:
+                has_conflict = True
+
+            if has_conflict:
+                cb0 = conflicting[0]
+                cb_time = cb0.get("time", "")
+                err = (
+                    f"Cannot approve: agent '{broker_name}' already has an approved visit on "
+                    f"{effective_date}{' at ' + cb_time if cb_time else ''}. "
+                    f"Assign a different agent or change the visit time."
+                )
+                import urllib.parse
+                return HttpResponseRedirect(
+                    f"/admin/bookings/?err={urllib.parse.quote(err)}&status=pending"
+                )
+
+    # ── Apply update ─────────────────────────────────────────────────────────
     update_data = {}
     if status_value:
         update_data["status"] = status_value
     if broker_name:
         update_data["broker_name"] = broker_name
     elif "broker_name" in request.POST:
-        # Explicit empty = clear assignment
         update_data["broker_name"] = ""
     if date_value:
         update_data["date"] = date_value
@@ -922,6 +1112,65 @@ def admin_update_booking(request, booking_id):
         pass
 
     return HttpResponseRedirect("/admin/bookings/?msg=Booking+updated+successfully")
+
+
+@api_view(['POST'])
+def admin_check_conflict_api(request):
+    """POST endpoint to instantly check if an agent has a schedule conflict."""
+    broker_name = request.data.get("broker_name", "").strip()
+    date_val = request.data.get("date", "").strip()
+    time_val = request.data.get("time", "").strip()
+    booking_id = request.data.get("booking_id", "").strip()
+    status_val = request.data.get("status", "pending").strip()
+
+    # Only care if agent assigned and status is approved
+    if not broker_name or status_val != "approved" or not date_val:
+        return Response({"has_conflict": False})
+
+    conflict_query = {
+        "broker_name": broker_name,
+        "status": "approved",
+        "date": date_val,
+    }
+    if booking_id:
+        try:
+            conflict_query["_id"] = {"$ne": ObjectId(booking_id)}
+        except Exception:
+            pass
+
+    conflicting = list(booking_collection.find(conflict_query))
+
+    has_conflict = False
+    if conflicting and time_val:
+        try:
+            from datetime import datetime as dt
+            req_t = dt.strptime(time_val, "%H:%M")
+            for cb in conflicting:
+                cb_time_str = cb.get("time", "")
+                if cb_time_str:
+                    diff_mins = abs((req_t - dt.strptime(cb_time_str, "%H:%M")).total_seconds()) / 60
+                    if diff_mins < 60:
+                        has_conflict = True
+                        break
+                else:
+                    has_conflict = True
+                    break
+        except ValueError:
+            has_conflict = bool(conflicting)
+    elif conflicting:
+        has_conflict = True
+
+    if has_conflict:
+        cb0 = conflicting[0]
+        cb_time = cb0.get("time", "")
+        err_msg = (
+            f"Agent '{broker_name}' is booked on "
+            f"{date_val}{' at ' + cb_time if cb_time else ''}."
+        )
+        return Response({"has_conflict": True, "message": err_msg})
+
+    return Response({"has_conflict": False})
+
 
 
 # ================================================================
@@ -973,6 +1222,15 @@ def admin_edit_site(request):
         update_data["price"] = float(price)
     if area:
         update_data["area"] = float(area)
+
+    # Helper to parse boolean from checkbox string
+    def get_bool(key):
+        return request.POST.get(key) == "true"
+
+    # Dynamically extract all features configured in SITE_FEATURES
+    for feature in SITE_FEATURES:
+        update_data[feature["key"]] = get_bool(feature["key"])
+
     if action == "save_approve":
         update_data["status"] = "approved"
 

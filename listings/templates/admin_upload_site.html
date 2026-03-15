@@ -51,57 +51,7 @@
         </div>
       </div>
 
-      <div class="section-title">🏗️ Site Details</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-        <div class="form-group">
-          <label>Site Name / Title</label>
-          <input type="text" name="name" required placeholder="e.g. Prime Corner Plot, Tumkur">
-        </div>
-        <div class="form-group">
-          <label>Location (City/Area)</label>
-          <input type="text" name="location" required placeholder="e.g. Tiptur, Tumkur">
-        </div>
-        <div class="form-group">
-          <label>Price (₹)</label>
-          <input type="number" name="price" required placeholder="e.g. 1500000">
-        </div>
-        <div class="form-group">
-          <label>Area (sq ft)</label>
-          <input type="number" name="area" placeholder="e.g. 1200">
-        </div>
-        <div class="form-group">
-          <label>Dimension</label>
-          <input type="text" name="dimension" placeholder="e.g. 30x40">
-        </div>
-        <div class="form-group">
-          <label>Facing</label>
-          <select name="facing">
-            <option value="">— Select Facing —</option>
-            <option>East</option>
-            <option>West</option>
-            <option>North</option>
-            <option>South</option>
-            <option>North-East</option>
-            <option>North-West</option>
-            <option>South-East</option>
-            <option>South-West</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Description</label>
-        <textarea name="description" rows="3" placeholder="Additional details about the site..."></textarea>
-      </div>
-
-      <div class="section-title">🏷️ Features</div>
-      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;">
-        {% for feature in features %}
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
-          <input type="checkbox" name="{{ feature.key }}" value="true" style="width:auto;"> {{ feature.label }}
-        </label>
-        {% endfor %}
-      </div>
+      {% include "partials/admin_site_form_fields.html" %}
 
       <div class="section-title">📋 Status</div>
       <div class="form-group" style="max-width:240px;">

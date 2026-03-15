@@ -36,6 +36,7 @@ urlpatterns = [
     path("admin/sites/upload/", views.admin_upload_site_page),
     path("admin/sites/edit/", views.admin_edit_site),
     path("admin/bookings/update/<str:booking_id>/", views.admin_update_booking),
+    path("admin/bookings/check-conflict/", views.admin_check_conflict_api),
     path("admin/user-profile/", views.admin_user_profile),
 
     # -----------------------------------------------

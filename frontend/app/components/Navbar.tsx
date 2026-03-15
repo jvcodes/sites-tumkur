@@ -140,14 +140,8 @@ export default function Navbar() {
             </Link>
           )}
 
-          <Link
-            href="/dashboard"
-            className="text-gray-400 hover:text-[var(--color-primary)] ml-2 text-sm"
-            title="Admin Access"
-          >
-            🛠️
-          </Link>
         </div>
+
       </div>
     </nav>
   );

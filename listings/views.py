@@ -192,56 +192,7 @@ def site_list(request):
 
 
 
-def admin_dashboard(request):
-    # Count sites by status
-    pending = site_collection.count_documents({'status': 'pending'})
-    approved = site_collection.count_documents({'status': 'approved'})
-    rejected = site_collection.count_documents({'status': 'rejected'})
 
-    # Fetch pending sites
-    sites_cursor = site_collection.find({'status': 'pending'})
-    sites = []
-
-    for site in sites_cursor:
-        site['id_str'] = str(site['_id'])
-        sites.append(site)
-
-    return render(request, 'admin_dashboard.html', {
-        'sites': sites,
-        'pending': pending,
-        'approved': approved,
-        'rejected': rejected
-    })
-
-
-
-
-def approve_site(request, site_id):
-    site_collection.update_one(
-        {'_id': ObjectId(site_id)},
-        {'$set': {'status': 'approved'}}
-    )
-    return redirect('admin_dashboard')
-
-
-def reject_site(request, site_id):
-    site_collection.update_one(
-        {'_id': ObjectId(site_id)},
-        {'$set': {'status': 'rejected'}}
-    )
-    return redirect('admin_dashboard')
-
-def rejected_sites(request):
-    sites_cursor = site_collection.find({'status': 'rejected'})
-    sites = []
-
-    for site in sites_cursor:
-        print(site)  # 👈 DEBUG
-        site['id_str'] = str(site['_id'])
-        sites.append(site)
-
-    print("TOTAL REJECTED:", len(sites))
-    return render(request, 'rejected_sites.html', {'sites': sites})
 
 def view_on_map(request, site_id):
     site = site_collection.find_one({"_id": ObjectId(site_id)})
@@ -309,48 +260,7 @@ def chat(request):
     return JsonResponse({"reply": reply})
 
 
-def edit_site(request, site_id):
-    site = db.sites.find_one({"_id": ObjectId(site_id)})
 
-    if not site:
-        return HttpResponse("Site not found")
-
-    if request.method == "POST":
-        updated_data = {
-            "name": request.POST.get("name"),
-            "location": request.POST.get("location").lower(),
-            "area": float(request.POST.get("area")),
-            "price": float(request.POST.get("price")),
-            "owner": request.POST.get("owner"),
-        }
-
-        # 🔁 If site was already approved, send back for re-approval
-        if site.get("status") == "approved":
-            updated_data["status"] = "pending"
-
-        db.sites.update_one(
-            {"_id": ObjectId(site_id)},
-            {"$set": updated_data}
-        )
-
-        return redirect("admin_dashboard")
-
-    return render(
-        request,
-        "edit_site.html",
-        {"site": site}
-    )
-
-
-def approved_sites_admin(request):
-    sites = list(db.sites.find({"status": "approved"}))
-
-    for site in sites:
-        site["id_str"] = str(site["_id"])  # ✅ FIX
-
-    return render(request, "approved_sites_admin.html", {
-        "sites": sites
-    })
 
 
 

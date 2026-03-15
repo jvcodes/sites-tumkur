@@ -117,7 +117,7 @@ export default function UploadSitePage() {
 
       if (!res.ok) throw new Error("Upload failed");
 
-      setMessage("✅ Site uploaded successfully! Redirecting to dashboard...");
+      setMessage("✅ Site uploaded successfully! Redirecting to your sites...");
       setTimeout(() => {
         router.push("/profile/my-sites");
       }, 2000);

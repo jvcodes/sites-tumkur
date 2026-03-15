@@ -1,274 +1,301 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pending Sites — SiteHub Admin</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { margin:0; font-family:'Inter',sans-serif; background:#f1f5f9; }
-    .layout { display:flex; min-height:100vh; }
-    .main { flex:1; padding:28px 32px; overflow-y:auto; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sites Dashboard — SiteHub Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f0f4f8; }
+        .tab-active  { background: #1e40af; color: #fff; }
+        .tab-default { background: #fff; color: #374151; border: 1px solid #e5e7eb; }
+        .badge-pending   { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
+        .badge-approved  { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+        .badge-rejected  { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+        select, input[type=text], input[type=date], input[type=time] {
+            font-family: inherit; font-size: 13px;
+        }
+        tr:hover td { background: #f8fafc; }
 
-    /* Card grid */
-    .site-card { background:#fff; border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,0.07); border:1px solid #e2e8f0; overflow:hidden; display:flex; flex-direction:column; }
+        /* Full-view modal */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:100; justify-content:center; align-items:flex-start; padding:40px 20px; overflow-y:auto; }
+        .modal-overlay.open { display:flex; }
+        .modal-box { background:#fff; border-radius:18px; max-width:780px; width:100%; padding:32px; position:relative; }
 
-    /* Edit panel */
-    .edit-panel { display:none; background:#f8fafc; border-top:1px solid #e2e8f0; padding:16px 20px; }
-    .edit-panel.open { display:block; }
-
-    /* Full-view modal */
-    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:100; justify-content:center; align-items:flex-start; padding:40px 20px; overflow-y:auto; }
-    .modal-overlay.open { display:flex; }
-    .modal-box { background:#fff; border-radius:18px; max-width:780px; width:100%; padding:32px; position:relative; }
-
-    /* User profile drawer */
-    .profile-drawer { display:none; position:fixed; right:0; top:0; bottom:0; width:400px; background:#fff; z-index:200; box-shadow:-4px 0 24px rgba(0,0,0,0.15); overflow-y:auto; }
-    .profile-drawer.open { display:block; }
-
-    input, select, textarea { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; box-sizing:border-box; }
-    label { font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px; }
-    .badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
-    .stat-box { background:#f8fafc; border-radius:10px; padding:14px; text-align:center; border:1px solid #e2e8f0; }
-  </style>
+        /* User profile drawer */
+        .profile-drawer { display:none; position:fixed; right:0; top:0; bottom:0; width:400px; background:#fff; z-index:200; box-shadow:-4px 0 24px rgba(0,0,0,0.15); overflow-y:auto; }
+        .profile-drawer.open { display:block; }
+        
+        input, select, textarea { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; box-sizing:border-box; }
+        label { font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px; }
+        .form-group { margin-bottom:16px; }
+        .section-title { font-size:13px; font-weight:700; color:#0f172a; padding:14px 0 10px; border-bottom:1px solid #e2e8f0; margin-bottom:16px; }
+        .stat-box { background:#f8fafc; border-radius:10px; padding:14px; text-align:center; border:1px solid #e2e8f0; }
+    </style>
 </head>
 <body>
-<div class="layout">
-  {% include "partials/admin_nav.html" %}
 
-  <main class="main">
-    <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <h1 style="font-size:22px; font-weight:800; color:#0f172a; margin:0;">Pending Site Approvals</h1>
-        <p style="color:#64748b; margin:4px 0 0; font-size:14px;">Review full details before approving or rejecting listings. Click owner phone to view user profile.</p>
-      </div>
-      <a href="/admin/hub/" style="font-size:13px; color:#2563eb; font-weight:600; text-decoration:none; padding:8px 14px; border:1px solid #bfdbfe; border-radius:8px; background:#eff6ff;">← Admin Hub</a>
+<div class="max-w-screen-2xl mx-auto px-6 py-6 space-y-5">
+
+    <!-- ── HEADER ──────────────────────────────────────────── -->
+    <div class="bg-white rounded-2xl shadow-sm px-6 py-4 flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center gap-4">
+            <a href="/admin/hub/" class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">← Admin Hub</a>
+            <div>
+                <h1 class="text-xl font-bold text-gray-800">Uploaded Sites</h1>
+                <p class="text-gray-400 text-xs mt-0.5">Review, approve, and manage user-uploaded properties</p>
+            </div>
+        </div>
+        <!-- Total badge -->
+        <div class="flex items-center gap-3 text-sm text-gray-500">
+            <span class="font-medium text-gray-700">Showing <strong>{{ sites|length }}</strong> site{% if sites|length != 1 %}s{% endif %}</span>
+            {% if status_filter != "all" %}
+            <a href="?status=all" class="text-blue-500 hover:underline text-xs">View all</a>
+            {% endif %}
+        </div>
     </div>
 
+    <!-- ── FLASH MESSAGE ─────────────────────────────────── -->
     {% if message %}
-    <div style="background:#dcfce7; border:1px solid #86efac; color:#166534; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:14px;">✅ {{ message }}</div>
+    <div class="bg-green-50 border border-green-200 text-green-800 px-5 py-3 rounded-xl text-sm font-medium flex items-center gap-2">
+        ✅ {{ message }}
+    </div>
     {% endif %}
 
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:18px;">
-      {% for site in sites %}
-      <div class="site-card">
-        <!-- Card Header -->
-        <div style="padding:14px 18px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:start;">
-          <div>
-            <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:1px;">{{ site.site_code }}</div>
-            <div style="font-size:15px; font-weight:700; color:#0f172a; margin-top:2px;">{{ site.name }}</div>
-            <div style="font-size:12px; color:#64748b; margin-top:2px;">📍 {{ site.location|default:"No location" }}</div>
-          </div>
-          <span class="badge" style="background:#fef3c7; color:#92400e; flex-shrink:0;">Pending</span>
-        </div>
-
-        <!-- Quick info grid -->
-        <div style="padding:12px 18px; display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; border-bottom:1px solid #f1f5f9;">
-          <div><span style="color:#94a3b8;">₹ Price</span><br><strong>{{ site.price|default:"—" }}</strong></div>
-          <div><span style="color:#94a3b8;">📐 Area</span><br><strong>{{ site.area|default:"—" }} sq ft</strong></div>
-          <div><span style="color:#94a3b8;">🧭 Facing</span><br><strong>{{ site.facing|default:"—" }}</strong></div>
-          <div><span style="color:#94a3b8;">📏 Dim</span><br><strong>{{ site.dimension|default:"—" }}</strong></div>
-        </div>
-
-        <!-- Owner row — clickable to open user profile -->
-        <div style="padding:10px 18px; background:#fafafa; border-bottom:1px solid #f1f5f9; font-size:12px;">
-          <span style="color:#94a3b8;">Owner: </span>
-          <strong>{{ site.owner|default:"Unknown" }}</strong>
-          <span style="color:#94a3b8; margin-left:8px;">|</span>
-          <button onclick="openProfile('{{ site.uploaded_phone|default:'' }}')"
-            style="background:none; border:none; color:#2563eb; font-size:12px; font-weight:700; cursor:pointer; padding:0 0 0 8px; text-decoration:underline;">
-            📞 {{ site.uploaded_phone|default:"N/A" }}
-          </button>
-        </div>
-
-        <!-- Action row -->
-        <div style="padding:12px 18px; display:flex; gap:7px; margin-top:auto;">
-          <!-- View Full -->
-          <button onclick="openModal('modal-{{ site.site_code }}')"
-            style="flex:1; background:#f1f5f9; color:#0f172a; padding:8px; border-radius:7px; border:1px solid #e2e8f0; font-size:12px; font-weight:600; cursor:pointer;">
-            🔍 Full View
-          </button>
-          <!-- Edit inline -->
-          <button onclick="toggleEdit('{{ site.site_code }}')"
-            style="flex:1; background:#eff6ff; color:#1d4ed8; padding:8px; border-radius:7px; border:1px solid #bfdbfe; font-size:12px; font-weight:600; cursor:pointer;">
-            ✏️ Edit
-          </button>
-          <form method="post" action="/admin/sites/approve/" style="flex:1; margin:0;">
-            {% csrf_token %}
-            <input type="hidden" name="site_code" value="{{ site.site_code }}">
-            <input type="hidden" name="action" value="approved">
-            <button type="submit" style="width:100%; background:#10b981; color:#fff; padding:8px; border-radius:7px; border:none; font-size:12px; font-weight:600; cursor:pointer;">✅ Approve</button>
-          </form>
-          <form method="post" action="/admin/sites/approve/" style="flex:1; margin:0;">
-            {% csrf_token %}
-            <input type="hidden" name="site_code" value="{{ site.site_code }}">
-            <input type="hidden" name="action" value="rejected">
-            <button type="submit" style="width:100%; background:#ef4444; color:#fff; padding:8px; border-radius:7px; border:none; font-size:12px; font-weight:600; cursor:pointer;">❌ Reject</button>
-          </form>
-        </div>
-
-        <!-- Inline Edit Panel -->
-        <div id="edit-{{ site.site_code }}" class="edit-panel">
-          <form method="post" action="/admin/sites/edit/">
-            {% csrf_token %}
-            <input type="hidden" name="site_code" value="{{ site.site_code }}">
-            <div style="font-size:11px; font-weight:800; color:#0f172a; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">✏️ Edit Site Details</div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
-              <div><label>Site Name</label><input type="text" name="name" value="{{ site.name }}"></div>
-              <div><label>Location</label><input type="text" name="location" value="{{ site.location|default:'' }}"></div>
-              <div><label>Price (₹)</label><input type="number" name="price" value="{{ site.price|default:'' }}"></div>
-              <div><label>Area (sq ft)</label><input type="number" name="area" value="{{ site.area|default:'' }}"></div>
-              <div><label>Dimension</label><input type="text" name="dimension" value="{{ site.dimension|default:'' }}"></div>
-              <div>
-                <label>Facing</label>
-                <select name="facing">
-                  <option value="">— Select —</option>
-                  <option value="East" {% if site.facing == "East" %}selected{% endif %}>East</option>
-                  <option value="West" {% if site.facing == "West" %}selected{% endif %}>West</option>
-                  <option value="North" {% if site.facing == "North" %}selected{% endif %}>North</option>
-                  <option value="South" {% if site.facing == "South" %}selected{% endif %}>South</option>
-                  <option value="North-East" {% if site.facing == "North-East" %}selected{% endif %}>North-East</option>
-                  <option value="North-West" {% if site.facing == "North-West" %}selected{% endif %}>North-West</option>
-                  <option value="South-East" {% if site.facing == "South-East" %}selected{% endif %}>South-East</option>
-                  <option value="South-West" {% if site.facing == "South-West" %}selected{% endif %}>South-West</option>
-                </select>
-              </div>
-            </div>
-            <div style="margin-bottom:10px;"><label>Description</label><textarea name="description" rows="2" style="resize:vertical;">{{ site.description|default:'' }}</textarea></div>
-            <div style="display:flex; gap:7px;">
-              <button type="submit" name="action" value="save" style="flex:1; background:#2563eb; color:#fff; padding:7px; border-radius:7px; border:none; font-size:12px; font-weight:600; cursor:pointer;">💾 Save</button>
-              <button type="submit" name="action" value="save_approve" style="flex:1; background:#10b981; color:#fff; padding:7px; border-radius:7px; border:none; font-size:12px; font-weight:600; cursor:pointer;">💾 Save & Approve</button>
-              <button type="button" onclick="toggleEdit('{{ site.site_code }}')" style="padding:7px 12px; border-radius:7px; border:1px solid #e2e8f0; background:#fff; font-size:12px; cursor:pointer;">✕</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- Full View Modal for this site -->
-      <div id="modal-{{ site.site_code }}" class="modal-overlay" onclick="closeModal(event, 'modal-{{ site.site_code }}')">
-        <div class="modal-box" onclick="event.stopPropagation()">
-          <button onclick="closeModalById('modal-{{ site.site_code }}')"
-            style="position:absolute; top:16px; right:16px; background:#f1f5f9; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer; line-height:32px; text-align:center;">✕</button>
-
-          <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:20px;">
-            <div>
-              <span style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase;">{{ site.site_code }}</span>
-              <h2 style="font-size:22px; font-weight:800; color:#0f172a; margin:4px 0 0;">Review & Edit Site Details</h2>
-            </div>
-            <span class="badge" style="background:#fef3c7; color:#92400e;">Pending Approvals</span>
-          </div>
-
-          <!-- Owner Info -->
-          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:14px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <div style="font-size:11px; color:#3b82f6; font-weight:700; text-transform:uppercase; margin-bottom:4px;">uploaded by</div>
-              <div style="font-size:15px; font-weight:700; color:#0f172a;">{{ site.owner|default:"Unknown" }}</div>
-              <div style="font-size:13px; color:#3b82f6;">📞 {{ site.uploaded_phone|default:"N/A" }}</div>
-            </div>
-            <button onclick="openProfile('{{ site.uploaded_phone|default:'' }}')"
-              style="background:#2563eb; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
-              View Profile →
-            </button>
-          </div>
-
-          <!-- Full Editable Form -->
-          <form method="post" action="/admin/sites/edit/">
-            {% csrf_token %}
-            <input type="hidden" name="site_code" value="{{ site.site_code }}">
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
-              <div><label>Site Name</label><input type="text" name="name" value="{{ site.name }}"></div>
-              <div><label>Location / City</label><input type="text" name="location" value="{{ site.location|default:'' }}"></div>
-              <div><label>Price (₹)</label><input type="number" name="price" value="{{ site.price|default:'' }}"></div>
-              <div><label>Area (sq ft)</label><input type="number" name="area" value="{{ site.area|default:'' }}"></div>
-              <div><label>Plot Size (sq ft)</label><input type="text" name="plot_size" value="{{ site.plot_size|default:'' }}"></div>
-              <div><label>Dimension</label><input type="text" name="dimension" value="{{ site.dimension|default:'' }}"></div>
-              <div>
-                <label>Facing</label>
-                <select name="facing">
-                  <option value="">— Select —</option>
-                  <option value="East" {% if site.facing == "East" %}selected{% endif %}>East</option>
-                  <option value="West" {% if site.facing == "West" %}selected{% endif %}>West</option>
-                  <option value="North" {% if site.facing == "North" %}selected{% endif %}>North</option>
-                  <option value="South" {% if site.facing == "South" %}selected{% endif %}>South</option>
-                  <option value="North-East" {% if site.facing == "North-East" %}selected{% endif %}>North-East</option>
-                  <option value="North-West" {% if site.facing == "North-West" %}selected{% endif %}>North-West</option>
-                  <option value="South-East" {% if site.facing == "South-East" %}selected{% endif %}>South-East</option>
-                  <option value="South-West" {% if site.facing == "South-West" %}selected{% endif %}>South-West</option>
-                </select>
-              </div>
-              <div>
-                <label>Ownership Type</label>
-                <select name="ownership_type">
-                  <option value="">— Select —</option>
-                  <option value="Freehold" {% if site.ownership_type == "Freehold" %}selected{% endif %}>Freehold</option>
-                  <option value="Leasehold" {% if site.ownership_type == "Leasehold" %}selected{% endif %}>Leasehold</option>
-                  <option value="Power of Attorney" {% if site.ownership_type == "Power of Attorney" %}selected{% endif %}>Power of Attorney</option>
-                </select>
-              </div>
-              <div>
-                <label>Availability</label>
-                <select name="availability">
-                  <option value="">— Select —</option>
-                  <option value="Immediate" {% if site.availability == "Immediate" %}selected{% endif %}>Immediate</option>
-                  <option value="Under Construction" {% if site.availability == "Under Construction" %}selected{% endif %}>Under Construction</option>
-                </select>
-              </div>
-              <div><label>Road Width (ft)</label><input type="number" name="road_width" value="{{ site.road_width|default:'' }}"></div>
-              <div><label>Nearby Landmark</label><input type="text" name="landmark" value="{{ site.landmark|default:'' }}"></div>
-              <div><label>Distance to Main Road (meters)</label><input type="number" name="distance_to_main_road" value="{{ site.distance_to_main_road|default:'' }}"></div>
-              <div>
-                <label>Zoning Type</label>
-                <select name="zoning_type">
-                  <option value="">— Select —</option>
-                  <option value="Residential" {% if site.zoning_type == "Residential" %}selected{% endif %}>Residential</option>
-                  <option value="Commercial" {% if site.zoning_type == "Commercial" %}selected{% endif %}>Commercial</option>
-                  <option value="Industrial" {% if site.zoning_type == "Industrial" %}selected{% endif %}>Industrial</option>
-                  <option value="Agricultural" {% if site.zoning_type == "Agricultural" %}selected{% endif %}>Agricultural</option>
-                </select>
-              </div>
-              <div><label>Category</label><input type="text" name="category" value="{{ site.category|default:'' }}"></div>
-            </div>
-
-            <div style="margin-bottom:20px;"><label>Description</label><textarea name="description" rows="3" style="resize:vertical;">{{ site.description|default:'' }}</textarea></div>
-
-            {% if site.amenities %}
-            <div style="margin-bottom:20px;">
-              <div style="font-size:11px; font-weight:700; color:#374151; margin-bottom:6px;">Amenities (Read only)</div>
-              <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                {% for a in site.amenities %}
-                <span style="background:#e0f2fe; color:#0369a1; font-size:12px; font-weight:600; padding:4px 10px; border-radius:20px;">{{ a }}</span>
-                {% endfor %}
-              </div>
-            </div>
-            {% endif %}
-
-            <!-- Modal action buttons -->
-            <div style="display:flex; gap:8px;">
-              <button type="submit" name="action" value="save" style="flex:1; background:#2563eb; color:#fff; padding:10px; border-radius:8px; border:none; font-size:14px; font-weight:600; cursor:pointer;">💾 Save Only</button>
-              <button type="submit" name="action" value="save_approve" style="flex:1; background:#10b981; color:#fff; padding:10px; border-radius:8px; border:none; font-size:14px; font-weight:600; cursor:pointer;">✅ Save & Approve</button>
-            </div>
-          </form>
-
-          <!-- Reject Form separate (so it doesn't post the edit form) -->
-          <form method="post" action="/admin/sites/approve/" style="margin-top:8px;">
-            {% csrf_token %}
-            <input type="hidden" name="site_code" value="{{ site.site_code }}">
-            <input type="hidden" name="action" value="rejected">
-            <button type="submit" style="width:100%; background:#f1f5f9; color:#ef4444; padding:10px; border-radius:8px; border:1px solid #fecaca; font-size:14px; font-weight:600; cursor:pointer;">❌ Reject Site</button>
-          </form>
-        </div>
-      </div>
-
-      {% empty %}
-      <div style="grid-column:1/-1; text-align:center; padding:60px; background:#fff; border-radius:14px; color:#94a3b8;">
-        <div style="font-size:40px; margin-bottom:12px;">🎉</div>
-        <div style="font-size:16px; font-weight:600; color:#475569;">All caught up! No pending sites.</div>
-        <a href="/admin/hub/" style="display:inline-block; margin-top:12px; font-size:13px; color:#2563eb; font-weight:600; text-decoration:none;">← Back to Admin Hub</a>
-      </div>
-      {% endfor %}
+    <!-- ── STATUS TABS ───────────────────────────────────── -->
+    <div class="flex flex-wrap gap-2">
+        {% for tab_status, tab_label, tab_icon in tab_list %}
+        <a href="?status={{ tab_status }}{% if search_query %}&q={{ search_query }}{% endif %}{% if location_filter %}&location={{ location_filter }}{% endif %}"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm
+                  {% if status_filter == tab_status %}tab-active{% else %}tab-default hover:bg-gray-50{% endif %}">
+            {{ tab_icon }} {{ tab_label }}
+            <span class="{% if status_filter == tab_status %}bg-white/20 text-white{% else %}bg-gray-100 text-gray-600{% endif %} text-xs font-bold px-2 py-0.5 rounded-full">
+                {% if tab_status == "all" %}{{ counts.all }}
+                {% elif tab_status == "pending" %}{{ counts.pending }}
+                {% elif tab_status == "approved" %}{{ counts.approved }}
+                {% else %}{{ counts.rejected }}{% endif %}
+            </span>
+        </a>
+        {% endfor %}
     </div>
-  </main>
+
+    <!-- ── FILTER BAR ────────────────────────────────────── -->
+    <form method="get" class="bg-white rounded-2xl shadow-sm px-5 py-4 flex flex-wrap gap-3 items-end">
+        <input type="hidden" name="status" value="{{ status_filter }}">
+
+        <!-- Search -->
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs font-semibold text-gray-500 mb-1">🔍 Search (Code / Name / Phone)</label>
+            <input type="text" name="q" value="{{ search_query }}"
+                   placeholder="e.g. SEED-1234 or Raju"
+                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <!-- Location Filter -->
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs font-semibold text-gray-500 mb-1">📍 Location</label>
+            <input type="text" name="location" value="{{ location_filter }}"
+                   placeholder="e.g. Tumkur"
+                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-5 py-2 rounded-lg transition shadow-sm">Apply Filters</button>
+        {% if search_query or location_filter %}
+        <a href="?status={{ status_filter }}" class="text-sm text-gray-500 hover:text-red-500 font-medium py-2 px-3 rounded-lg border border-gray-200 hover:border-red-200 transition">Clear filters</a>
+        {% endif %}
+    </form>
+
+    <!-- ── SITES TABLE ─────────────────────────────────── -->
+    {% if sites %}
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
+                        <th class="px-5 py-3 text-left font-semibold">Status</th>
+                        <th class="px-5 py-3 text-left font-semibold">Site Details</th>
+                        <th class="px-5 py-3 text-left font-semibold">Owner Info</th>
+                        <th class="px-5 py-3 text-left font-semibold">Specs</th>
+                        <th class="px-5 py-3 text-left font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for site in sites %}
+                    <tr>
+                        <!-- Status -->
+                        <td class="px-5 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider
+                                {% if site.status == 'approved' %}badge-approved
+                                {% elif site.status == 'rejected' %}badge-rejected
+                                {% else %}badge-pending{% endif %}">
+                                {{ site.status|default:"Pending" }}
+                            </span>
+                        </td>
+
+                        <!-- Site Details -->
+                        <td class="px-5 py-4">
+                            <div class="font-bold text-xs text-gray-500 mb-0.5">{{ site.site_code }}</div>
+                            <div class="font-semibold text-gray-900">{{ site.name }}</div>
+                            <div class="text-xs text-gray-500 mt-0.5">📍 {{ site.location|default:"No location" }}</div>
+                        </td>
+
+                        <!-- Owner Info -->
+                        <td class="px-5 py-4 whitespace-nowrap">
+                            <div class="font-medium text-gray-800">{{ site.owner|default:"Unknown" }}</div>
+                            <button onclick="openProfile('{{ site.uploaded_phone|default:'' }}')"
+                                    class="text-blue-600 hover:text-blue-800 hover:underline text-xs font-semibold flex items-center gap-1 mt-0.5">
+                                📞 {{ site.uploaded_phone|default:"N/A" }}
+                            </button>
+                        </td>
+
+                        <!-- Key Specs -->
+                        <td class="px-5 py-4 whitespace-nowrap text-xs text-gray-600">
+                            <div><strong>🏷️</strong> ₹ {{ site.price|default:"—" }}</div>
+                            <div class="mt-0.5"><strong>📐</strong> {{ site.area|default:"—" }} sq ft</div>
+                            <div class="mt-0.5"><strong>🧭</strong> {{ site.facing|default:"—" }}</div>
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="px-5 py-4">
+                            <div class="flex items-center gap-2">
+                                <button onclick="openModal('modal-{{ site.site_code }}')"
+                                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded text-xs transition border border-gray-200">
+                                    🔍 Full View
+                                </button>
+                                {% if site.status == 'pending' %}
+                                <form method="post" action="/admin/sites/approve/" class="m-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="site_code" value="{{ site.site_code }}">
+                                    <input type="hidden" name="action" value="approved">
+                                    <button type="submit" class="bg-green-100 hover:bg-green-200 text-green-700 font-semibold px-3 py-1.5 rounded text-xs transition border border-green-200">
+                                        ✅ Approve
+                                    </button>
+                                </form>
+                                <form method="post" action="/admin/sites/approve/" class="m-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="site_code" value="{{ site.site_code }}">
+                                    <input type="hidden" name="action" value="rejected">
+                                    <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-3 py-1.5 rounded text-xs transition border border-red-200">
+                                        ❌ Reject
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Full View Modal for this site -->
+                    <div id="modal-{{ site.site_code }}" class="modal-overlay" onclick="closeModal(event, 'modal-{{ site.site_code }}')">
+                        <div class="modal-box" onclick="event.stopPropagation()">
+                            <button onclick="closeModalById('modal-{{ site.site_code }}')"
+                                    class="absolute top-4 right-4 bg-gray-100 border-none rounded-full w-8 h-8 text-lg cursor-pointer flex items-center justify-center hover:bg-gray-200">✕</button>
+
+                            <div class="flex justify-between items-start mb-5">
+                                <div>
+                                    <span class="text-[11px] text-gray-500 font-bold uppercase">{{ site.site_code }}</span>
+                                    <h2 class="text-[22px] font-extrabold text-gray-900 mt-1">Review & Edit Site Details</h2>
+                                </div>
+                                <span class="badge-{{ site.status|default:'pending' }} px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider">{{ site.status|default:"Pending" }}</span>
+                            </div>
+
+                            <!-- Owner Info -->
+                            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex justify-between items-center">
+                                <div>
+                                    <div class="text-[11px] text-blue-500 font-bold uppercase mb-1">uploaded by</div>
+                                    <div class="text-[15px] font-bold text-gray-900">{{ site.owner|default:"Unknown" }}</div>
+                                    <div class="text-[13px] text-blue-600 font-medium">📞 {{ site.uploaded_phone|default:"N/A" }}</div>
+                                </div>
+                                <button onclick="closeModalById('modal-{{ site.site_code }}'); openProfile('{{ site.uploaded_phone|default:'' }}')"
+                                        class="bg-blue-600 hover:bg-blue-700 text-white border-none py-2 px-4 rounded-lg text-[13px] font-semibold cursor-pointer transition">
+                                    View Profile →
+                                </button>
+                            </div>
+
+                            <!-- Full Editable Form -->
+                            <form method="post" action="/admin/sites/edit/">
+                                {% csrf_token %}
+                                <input type="hidden" name="site_code" value="{{ site.site_code }}">
+
+                                <!-- Render the standardized form fields partial -->
+                                {% include "partials/admin_site_form_fields.html" %}
+
+                                {% if site.amenities %}
+                                <div class="mb-5">
+                                    <div class="text-[11px] font-bold text-gray-700 mb-1.5">Amenities (Read only)</div>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        {% for a in site.amenities %}
+                                        <span class="bg-sky-100 text-sky-700 text-[12px] font-semibold py-1 px-2.5 rounded-full">{{ a }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Modal action buttons -->
+                                <div class="flex gap-2">
+                                    <button type="submit" name="action" value="save" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-lg border-none text-[14px] font-semibold cursor-pointer transition">💾 Save Only</button>
+                                    <button type="submit" name="action" value="save_approve" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white p-2.5 rounded-lg border-none text-[14px] font-semibold cursor-pointer transition">✅ Save & Approve</button>
+                                </div>
+                            </form>
+
+                            <!-- Reject Form separate (so it doesn't post the edit form) -->
+                            {% if site.status != 'rejected' %}
+                            <form method="post" action="/admin/sites/approve/" class="mt-2">
+                                {% csrf_token %}
+                                <input type="hidden" name="site_code" value="{{ site.site_code }}">
+                                <input type="hidden" name="action" value="rejected">
+                                <button type="submit" class="w-full bg-gray-50 hover:bg-red-50 text-red-500 p-2.5 rounded-lg border border-red-200 text-[14px] font-semibold cursor-pointer transition">❌ Reject Site</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
+            <div class="text-xs text-gray-500 font-medium">
+                Page <strong>{{ current_page }}</strong> of <strong>{{ total_pages }}</strong>
+                (Total {{ total_filtered }} sites)
+            </div>
+            <div class="flex gap-2">
+                {% if has_previous %}
+                <a href="?status={{ status_filter }}{% if search_query %}&q={{ search_query }}{% endif %}{% if location_filter %}&location={{ location_filter }}{% endif %}&page={{ current_page|add:'-1' }}" 
+                   class="px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-100 transition">
+                   &larr; Previous
+                </a>
+                {% endif %}
+                
+                {% if has_next %}
+                <a href="?status={{ status_filter }}{% if search_query %}&q={{ search_query }}{% endif %}{% if location_filter %}&location={{ location_filter }}{% endif %}&page={{ current_page|add:'1' }}" 
+                   class="px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-100 transition">
+                   Next &rarr;
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <!-- Empty state -->
+    <div class="bg-white rounded-2xl shadow-sm text-center py-20">
+        <div class="text-5xl mb-4">📭</div>
+        <p class="text-gray-500 text-lg font-medium">No sites found</p>
+        <p class="text-gray-400 text-sm mt-1">
+            {% if status_filter == "pending" %}All pending site uploads have been handled. 🎉
+            {% else %}Try adjusting your filters.{% endif %}
+        </p>
+        {% if search_query or location_filter %}
+        <a href="?status={{ status_filter }}" class="inline-block mt-5 text-blue-600 font-semibold text-sm hover:underline">Clear filters</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
 </div>
 
 <!-- USER PROFILE DRAWER (loads from API) -->
@@ -277,7 +304,7 @@
   <div style="padding:24px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
       <h2 style="font-size:18px; font-weight:800; color:#0f172a; margin:0;">User Profile</h2>
-      <button onclick="closeProfile()" style="background:#f1f5f9; border:none; border-radius:50%; width:32px; height:32px; font-size:16px; cursor:pointer;">✕</button>
+      <button onclick="closeProfile()" style="background:#f1f5f9; border:none; border-radius:50%; width:32px; height:32px; font-size:16px; cursor:pointer hover:bg-gray-200 transition">✕</button>
     </div>
     <div id="profile-content">
       <div style="text-align:center; padding:40px; color:#94a3b8;">Loading...</div>
@@ -299,12 +326,6 @@ function closeModal(event, id) {
 function closeModalById(id) {
   document.getElementById(id).classList.remove('open');
   document.body.style.overflow = '';
-}
-
-// ---- Edit panel toggle ----
-function toggleEdit(siteCode) {
-  const panel = document.getElementById('edit-' + siteCode);
-  panel.classList.toggle('open');
 }
 
 // ---- User profile drawer ----
@@ -367,6 +388,21 @@ function closeProfile() {
   document.getElementById('profile-overlay').style.display = 'none';
   document.getElementById('profile-drawer').classList.remove('open');
 }
+
+// Intercept form submissions to ask for confirmation if rejecting
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('form[action="/admin/sites/approve/"]');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const actionInput = this.querySelector('input[name="action"]');
+            if (actionInput && actionInput.value === 'rejected') {
+                if (!confirm("Are you sure you want to reject this site?")) {
+                    e.preventDefault();
+                }
+            }
+        });
+    });
+});
 </script>
 </body>
 </html>

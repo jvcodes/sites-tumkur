@@ -96,8 +96,37 @@ export default function Home() {
               Search
             </button>
           </div>
+          {/* CTA below search bar */}
+          <p className="text-gray-400 text-sm mt-3">
+            Have a plot to sell?{" "}
+            <a
+              href="/upload-site"
+              className="text-[var(--color-accent)] font-semibold hover:underline"
+            >
+              List it free →
+            </a>
+          </p>
         </div>
       </section>
+
+      {/* ---------------- UPLOAD CTA BANNER ---------------- */}
+      <div className="bg-gradient-to-r from-[var(--color-primary)] to-[#1e40af] text-white">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🏡</span>
+            <div>
+              <span className="font-semibold text-sm">Own a site or plot?</span>
+              <span className="text-gray-300 text-sm ml-2 hidden sm:inline">Get it in front of thousands of buyers — it&apos;s free.</span>
+            </div>
+          </div>
+          <a
+            href="/upload-site"
+            className="shrink-0 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-sm py-1.5 px-5 rounded-lg transition-all shadow-md hover:scale-105 transform"
+          >
+            + Upload Your Site
+          </a>
+        </div>
+      </div>
 
       {/* ---------------- CONTENT SECTION ---------------- */}
       <div className="max-w-7xl mx-auto px-6 py-12">

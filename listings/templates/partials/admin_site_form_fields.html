@@ -1,0 +1,102 @@
+<div class="section-title">🏗️ Site Details</div>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+  <div class="form-group">
+    <label>Site Name / Title</label>
+    <input type="text" name="name" required placeholder="e.g. Prime Corner Plot, Tumkur" value="{{ site.name|default:'' }}">
+  </div>
+  <div class="form-group">
+    <label>Location (City/Area)</label>
+    <input type="text" name="location" required placeholder="e.g. Tiptur, Tumkur" value="{{ site.location|default:'' }}">
+  </div>
+  <div class="form-group">
+    <label>Price (₹)</label>
+    <input type="number" name="price" required placeholder="e.g. 1500000" value="{{ site.price|default:'' }}">
+  </div>
+  <div class="form-group">
+    <label>Area (sq ft)</label>
+    <input type="number" name="area" placeholder="e.g. 1200" value="{{ site.area|default:'' }}">
+  </div>
+  <div class="form-group">
+    <label>Plot Size</label>
+    <input type="text" name="plot_size" placeholder="e.g. 30x40" value="{{ site.plot_size|default:'' }}">
+  </div>
+  <div class="form-group">
+    <label>Dimension</label>
+    <input type="text" name="dimension" placeholder="e.g. 30x40" value="{{ site.dimension|default:'' }}">
+  </div>
+  <div class="form-group">
+    <label>Facing</label>
+    <select name="facing">
+      <option value="">— Select Facing —</option>
+      <option value="East" {% if site.facing == "East" %}selected{% endif %}>East</option>
+      <option value="West" {% if site.facing == "West" %}selected{% endif %}>West</option>
+      <option value="North" {% if site.facing == "North" %}selected{% endif %}>North</option>
+      <option value="South" {% if site.facing == "South" %}selected{% endif %}>South</option>
+      <option value="North-East" {% if site.facing == "North-East" %}selected{% endif %}>North-East</option>
+      <option value="North-West" {% if site.facing == "North-West" %}selected{% endif %}>North-West</option>
+      <option value="South-East" {% if site.facing == "South-East" %}selected{% endif %}>South-East</option>
+      <option value="South-West" {% if site.facing == "South-West" %}selected{% endif %}>South-West</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Ownership Type</label>
+    <select name="ownership_type">
+      <option value="">— Select —</option>
+      <option value="Freehold" {% if site.ownership_type == "Freehold" %}selected{% endif %}>Freehold</option>
+      <option value="Leasehold" {% if site.ownership_type == "Leasehold" %}selected{% endif %}>Leasehold</option>
+      <option value="Power of Attorney" {% if site.ownership_type == "Power of Attorney" %}selected{% endif %}>Power of Attorney</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Availability</label>
+    <select name="availability">
+      <option value="">— Select —</option>
+      <option value="Immediate" {% if site.availability == "Immediate" %}selected{% endif %}>Immediate</option>
+      <option value="Under Construction" {% if site.availability == "Under Construction" %}selected{% endif %}>Under Construction</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Road Width (ft)</label>
+    <input type="number" name="road_width" value="{{ site.road_width|default:'' }}">
+  </div>
+  <div class="form-group">
+    <label>Nearby Landmark</label>
+    <input type="text" name="landmark" value="{{ site.landmark|default:'' }}">
+  </div>
+  <div class="form-group">
+    <label>Distance to Main Road (meters)</label>
+    <input type="number" name="distance_to_main_road" value="{{ site.distance_to_main_road|default:'' }}">
+  </div>
+  <div class="form-group">
+    <label>Zoning Type</label>
+    <select name="zoning_type">
+      <option value="">— Select —</option>
+      <option value="Residential" {% if site.zoning_type == "Residential" %}selected{% endif %}>Residential</option>
+      <option value="Commercial" {% if site.zoning_type == "Commercial" %}selected{% endif %}>Commercial</option>
+      <option value="Industrial" {% if site.zoning_type == "Industrial" %}selected{% endif %}>Industrial</option>
+      <option value="Agricultural" {% if site.zoning_type == "Agricultural" %}selected{% endif %}>Agricultural</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Category</label>
+    <input type="text" name="category" value="{{ site.category|default:'' }}">
+  </div>
+</div>
+
+<div class="form-group">
+  <label>Description</label>
+  <textarea name="description" rows="3" placeholder="Additional details about the site..." style="resize:vertical;">{{ site.description|default:'' }}</textarea>
+</div>
+
+<div class="section-title">🏷️ Features</div>
+<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;">
+  {% for feature in features %}
+  <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+    <input type="checkbox" name="{{ feature.key }}" value="true" style="width:auto;"
+      {% for key, val in site.items %}
+        {% if key == feature.key and val %}checked{% endif %}
+      {% endfor %}
+    > {{ feature.label }}
+  </label>
+  {% endfor %}
+</div>
