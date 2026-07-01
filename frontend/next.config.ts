@@ -23,19 +23,19 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/admin',
-        destination: 'http://127.0.0.1:8000/admin',
+        destination: 'https://sites-tumkur.onrender.com/admin',
       },
       {
         source: '/admin/:path*',
-        destination: 'http://127.0.0.1:8000/admin/:path*',
+        destination: 'https://sites-tumkur.onrender.com/admin/:path*',
       },
       {
         source: '/api/:path*',
-        destination: 'http://127.0.0.1:8000/api/:path*/',
+        destination: 'https://sites-tumkur.onrender.com/api/:path*/',
       },
       {
         source: '/media/:path*',
-        destination: 'http://127.0.0.1:8000/media/:path*',
+        destination: 'https://sites-tumkur.onrender.com/media/:path*',
       },
     ]
   },
