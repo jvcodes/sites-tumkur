@@ -9,8 +9,25 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     const { user } = useAuth();
 
     if (!user) {
-        return <div className="text-center mt-20 text-xl text-gray-600">Please log in to view your profile.</div>;
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+                <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center border border-gray-100">
+                    <div className="text-5xl mb-4">👤</div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Login Required</h2>
+                    <p className="text-gray-500 mb-6">
+                        Please <a href="/login" className="text-blue-600 font-semibold hover:underline">log in</a> to view your profile, bookings, and uploaded sites.
+                    </p>
+                    <a
+                        href="/login"
+                        className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md"
+                    >
+                        Login with Google
+                    </a>
+                </div>
+            </div>
+        );
     }
+
 
     const menuItems = [
         { name: "My Profile", path: "/profile", icon: "👤" },

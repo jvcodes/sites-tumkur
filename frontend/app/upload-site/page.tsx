@@ -18,6 +18,7 @@ export default function UploadSitePage() {
     facing: "",
     road_width: "",
     description: "",
+    youtube_url: "",
   });
 
   // Specs
@@ -87,6 +88,7 @@ export default function UploadSitePage() {
     data.append("facing", form.facing);
     data.append("road_width", form.road_width);
     data.append("description", form.description);
+    data.append("youtube_url", form.youtube_url);
 
     // Booleans
     data.append("corner_site", String(cornerSite));
@@ -110,27 +112,47 @@ export default function UploadSitePage() {
     images.forEach((img) => data.append("images", img));
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/sites/create/", {
+      const res = await fetch("/api/sites/create/", {
         method: "POST",
         body: data,
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Upload failed. Please check your connection.");
+      }
 
       setMessage("✅ Site uploaded successfully! Redirecting to your sites...");
       setTimeout(() => {
         router.push("/profile/my-sites");
       }, 2000);
 
-    } catch {
-      setMessage("❌ Failed to upload site. Please check your connection.");
+    } catch (err: any) {
+      setMessage(`❌ ${err.message}`);
       setLoading(false);
     }
   };
 
   if (!user) {
-    return <div className="text-center mt-20 text-gray-600">Please log in to upload a site.</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center border border-gray-100">
+          <div className="text-5xl mb-4">🏡</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Login Required</h2>
+          <p className="text-gray-500 mb-6">
+            Please <a href="/login" className="text-blue-600 font-semibold hover:underline">log in</a> to list your site or plot on SiteHub. It&apos;s free!
+          </p>
+          <a
+            href="/login"
+            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md"
+          >
+            Login with Google
+          </a>
+        </div>
+      </div>
+    );
   }
+
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6">
@@ -159,6 +181,11 @@ export default function UploadSitePage() {
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Landmark</label>
                 <input name="landmark" placeholder="e.g. Near Wipro SEZ" value={form.landmark} onChange={handleChange} className="w-full border rounded px-3 py-2" />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">YouTube Link (Video Walkthrough)</label>
+                <input name="youtube_url" type="url" placeholder="https://youtube.com/watch?v=..." value={form.youtube_url} onChange={handleChange} className="w-full border rounded px-3 py-2" />
               </div>
             </div>
           </section>

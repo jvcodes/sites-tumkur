@@ -4,6 +4,8 @@ from . import views, auth_views, wishlist_views, visits_views
 urlpatterns = [
     path('sites/', views.approved_sites_api),                    # GET
     path('sites/filter/', views.filter_sites_api),               # GET
+    path('sites/locations/', views.get_locations_api),           # GET distinct locations
+    path('sites/images/delete/', views.delete_site_image_api),  # POST delete one image
     path('sites/create/', views.create_site_api),                # POST
     path('sites/update-by-code/<str:site_code>/', views.update_site_by_code_api),  # PUT
     path('sites/delete-by-code/<str:site_code>/', views.delete_site_by_code_api),  # DELETE
@@ -32,6 +34,7 @@ urlpatterns = [
 
     # Site Management
     path("admin/sites/pending/", views.admin_sites_pending_page),
+    path("admin/sites/review/<str:site_code>/", views.admin_site_review_page),
     path("admin/sites/approve/", views.admin_approve_site),
     path("admin/sites/upload/", views.admin_upload_site_page),
     path("admin/sites/edit/", views.admin_edit_site),
@@ -48,9 +51,11 @@ urlpatterns = [
     path("agent/visits/", views.agent_visits_page),
     path("agent/visits/complete/", views.agent_complete_visit),
     path("agent/sites/", views.agent_sites_page),
+    path("agent/sites/review/", views.agent_review_site),       # POST approve/reject
 
     # Auth
     path("auth/google/", auth_views.google_auth_api),
+    path("auth/update-phone/", auth_views.update_phone_api),   # POST: update phone
 
     # Wishlist (MongoDB)
     path("wishlist/", wishlist_views.get_wishlist),

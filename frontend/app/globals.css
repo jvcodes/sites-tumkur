@@ -42,3 +42,14 @@ body {
     @apply bg-[var(--color-accent)] text-white px-6 py-2 rounded-lg font-medium transition-colors hover:bg-[var(--color-accent-hover)];
   }
 }
+
+/* Utility to hide scrollbar for sleek horizontal carousels */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}

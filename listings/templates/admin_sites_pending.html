@@ -160,10 +160,10 @@
                         <!-- Actions -->
                         <td class="px-5 py-4">
                             <div class="flex items-center gap-2">
-                                <button onclick="openModal('modal-{{ site.site_code }}')"
-                                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded text-xs transition border border-gray-200">
-                                    🔍 Full View
-                                </button>
+                                <a href="/admin/sites/review/{{ site.site_code }}/" target="_blank"
+                                   class="inline-block bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded text-xs transition border border-gray-200">
+                                    🔍 Full View ↗
+                                </a>>
                                 {% if site.status == 'pending' %}
                                 <form method="post" action="/admin/sites/approve/" class="m-0">
                                     {% csrf_token %}
@@ -185,71 +185,6 @@
                             </div>
                         </td>
                     </tr>
-                    
-                    <!-- Full View Modal for this site -->
-                    <div id="modal-{{ site.site_code }}" class="modal-overlay" onclick="closeModal(event, 'modal-{{ site.site_code }}')">
-                        <div class="modal-box" onclick="event.stopPropagation()">
-                            <button onclick="closeModalById('modal-{{ site.site_code }}')"
-                                    class="absolute top-4 right-4 bg-gray-100 border-none rounded-full w-8 h-8 text-lg cursor-pointer flex items-center justify-center hover:bg-gray-200">✕</button>
-
-                            <div class="flex justify-between items-start mb-5">
-                                <div>
-                                    <span class="text-[11px] text-gray-500 font-bold uppercase">{{ site.site_code }}</span>
-                                    <h2 class="text-[22px] font-extrabold text-gray-900 mt-1">Review & Edit Site Details</h2>
-                                </div>
-                                <span class="badge-{{ site.status|default:'pending' }} px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider">{{ site.status|default:"Pending" }}</span>
-                            </div>
-
-                            <!-- Owner Info -->
-                            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex justify-between items-center">
-                                <div>
-                                    <div class="text-[11px] text-blue-500 font-bold uppercase mb-1">uploaded by</div>
-                                    <div class="text-[15px] font-bold text-gray-900">{{ site.owner|default:"Unknown" }}</div>
-                                    <div class="text-[13px] text-blue-600 font-medium">📞 {{ site.uploaded_phone|default:"N/A" }}</div>
-                                </div>
-                                <button onclick="closeModalById('modal-{{ site.site_code }}'); openProfile('{{ site.uploaded_phone|default:'' }}')"
-                                        class="bg-blue-600 hover:bg-blue-700 text-white border-none py-2 px-4 rounded-lg text-[13px] font-semibold cursor-pointer transition">
-                                    View Profile →
-                                </button>
-                            </div>
-
-                            <!-- Full Editable Form -->
-                            <form method="post" action="/admin/sites/edit/">
-                                {% csrf_token %}
-                                <input type="hidden" name="site_code" value="{{ site.site_code }}">
-
-                                <!-- Render the standardized form fields partial -->
-                                {% include "partials/admin_site_form_fields.html" %}
-
-                                {% if site.amenities %}
-                                <div class="mb-5">
-                                    <div class="text-[11px] font-bold text-gray-700 mb-1.5">Amenities (Read only)</div>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        {% for a in site.amenities %}
-                                        <span class="bg-sky-100 text-sky-700 text-[12px] font-semibold py-1 px-2.5 rounded-full">{{ a }}</span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                {% endif %}
-
-                                <!-- Modal action buttons -->
-                                <div class="flex gap-2">
-                                    <button type="submit" name="action" value="save" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-lg border-none text-[14px] font-semibold cursor-pointer transition">💾 Save Only</button>
-                                    <button type="submit" name="action" value="save_approve" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white p-2.5 rounded-lg border-none text-[14px] font-semibold cursor-pointer transition">✅ Save & Approve</button>
-                                </div>
-                            </form>
-
-                            <!-- Reject Form separate (so it doesn't post the edit form) -->
-                            {% if site.status != 'rejected' %}
-                            <form method="post" action="/admin/sites/approve/" class="mt-2">
-                                {% csrf_token %}
-                                <input type="hidden" name="site_code" value="{{ site.site_code }}">
-                                <input type="hidden" name="action" value="rejected">
-                                <button type="submit" class="w-full bg-gray-50 hover:bg-red-50 text-red-500 p-2.5 rounded-lg border border-red-200 text-[14px] font-semibold cursor-pointer transition">❌ Reject Site</button>
-                            </form>
-                            {% endif %}
-                        </div>
-                    </div>
                     {% endfor %}
                 </tbody>
             </table>
@@ -313,6 +248,32 @@
 </div>
 
 <script>
+// ---- Image Delete ----
+async function deleteImage(siteCode, imageUrl, wrapEl) {
+  if (!confirm('Delete this image? This cannot be undone.')) return;
+  try {
+    const res = await fetch('/api/sites/images/delete/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+      body: JSON.stringify({ site_code: siteCode, image_url: imageUrl })
+    });
+    if (res.ok) {
+      wrapEl.remove();
+    } else {
+      alert('Failed to delete image. Please try again.');
+    }
+  } catch(e) {
+    alert('Network error: ' + e.message);
+  }
+}
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+
 // ---- Modal helpers ----
 function openModal(id) {
   document.getElementById(id).classList.add('open');

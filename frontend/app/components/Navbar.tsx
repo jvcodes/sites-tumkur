@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ClientOnly from "./ClientOnly";
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useWishlist } from "../context/WishlistContext";
@@ -44,64 +45,74 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white shadow sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-
-        {/* LOGO */}
-        <Link
-          href="/"
-          className="text-2xl font-bold text-[var(--color-primary)] tracking-wide"
-        >
-          SiteHub
-        </Link>
-
-        {/* SEARCH */}
-        <div className="flex-1 mx-6">
-          <input
-            type="text"
-            placeholder="Search locations or site_code..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={handleSearch}
-            className="w-full border border-gray-300 rounded-full px-4 py-2
-                       focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] bg-gray-50"
-          />
-        </div>
-
-        {/* ACTIONS */}
-        <div className="flex items-center gap-5">
+    <>
+      {/* ── TOP NAVBAR ────────────────────────────────────────────── */}
+      <nav className="bg-white shadow sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
+          
+          {/* LOGO */}
           <Link
-            href="/wishlist"
-            className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
+            href="/"
+            className="text-2xl font-bold text-[var(--color-primary)] tracking-wide"
           >
-            ❤️ Wishlist
-            {wishlist.length > 0 && (
-              <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
-                {wishlist.length}
-              </span>
-            )}
+            SiteHub
           </Link>
 
-          <Link
-            href="/cart"
-            className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
-          >
-            📋 Visit List
-            {visitListCount > 0 && (
-              <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
-                {visitListCount}
-              </span>
-            )}
-          </Link>
+          {/* DESKTOP SEARCH */}
+          <div className="flex-1 mx-6 hidden md:block">
+            <ClientOnly fallback={<div className="w-full h-10 border border-gray-300 rounded-full bg-gray-50"></div>}>
+              <input
+                type="text"
+                placeholder="Search locations or site_code..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={handleSearch}
+                className="w-full border border-gray-300 rounded-full px-4 py-2
+                           focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] bg-gray-50"
+              />
+            </ClientOnly>
+          </div>
 
-          {user ? (
-            <>
+          {/* MOBILE SEARCH / FILTER ICON */}
+          <div className="flex md:hidden items-center gap-4">
+            <button className="text-gray-600 p-2 bg-gray-50 rounded-full border border-gray-100">
+              🔍
+            </button>
+          </div>
+
+          {/* DESKTOP ACTIONS */}
+          <div className="hidden md:flex items-center gap-5">
+            <Link
+              href="/wishlist"
+              className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
+            >
+              ❤️ Wishlist
+              {wishlist.length > 0 && (
+                <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
+                  {wishlist.length}
+                </span>
+              )}
+            </Link>
+
+            <Link
+              href="/cart"
+              className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
+            >
+              📋 Visit List
+              {visitListCount > 0 && (
+                <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
+                  {visitListCount}
+                </span>
+              )}
+            </Link>
+
+            {user ? (
               <div className="relative group">
                 <button className="flex items-center gap-2 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-gray-200">
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
                     {user.name ? user.name.charAt(0).toUpperCase() : "U"}
                   </div>
-                  <div className="flex flex-col items-start hidden sm:flex">
+                  <div className="flex-col items-start hidden sm:flex">
                     <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Profile</span>
                     <span className="text-sm font-bold text-gray-800 line-clamp-1 max-w-[100px]">{user.name}</span>
                   </div>
@@ -130,19 +141,53 @@ export default function Navbar() {
                   </div>
                 </div>
               </div>
-            </>
-          ) : (
-            <Link
-              href="/login"
-              className="bg-[var(--color-primary)] text-white px-4 md:px-6 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-light)] transition-all shadow-md text-sm md:text-base"
-            >
-              Login
-            </Link>
-          )}
-
+            ) : (
+              <Link
+                href="/login"
+                className="bg-[var(--color-primary)] text-white px-4 md:px-6 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-light)] transition-all shadow-md text-sm md:text-base"
+              >
+                Login
+              </Link>
+            )}
+          </div>
         </div>
+      </nav>
 
-      </div>
-    </nav>
+      {/* ── MOBILE BOTTOM NAVIGATION BAR ──────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center justify-around py-3 pb-safe z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <Link href="/" className="flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
+          <span className="text-xl">🏠</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide">Home</span>
+        </Link>
+        <Link href="/wishlist" className="relative flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
+          <span className="text-xl">❤️</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide">Saved</span>
+          {wishlist.length > 0 && (
+            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
+              {wishlist.length}
+            </span>
+          )}
+        </Link>
+        <Link href="/upload-site" className="flex flex-col items-center gap-1 -mt-5 relative z-10">
+          <div className="w-12 h-12 bg-[var(--color-accent)] rounded-full flex items-center justify-center shadow-lg border-4 border-white text-white text-2xl font-light hover:bg-[var(--color-accent-hover)] transition-colors">
+            +
+          </div>
+          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mt-1">Upload</span>
+        </Link>
+        <Link href="/cart" className="relative flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
+          <span className="text-xl">📋</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide">Visits</span>
+          {visitListCount > 0 && (
+            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
+              {visitListCount}
+            </span>
+          )}
+        </Link>
+        <Link href={user ? "/profile" : "/login"} className="flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
+          <span className="text-xl">👤</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide">Profile</span>
+        </Link>
+      </nav>
+    </>
   );
 }

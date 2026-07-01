@@ -57,14 +57,14 @@ export default function BookedVisitsPage() {
                                 <p className="text-sm text-gray-500">Booked on {new Date(booking.created_at).toLocaleDateString()}</p>
                             </div>
                             
-                            {booking.agent_id && (
+                            {booking.broker_name && (
                                 <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold">
-                                        Agent
+                                    <div className="w-9 h-9 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm">
+                                        {booking.broker_name.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
-                                        <p className="text-sm font-semibold text-blue-900">Agent Assigned</p>
-                                        <p className="text-xs text-blue-700">An agent will contact you shortly.</p>
+                                        <p className="text-sm font-semibold text-blue-900">Agent: {booking.broker_name}</p>
+                                        <p className="text-xs text-blue-600">Will contact you to confirm the visit time.</p>
                                     </div>
                                 </div>
                             )}

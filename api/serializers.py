@@ -56,6 +56,12 @@ class SiteSerializer(serializers.Serializer):
         allow_null=True
     )
 
+    youtube_url = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True
+    )
+
     status = serializers.CharField(read_only=True)
     
     # Optional visit tracking fields

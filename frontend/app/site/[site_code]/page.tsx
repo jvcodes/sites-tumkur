@@ -63,7 +63,7 @@ export default function SiteDetails() {
         setLoading(true);
 
         const res = await fetch(
-          `http://127.0.0.1:8000/api/sites/${siteCode}/`
+          `/api/sites/${siteCode}/`
         );
 
         if (!res.ok) {
@@ -76,7 +76,7 @@ export default function SiteDetails() {
 
         // Record Analytics Visit
         if (user?.email) {
-          fetch("http://127.0.0.1:8000/api/sites/visits/", {
+          fetch("/api/sites/visits/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ user_id: user.email, site_code: siteCode })
@@ -155,7 +155,21 @@ export default function SiteDetails() {
   if (loading) return <p className="text-center mt-10 text-xl text-gray-600">Loading site details...</p>;
   if (error || !site) return <div className="text-center mt-20"><h2 className="text-3xl text-gray-800 font-bold mb-4">Site Not Found</h2><p className="text-red-600">{error}</p></div>;
 
-  const validImages = site.images && site.images.length > 0 ? site.images : [site.image || "/no-image.png"];
+  const getYoutubeVideoId = (url?: string) => {
+    if (!url) return null;
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    return match ? match[1] : null;
+  };
+
+  const youtubeId = getYoutubeVideoId((site as any).youtube_url);
+  
+  const media = [];
+  if (youtubeId) media.push({ type: 'youtube', src: youtubeId });
+  
+  const siteImages = site.images && site.images.length > 0 ? site.images : (site.image ? [site.image] : []);
+  if (siteImages.length === 0 && !youtubeId) siteImages.push("/no-image.svg");
+  
+  siteImages.forEach(img => media.push({ type: 'image', src: img }));
 
   // Calculate price per sqft (safely)
   const pricePerSqft = site.area && site.area > 0 ? Math.round(site.price / site.area) : 0;
@@ -181,21 +195,36 @@ export default function SiteDetails() {
           {/* IMAGE GALLERY */}
           <div className="bg-white rounded-xl shadow-sm border p-4">
             <div className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden border">
-              <img
-                src={validImages[activeImageIndex]}
-                alt={`${site.name} image ${activeImageIndex + 1}`}
-                className="w-full h-full object-contain"
-              />
+              {media[activeImageIndex]?.type === 'youtube' ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${media[activeImageIndex].src}?rel=0`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <img
+                  src={media[activeImageIndex]?.src}
+                  alt={`${site.name} image ${activeImageIndex + 1}`}
+                  className="w-full h-full object-contain"
+                />
+              )}
             </div>
-            {validImages.length > 1 && (
+            {media.length > 1 && (
               <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
-                {validImages.map((img, idx) => (
+                {media.map((item, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`w-20 h-20 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all ${activeImageIndex === idx ? 'border-red-600 opacity-100 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                    className={`w-20 h-20 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all ${activeImageIndex === idx ? 'border-[var(--color-accent)] opacity-100 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
                   >
-                    <img src={img} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover" />
+                    {item.type === 'youtube' ? (
+                      <div className="w-full h-full bg-black flex items-center justify-center text-white text-xs font-bold">
+                        ▶ VIDEO
+                      </div>
+                    ) : (
+                      <img src={item.src} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover" />
+                    )}
                   </button>
                 ))}
               </div>

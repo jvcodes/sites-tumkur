@@ -21,7 +21,12 @@ export default function CartPage() {
   const [time, setTime] = useState("");
   const [message, setMessage] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
+  const [phoneFromProfile, setPhoneFromProfile] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [bookingReceipt, setBookingReceipt] = useState<{
+    name: string; phone: string; date: string; time: string;
+    sites: CartItem[]; ref: string;
+  } | null>(null);
 
   // ----------------------------------
   // LOAD, NORMALIZE & DEDUPLICATE CART
@@ -57,7 +62,10 @@ export default function CartPage() {
       fetch(`http://127.0.0.1:8000/api/auth/profile/me/?email=${encodeURIComponent(user.email)}`)
         .then((r) => r.json())
         .then((profile) => {
-          if (profile.phone) setPhone(profile.phone);
+          if (profile.phone) {
+             setPhone(profile.phone);
+             setPhoneFromProfile(true);
+          }
         })
         .catch(() => {})
         .finally(() => setProfileLoading(false));
@@ -83,13 +91,19 @@ export default function CartPage() {
       return;
     }
     if (!name || !phone || !date || !time) {
-      alert("Please fill all booking details including date and time");
+      alert("⚠️ Please fill all details — name, mobile number, date and time.");
+      return;
+    }
+    // Indian mobile number validation: 10 digits starting with 6-9
+    const cleanPhone = phone.replace(/\s+/g, "");
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      alert("⚠️ Please enter a valid 10-digit Indian mobile number.");
       return;
     }
 
     const bookingData = {
       name,
-      phone,
+      phone: cleanPhone,
       date,
       time,
       email: user.email,
@@ -103,13 +117,105 @@ export default function CartPage() {
         body: JSON.stringify(bookingData),
       });
       if (!res.ok) throw new Error("Booking failed");
+      const receiptData = {
+        name,
+        phone: cleanPhone,
+        date,
+        time,
+        sites: [...cart],
+        ref: `BK${Date.now().toString().slice(-8)}`,
+      };
       localStorage.removeItem("cart");
       setCart([]);
-      setMessage("✅ Booking request submitted successfully! We'll contact you soon.");
+      setBookingReceipt(receiptData);
+      setMessage("✅ Booking request submitted! Our team will call you within 24 hours to confirm your site visit.");
     } catch {
-      alert("❌ Failed to submit booking. Please try again.");
+      alert("❌ Booking failed. Please check your internet and try again.");
     }
   };
+
+  // ----------------------------------
+  // BOOKING RECEIPT — shown after successful submission
+  // ----------------------------------
+  if (bookingReceipt) {
+    return (
+      <div className="max-w-2xl mx-auto p-6 mt-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-green-100 overflow-hidden">
+          {/* Header */}
+          <div className="bg-green-600 text-white px-8 py-6 text-center">
+            <div className="text-5xl mb-3">✅</div>
+            <h1 className="text-2xl font-extrabold">Booking Confirmed!</h1>
+            <p className="text-green-100 mt-1 text-sm">Our team will call you within 24 hours</p>
+          </div>
+
+          {/* Booking Details */}
+          <div className="px-8 py-6 space-y-4">
+            {/* Ref Number */}
+            <div className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Booking Reference</p>
+              <p className="text-2xl font-extrabold text-gray-800 tracking-widest">{bookingReceipt.ref}</p>
+              <p className="text-xs text-gray-400 mt-1">Save this number for follow-up</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <p className="text-xs text-blue-600 font-semibold uppercase mb-1">Your Name</p>
+                <p className="font-bold text-gray-800">{bookingReceipt.name}</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <p className="text-xs text-blue-600 font-semibold uppercase mb-1">Mobile</p>
+                <p className="font-bold text-gray-800">{bookingReceipt.phone}</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <p className="text-xs text-blue-600 font-semibold uppercase mb-1">Visit Date</p>
+                <p className="font-bold text-gray-800">
+                  {new Date(bookingReceipt.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <p className="text-xs text-blue-600 font-semibold uppercase mb-1">Preferred Time</p>
+                <p className="font-bold text-gray-800">{bookingReceipt.time}</p>
+              </div>
+            </div>
+
+            {/* Sites list */}
+            <div>
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Sites to Visit ({bookingReceipt.sites.length})</p>
+              <div className="space-y-2">
+                {bookingReceipt.sites.map((s) => (
+                  <div key={s.site_code} className="flex justify-between items-center bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                    <div>
+                      <p className="font-semibold text-gray-800 text-sm">{s.name}</p>
+                      <p className="text-xs text-gray-500">📍 {s.location} · {s.site_code}</p>
+                    </div>
+                    <p className="font-bold text-red-600 text-sm">
+                      ₹{s.price >= 100000 ? `${(s.price/100000).toFixed(1)} L` : s.price.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+              <p className="text-yellow-800 text-sm font-medium">
+                📞 We will call you on <strong>{bookingReceipt.phone}</strong> to confirm the visit schedule.
+              </p>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-8 pb-8 flex gap-3">
+            <Link href="/profile/booked" className="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">
+              View My Bookings
+            </Link>
+            <Link href="/" className="flex-1 text-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition">
+              Browse More
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ----------------------------------
   // EMPTY CART STATE
@@ -163,7 +269,7 @@ export default function CartPage() {
           {cart.map((item) => (
             <div key={item.site_code} className="flex gap-4 bg-white rounded-lg shadow-sm p-4">
               <img
-                src={item.image || "/no-image.png"}
+                src={item.image || "/no-image.svg"}
                 alt={item.name}
                 className="w-36 h-28 object-cover rounded border"
               />
@@ -207,7 +313,7 @@ export default function CartPage() {
                   <div className="border rounded px-3 py-2 bg-gray-50 text-gray-400 text-sm">
                     Loading from profile...
                   </div>
-                ) : phone ? (
+                ) : phoneFromProfile ? (
                   <div className="flex gap-2 items-center border rounded px-3 py-2 bg-gray-50">
                     <span className="flex-1 text-gray-800">{phone}</span>
                     <span className="text-green-500 text-xs font-bold">✓ from account</span>
@@ -215,9 +321,9 @@ export default function CartPage() {
                 ) : (
                   <input
                     type="tel"
-                    placeholder="Enter your phone number"
+                    placeholder="Enter your 10-digit mobile number"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
                   />
                 )}

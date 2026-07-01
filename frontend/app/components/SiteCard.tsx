@@ -52,11 +52,26 @@ export default function SiteCard({ site }: SiteCardProps) {
 
   // Graceful fallback for ID and Image
   const siteId = site.site_code || site.id_str || site._id || '#';
-  const imageUrl = site.image && site.image !== ''
-    ? site.image
-    : '/no-image.svg'; // Make sure this exists in public/
 
-  // Formatter for Indian Rupees
+  // Extract YouTube ID
+  const getYoutubeVideoId = (url?: string) => {
+    if (!url) return null;
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    return match ? match[1] : null;
+  };
+  const youtubeId = getYoutubeVideoId((site as any).youtube_url);
+
+  // Build media array
+  const media = [];
+  if (site.images && site.images.length > 0) {
+    media.push(...site.images);
+  } else if (site.image && site.image !== '') {
+    media.push(site.image);
+  } else {
+    media.push('/no-image.svg');
+  }
+
+  // Formatter for Indian Rupees — full price
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -65,107 +80,169 @@ export default function SiteCard({ site }: SiteCardProps) {
     }).format(price);
   };
 
+  // Short label: e.g. "25 Lakh" or "1.5 Cr" — familiar to Indian buyers
+  const shortPrice = (price: number): string => {
+    if (price >= 10000000) return `${(price / 10000000).toFixed(1)} Cr`;
+    if (price >= 100000)   return `${(price / 100000).toFixed(1)} Lakh`;
+    return price.toLocaleString('en-IN');
+  };
+
   return (
-    <div className="group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col pt-1 relative p-1">
-      {/* Status & ID Ribbon */}
-      <div className="absolute top-4 left-4 z-10 flex gap-2">
-        <span className={`px-3 py-1 bg-white/95 backdrop-blur-md rounded-md shadow text-xs font-black tracking-widest border ${site.status?.toLowerCase() === 'sold' ? 'text-red-700 border-red-200' :
-          site.status?.toLowerCase() === 'reserved' ? 'text-orange-600 border-orange-200' :
-            'text-green-700 border-green-200'
-          }`}>
-          {site.status ? site.status.toUpperCase() : 'AVAILABLE'}
-        </span>
-      </div>
-
-      <div className="absolute top-4 right-4 z-10 flex gap-2 items-center">
-        <span className="bg-blue-900/90 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm tracking-wide">
-          {displayId}
-        </span>
-
-        {/* Wishlist Button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            toggleWishlist(displayId);
-          }}
-          className={`p-1.5 rounded-full shadow-sm transition-all bg-white/90 ${isLiked ? 'text-red-600' : 'text-gray-400 hover:text-red-500 hover:bg-white'}`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            {isLiked ? (
-              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-            ) : (
-              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" fillOpacity="0" stroke="currentColor" strokeWidth="2" />
-            )}
-          </svg>
+    <div className="bg-white md:rounded-xl md:shadow-sm md:border md:border-gray-200 overflow-hidden mb-2 border-b border-gray-100 pb-4 md:pb-0 flex flex-col">
+      
+      {/* ── HEADER (Like Instagram User Info) ── */}
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 font-bold border border-blue-100 text-xs shrink-0">
+            📍
+          </div>
+          <div className="flex flex-col">
+            <h3 className="text-sm font-bold text-gray-900 leading-tight">
+              {site.location}
+            </h3>
+            <p className="text-[11px] text-gray-500">
+              ID: {displayId} • {site.status ? site.status.toUpperCase() : 'AVAILABLE'}
+            </p>
+          </div>
+        </div>
+        <button className="text-gray-400 hover:text-gray-600">
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" /></svg>
         </button>
       </div>
 
-      {/* Image Container */}
-      <div className="relative h-56 w-full rounded-t-lg overflow-hidden bg-gray-100">
-        <Image
-          src={imageUrl}
-          alt={site.name}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
+      {/* ── MEDIA CAROUSEL (Edge-to-Edge on mobile) ── */}
+      <div className="relative w-full aspect-[4/3] sm:aspect-video md:aspect-[4/3] bg-black">
+        <div className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar">
+          {/* YouTube Video Slide */}
+          {youtubeId && (
+            <div className="w-full h-full flex-shrink-0 snap-center relative">
+              <iframe
+                src={`https://www.youtube.com/embed/${youtubeId}?rel=0`}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+
+          {/* Image Slides */}
+          {media.map((imgUrl, idx) => (
+            <div key={idx} className="w-full h-full flex-shrink-0 snap-center relative">
+              <Link href={`/site/${siteId}`} className="block w-full h-full">
+                <img
+                  src={imgUrl}
+                  alt={`${site.name} - slide ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </Link>
+            </div>
+          ))}
+        </div>
+
+        {/* Carousel Indicators (Dots) */}
+        {(youtubeId || media.length > 1) && (
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+            {youtubeId && <div className="w-1.5 h-1.5 rounded-full bg-white/80 shadow"></div>}
+            {media.map((_, i) => (
+              <div key={`dot-${i}`} className="w-1.5 h-1.5 rounded-full bg-white/50 shadow"></div>
+            ))}
+          </div>
+        )}
+
+        {site.status?.toLowerCase() === 'sold' && (
+          <div className="absolute top-3 right-3 bg-red-600 text-white text-xs font-black px-2 py-1 rounded shadow-lg uppercase z-10">
+            SOLD
+          </div>
+        )}
       </div>
 
-      {/* Content */}
-      <div className="p-5 flex flex-col flex-1">
-        <div className="mb-3">
-          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-            📍 {site.location}
-          </p>
-          <h3 className="text-lg font-bold text-gray-900 line-clamp-1 group-hover:text-red-600 transition-colors">
-            {site.name || "Real Estate Plot"}
-          </h3>
-        </div>
-
-        <div className="mb-4">
-          <span className="text-2xl font-extrabold text-red-600">{formatPrice(site.price)}</span>
-        </div>
-
-        {/* Specs Grid */}
-        <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm text-gray-700 mb-5 border-y border-gray-100 py-3 mt-auto">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Plot Size</span>
-            <span className="font-semibold">{site.area ? `${site.area} Sq.ft` : "N/A"}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Dimension</span>
-            <span className="font-semibold">{site.dimension || "N/A"}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Facing</span>
-            <span className="font-semibold">{site.facing || "N/A"}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Price/Sq.ft</span>
-            <span className="font-semibold">{site.area && site.area > 0 ? `₹${Math.round(site.price / site.area).toLocaleString()}` : "N/A"}</span>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <Link
-            href={`/site/${siteId}`}
-            className="flex-1 text-center py-2.5 rounded-lg border-2 border-red-600 text-red-600 font-bold hover:bg-red-600 hover:text-white transition-colors text-sm"
-          >
-            View Details
-          </Link>
+      {/* ── ACTION BAR (Heart, Share, Visit) ── */}
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* Wishlist */}
           <button
-            onClick={addToVisitList}
-            disabled={inVisitList}
-            className={`px-4 py-2.5 rounded-lg transition-colors text-sm font-bold flex items-center justify-center ${inVisitList
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white'
-              }`}
-            title="Add to Visit List"
+            onClick={(e) => {
+              e.preventDefault();
+              toggleWishlist(displayId);
+            }}
+            className={`transition-transform active:scale-75 ${isLiked ? 'text-red-500' : 'text-gray-800'}`}
           >
-            {inVisitList ? '📋 Added' : '➕ Visit'}
+            <svg className="w-7 h-7" viewBox="0 0 24 24" fill={isLiked ? "currentColor" : "none"} stroke="currentColor" strokeWidth={isLiked ? "0" : "1.5"}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+            </svg>
+          </button>
+          
+          {/* Share (Native Web Share) */}
+          <button 
+            onClick={(e) => {
+              e.preventDefault();
+              const url = `${window.location.origin}/site/${siteId}`;
+              if (navigator.share) {
+                navigator.share({
+                  title: site.name || 'SiteHub Listing',
+                  text: `Check out this site in ${site.location} for ${shortPrice(site.price)}!`,
+                  url: url,
+                }).catch(err => console.error("Error sharing", err));
+              } else if (navigator.clipboard) {
+                navigator.clipboard.writeText(url);
+                alert("Link copied to clipboard!");
+              } else {
+                // Insecure HTTP context fallback (e.g. mobile dev server)
+                const textArea = document.createElement("textarea");
+                textArea.value = url;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                  document.execCommand('copy');
+                  alert("Link copied to clipboard!");
+                } catch (err) {
+                  console.error('Oops, unable to copy', err);
+                }
+                document.body.removeChild(textArea);
+              }
+            }}
+            className="text-gray-800 transition-transform active:scale-75"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+            </svg>
           </button>
         </div>
+        
+        {/* Visit List Button */}
+        <button
+          onClick={addToVisitList}
+          disabled={inVisitList}
+          className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${inVisitList ? 'bg-gray-100 text-gray-400' : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-light)]'}`}
+        >
+          {inVisitList ? 'Added to Visits' : 'Schedule Visit'}
+        </button>
+      </div>
+
+      {/* ── DETAILS (Price, Specs, Desc) ── */}
+      <div className="px-4 pb-3 flex flex-col">
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="text-[15px] font-extrabold text-gray-900">{formatPrice(site.price)}</span>
+          <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+            {shortPrice(site.price)}
+          </span>
+        </div>
+        
+        <p className="text-sm font-semibold text-gray-800 line-clamp-1 mb-1">
+          {site.name}
+        </p>
+
+        <p className="text-xs text-gray-500 mb-2 flex flex-wrap gap-1 items-center">
+          {site.area && <span>{site.area} Sq.ft</span>}
+          {site.area && site.dimension && <span>•</span>}
+          {site.dimension && <span>{site.dimension}</span>}
+          {(site.area || site.dimension) && site.facing && <span>•</span>}
+          {site.facing && <span>{site.facing} Facing</span>}
+        </p>
+        
+        <Link href={`/site/${siteId}`} className="text-xs text-gray-400 uppercase font-bold tracking-wider hover:text-gray-600 mt-1">
+          View full details &rarr;
+        </Link>
       </div>
     </div>
   );

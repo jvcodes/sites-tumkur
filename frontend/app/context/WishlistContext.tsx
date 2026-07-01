@@ -12,27 +12,29 @@ interface WishlistContextType {
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
-    const { user, token } = useAuth();
+    const { user } = useAuth();
     const [wishlist, setWishlist] = useState<string[]>([]);
 
-    // 1. Fetch Wishlist on Load/Login
+    // Fetch wishlist from server whenever user logs in
     useEffect(() => {
-        if (user && token) {
-            fetchWishlist();
+        if (user?.email) {
+            fetchWishlist(user.email);
         } else {
             setWishlist([]);
         }
-    }, [user, token]);
+    }, [user]);
 
-    const fetchWishlist = async () => {
+    const fetchWishlist = async (email: string) => {
         try {
-            const res = await fetch("http://localhost:3000/api/wishlist/", {
-                headers: { Authorization: `Token ${token}` },
-            });
+            const res = await fetch(
+                `/api/wishlist/?email=${encodeURIComponent(email)}`
+            );
             if (res.ok) {
                 const data = await res.json();
-                // Extract site_codes for easy checking
-                const codes = data.map((site: any) => site.site_code);
+                // data is array of site objects — extract just the site_codes
+                const codes = data
+                    .map((site: any) => site.site_code)
+                    .filter(Boolean);
                 setWishlist(codes);
             }
         } catch (err) {
@@ -40,35 +42,37 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    // 2. Toggle Logic
     const toggleWishlist = async (site_code: string) => {
-        if (!user) {
-            alert("Please login to add to wishlist!");
-            return; // Could redirect to login here
+        if (!user?.email) {
+            alert("Please login to save sites to your wishlist!");
+            return;
         }
 
-        try {
-            // Optimistic Update
-            const isLiked = wishlist.includes(site_code);
-            setWishlist((prev) =>
-                isLiked ? prev.filter(c => c !== site_code) : [...prev, site_code]
-            );
+        // Optimistic UI update
+        const wasLiked = wishlist.includes(site_code);
+        setWishlist((prev) =>
+            wasLiked ? prev.filter((c) => c !== site_code) : [...prev, site_code]
+        );
 
-            const res = await fetch("http://localhost:3000/api/wishlist/toggle", {
+        try {
+            const res = await fetch(`/api/wishlist/toggle/`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Token ${token}`,
-                },
-                body: JSON.stringify({ site_code }),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: user.email, site_code }),
             });
 
             if (!res.ok) {
-                // Revert on failure
-                fetchWishlist();
-                alert("Failed to update wishlist");
+                // Revert optimistic update on failure
+                setWishlist((prev) =>
+                    wasLiked ? [...prev, site_code] : prev.filter((c) => c !== site_code)
+                );
+                console.error("Wishlist toggle failed");
             }
         } catch (err) {
+            // Revert on network error
+            setWishlist((prev) =>
+                wasLiked ? [...prev, site_code] : prev.filter((c) => c !== site_code)
+            );
             console.error("Wishlist Toggle Error", err);
         }
     };

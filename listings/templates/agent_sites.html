@@ -12,6 +12,9 @@
     .main { flex:1; padding:32px; overflow-y:auto; }
     .nav-a { display:flex; align-items:center; gap:10px; padding:10px 16px; color:#94a3b8; text-decoration:none; font-size:14px; font-weight:500; border-radius:8px; margin:2px 8px; transition:background 0.15s;}
     .nav-a:hover, .nav-a.active { background:rgba(255,255,255,0.1); color:#fff; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:100; justify-content:center; align-items:center; padding:20px; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:16px; max-width:500px; width:100%; padding:28px; position:relative; }
   </style>
 </head>
 <body>
@@ -35,25 +38,63 @@
   <main class="main">
     <div style="margin-bottom:24px;">
       <h1 style="font-size:22px; font-weight:800; color:#0f172a; margin:0;">Site Reviews</h1>
-      <p style="color:#64748b; margin:4px 0 0;">Review pending site submissions and recommend approval or rejection.</p>
+      <p style="color:#64748b; margin:4px 0 0;">Review pending sites — recommend approval or flag for rejection. Final decision is with admin.</p>
     </div>
 
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:18px;">
+    {% if message %}
+    <div style="background:#f0fdf4; border:1px solid #86efac; color:#166534; padding:12px 16px; border-radius:10px; margin-bottom:20px; font-size:14px; font-weight:600;">
+      ✅ {{ message }}
+    </div>
+    {% endif %}
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:18px;">
       {% for site in sites %}
-      <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); overflow:hidden; border:1px solid #e2e8f0;">
-        <div style="padding:16px 20px; border-bottom:1px solid #f1f5f9;">
-          <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase;">{{ site.site_code }}</div>
-          <div style="font-size:15px; font-weight:700; color:#0f172a; margin-top:2px;">{{ site.name }}</div>
+      <div style="background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,0.08); overflow:hidden; border:1px solid #e2e8f0;">
+
+        {% if site.images %}
+        <div style="height:160px; overflow:hidden; background:#f1f5f9;">
+          <img src="{{ site.images.0 }}" alt="Site Image"
+               style="width:100%; height:100%; object-fit:cover;"
+               onerror="this.style.display='none'">
         </div>
-        <div style="padding:16px 20px;">
+        {% endif %}
+
+        <div style="padding:16px 20px; border-bottom:1px solid #f1f5f9;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase;">{{ site.site_code }}</div>
+            {% if site.agent_flag == "recommended" %}
+            <span style="background:#dcfce7; color:#166534; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;">✅ Recommended</span>
+            {% elif site.agent_flag == "flagged_reject" %}
+            <span style="background:#fef2f2; color:#b91c1c; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;">🚩 Flagged</span>
+            {% else %}
+            <span style="background:#fff7ed; color:#c2410c; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;">⏳ Pending</span>
+            {% endif %}
+          </div>
+          <div style="font-size:15px; font-weight:700; color:#0f172a;">{{ site.name|default:"Unnamed Site" }}</div>
+          <div style="font-size:13px; color:#64748b; margin-top:2px;">📍 {{ site.location|default:"—" }}</div>
+        </div>
+
+        <div style="padding:14px 20px;">
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; font-size:13px;">
             <div><span style="color:#94a3b8;">Price:</span> <strong>₹{{ site.price|default:"—" }}</strong></div>
             <div><span style="color:#94a3b8;">Area:</span> <strong>{{ site.area|default:"—" }} sq ft</strong></div>
-            <div><span style="color:#94a3b8;">Location:</span> {{ site.location|default:"—" }}</div>
             <div><span style="color:#94a3b8;">Owner:</span> {{ site.owner|default:"—" }}</div>
+            <div><span style="color:#94a3b8;">Facing:</span> {{ site.facing|default:"—" }}</div>
           </div>
-          <div style="font-size:12px; color:#64748b; font-style:italic; background:#f8fafc; padding:8px 10px; border-radius:6px;">
-            Agent review only — final approval is by admin.
+
+          {% if site.agent_review_note %}
+          <div style="background:#f8fafc; border-radius:8px; padding:10px 12px; margin-bottom:12px; border-left:3px solid #3b82f6; font-size:12px; color:#475569;">
+            <strong>Your note:</strong> {{ site.agent_review_note }}
+          </div>
+          {% endif %}
+
+          <!-- Action Buttons — show only if not yet reviewed, or allow re-review -->
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button onclick="openReviewModal('{{ site.site_code }}', '{{ site.name|escapejs }}')"
+                    style="width:100%; background:#1d4ed8; color:#fff; border:none; border-radius:8px; padding:10px; font-size:14px; font-weight:700; cursor:pointer; transition:background 0.15s;"
+                    onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#1d4ed8'">
+              🔍 Review This Site
+            </button>
           </div>
         </div>
       </div>
@@ -66,5 +107,55 @@
     </div>
   </main>
 </div>
+
+<!-- ── REVIEW MODAL ────────────────────────────────── -->
+<div id="review-modal" class="modal-overlay" onclick="if(event.target===this) closeReviewModal()">
+  <div class="modal-box">
+    <button onclick="closeReviewModal()"
+            style="position:absolute; top:12px; right:12px; background:#f1f5f9; border:none; border-radius:50%; width:30px; height:30px; font-size:16px; cursor:pointer;">✕</button>
+
+    <h2 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 4px;">Review Site</h2>
+    <p id="modal-site-name" style="font-size:13px; color:#64748b; margin:0 0 20px;"></p>
+
+    <form id="review-form" method="post" action="/agent/sites/review/">
+      {% csrf_token %}
+      <input type="hidden" id="modal-site-code" name="site_code" value="">
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block; font-size:11px; font-weight:700; color:#374151; text-transform:uppercase; margin-bottom:6px;">
+          Your Note / Observation (optional)
+        </label>
+        <textarea name="note" rows="3"
+                  placeholder="E.g. Good road access, clear title verified, owner is cooperative..."
+                  style="width:100%; border:1px solid #d1d5db; border-radius:8px; padding:10px; font-size:13px; resize:vertical; box-sizing:border-box; font-family:inherit;"></textarea>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <button type="submit" name="action" value="recommend_approve"
+                style="flex:1; background:#16a34a; color:#fff; border:none; border-radius:8px; padding:12px; font-size:14px; font-weight:700; cursor:pointer;">
+          ✅ Recommend Approve
+        </button>
+        <button type="submit" name="action" value="recommend_reject"
+                onclick="return confirm('Flag this site for rejection?')"
+                style="flex:1; background:#fff; color:#dc2626; border:2px solid #dc2626; border-radius:8px; padding:12px; font-size:14px; font-weight:700; cursor:pointer;">
+          🚩 Flag Reject
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openReviewModal(siteCode, siteName) {
+  document.getElementById('modal-site-code').value = siteCode;
+  document.getElementById('modal-site-name').textContent = siteCode + ' — ' + siteName;
+  document.getElementById('review-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeReviewModal() {
+  document.getElementById('review-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+</script>
 </body>
 </html>

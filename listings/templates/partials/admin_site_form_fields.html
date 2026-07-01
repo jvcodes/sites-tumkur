@@ -9,6 +9,10 @@
     <input type="text" name="location" required placeholder="e.g. Tiptur, Tumkur" value="{{ site.location|default:'' }}">
   </div>
   <div class="form-group">
+    <label>YouTube Link (Video Walkthrough)</label>
+    <input type="url" name="youtube_url" placeholder="https://youtube.com/watch?v=..." value="{{ site.youtube_url|default:'' }}">
+  </div>
+  <div class="form-group">
     <label>Price (₹)</label>
     <input type="number" name="price" required placeholder="e.g. 1500000" value="{{ site.price|default:'' }}">
   </div>
@@ -99,4 +103,10 @@
     > {{ feature.label }}
   </label>
   {% endfor %}
+</div>
+
+<div class="section-title">🔒 Admin Section</div>
+<div class="form-group">
+  <label>Admin Internal Notes (Not visible to users)</label>
+  <textarea name="admin_notes" rows="4" placeholder="Add any private notes, verification details, or comments here..." style="resize:vertical; background-color: #fffbeb; border-color: #fde68a;">{{ site.admin_notes|default:'' }}</textarea>
 </div>

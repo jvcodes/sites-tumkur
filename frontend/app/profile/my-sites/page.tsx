@@ -32,7 +32,12 @@ export default function MySitesPage() {
             try {
                 setLoading(true);
                 // Assuming your backend uses user.name as the owner matching field
-                const res = await fetch(`http://127.0.0.1:8000/api/sites/my-sites/?owner=${encodeURIComponent(user.name)}`);
+                const params = new URLSearchParams();
+                if (user.email) params.append("user_id", user.email);
+                if (user.name)  params.append("owner", user.name);
+                const res = await fetch(
+                    `http://127.0.0.1:8000/api/sites/my-sites/?${params.toString()}`
+                );
 
                 if (!res.ok) throw new Error("Failed to fetch your sites");
 

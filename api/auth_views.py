@@ -89,3 +89,31 @@ def my_profile_api(request):
     del profile["_id"]
     
     return Response(profile)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_phone_api(request):
+    """Update phone number for a user profile. Payload: { email, phone }"""
+    email = request.data.get('email', '').strip()
+    phone = request.data.get('phone', '').strip()
+
+    if not email or not phone:
+        return Response({"error": "Email and phone are required"}, status=400)
+
+    # Validate Indian phone: 10 digits starting with 6-9
+    import re
+    if not re.match(r'^[6-9]\d{9}$', phone):
+        return Response({"error": "Please enter a valid 10-digit Indian mobile number"}, status=400)
+
+    from listings.mongo import user_profiles_collection
+    result = user_profiles_collection.update_one(
+        {"email": email},
+        {"$set": {"phone": phone}},
+        upsert=False
+    )
+
+    if result.matched_count == 0:
+        return Response({"error": "Profile not found"}, status=404)
+
+    return Response({"message": "Phone number updated successfully", "phone": phone})

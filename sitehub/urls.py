@@ -22,6 +22,7 @@ urlpatterns = [
     path('admin/agents/add/', api_views.admin_add_agent),
     path('admin/agents/toggle/', api_views.admin_toggle_agent),
     path('admin/sites/pending/', api_views.admin_sites_pending_page),
+    path('admin/sites/review/<str:site_code>/', api_views.admin_site_review_page),
     path('admin/sites/approve/', api_views.admin_approve_site),
     path('admin/sites/upload/', api_views.admin_upload_site_page),
     path('admin/sites/edit/', api_views.admin_edit_site),

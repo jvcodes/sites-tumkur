@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 
-client = MongoClient("mongodb://127.0.0.1:27017/")
+# client = MongoClient("mongodb://127.0.0.1:27017/")
+client = MongoClient("mongodb+srv://jagadeeshtv1995_db_user:OUHCLZWV826eJQNY@cluster0.qkx1rqe.mongodb.net/?appName=Cluster0")
 db = client["site_db"]
 
 # Core Collections

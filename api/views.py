@@ -25,7 +25,14 @@ def normalize_image(request, image_path):
         return ""
     if image_path.startswith("http"):
         return image_path
-    return f"{request.scheme}://{request.get_host()}{settings.MEDIA_URL}{image_path}"
+        
+    # Ensure it starts with /media/
+    if image_path.startswith("/media/"):
+        return image_path
+        
+    # Strip leading slash if present to avoid double slash
+    path = image_path.lstrip("/")
+    return f"{settings.MEDIA_URL}{path}"
 
 
 # --------------------------------------------------
@@ -60,6 +67,7 @@ def hydrate_sites(request, sites):
         s["site_code"] = s.get("site_code", "")
         s["area"] = s.get("area", 0)
         s["owner"] = s.get("owner", "")
+        s["youtube_url"] = s.get("youtube_url", "")
         
         # Hydrate text location from location_id
         if s.get("location_id") and str(s["location_id"]) in locations:
@@ -87,9 +95,62 @@ def hydrate_sites(request, sites):
 
 
 # --------------------------------------------------
+# 🔹 GET: Distinct Locations from DB (Dynamic dropdown)
+# --------------------------------------------------
+@api_view(['GET'])
+def get_locations_api(request):
+    """Returns a sorted list of unique location names from approved sites."""
+    from listings.mongo import locations_collection
+
+    # From locations_collection (normalised locations)
+    loc_cursor = locations_collection.find({}, {"city": 1, "_id": 0})
+    from_collection = sorted({d["city"] for d in loc_cursor if d.get("city")})
+
+    # Also collect any raw location strings stored directly on site docs
+    raw_locs = site_collection.distinct("location", {
+        "status": "approved",
+        "is_deleted": {"$ne": True},
+        "location": {"$nin": [None, ""]}
+    })
+
+    combined = sorted(set(from_collection) | set(raw_locs))
+    return Response({"locations": combined})
+
+
+# --------------------------------------------------
+# 🔹 POST: Delete a Single Site Image (Admin)
+# --------------------------------------------------
+@api_view(['POST'])
+def delete_site_image_api(request):
+    """
+    Remove one image from site_images_collection and from the site's legacy images array.
+    Payload: { site_code, image_url }
+    """
+    from listings.mongo import site_images_collection
+
+    site_code = request.data.get("site_code", "").strip()
+    image_url = request.data.get("image_url", "").strip()
+
+    if not site_code or not image_url:
+        return Response({"error": "site_code and image_url are required"}, status=400)
+
+    # Delete from normalised images collection
+    site_images_collection.delete_many({"site_code": site_code, "image_url": image_url})
+
+    # Also remove from legacy images[] array on site doc
+    site_collection.update_one(
+        {"site_code": site_code},
+        {"$pull": {"images": image_url}}
+    )
+
+    return Response({"message": "Image deleted", "site_code": site_code})
+
+
+# --------------------------------------------------
 # 🔹 GET: Approved Sites
 # --------------------------------------------------
 @api_view(['GET'])
+
 def approved_sites_api(request):
     page = int(request.GET.get("page", 1))
     limit = int(request.GET.get("limit", 9))
@@ -170,10 +231,7 @@ def filter_sites_api(request):
     total = site_collection.count_documents(query)
     cursor = cursor.skip(skip).limit(limit)
 
-    sites = list(cursor)
-
-    sites = list(cursor)
-    sites = hydrate_sites(request, sites)
+    sites = hydrate_sites(request, list(cursor))
 
     serializer = SiteSerializer(sites, many=True)
     return Response({
@@ -203,11 +261,10 @@ def my_sites_api(request):
     else:
         query["owner"] = {"$regex": f"^{owner}$", "$options": "i"}
         
-    cursor = site_collection.find(query).sort("created_at", -1)
-    sites = list(cursor)
+    # Exclude soft-deleted sites
+    query["is_deleted"] = {"$ne": True}
 
-    sites = list(cursor)
-    sites = hydrate_sites(request, sites)
+    sites = hydrate_sites(request, list(site_collection.find(query).sort("created_at", -1)))
 
     from .serializers import SiteSerializer
     serializer = SiteSerializer(sites, many=True)
@@ -228,6 +285,7 @@ def create_site_api(request):
         owner = request.POST.get("owner")
         dimension = request.POST.get("dimension", "")
         facing = request.POST.get("facing", "")
+        youtube_url = request.POST.get("youtube_url", "")
         # For authenticated users, grab user info (frontend passes user_id or email)
         # Authenticated user
         user_id = request.POST.get("user_id", "")
@@ -268,8 +326,9 @@ def create_site_api(request):
             "dimension": dimension,
             "facing": facing,
             "status": request.POST.get("status", "pending"),  # Usually pending initial upload
+            "youtube_url": youtube_url,
             "user_id": user_id,
-            "created_at": datetime.now(),
+            "created_at": datetime.utcnow(),
             "updated_at": datetime.now(),
             "is_deleted": False,
             
@@ -393,7 +452,7 @@ def delete_site_by_code_api(request, site_code):
         {"$set": {"is_deleted": True}}
     )
 
-    if result.deleted_count == 0:
+    if result.matched_count == 0:
         return Response(
             {"error": "Site not found"},
             status=404
@@ -797,9 +856,17 @@ def admin_sites_pending_page(request):
 
     sites_cursor = site_collection.find(query).sort("created_at", -1).skip((page - 1) * page_size).limit(page_size)
     sites = []
+    from listings.mongo import site_images_collection
+    
     for s in sites_cursor:
         s["id"] = str(s["_id"])
         del s["_id"]
+        
+        # Attach images
+        site_images = list(site_images_collection.find({"site_code": s.get("site_code", "")}))
+        # Assuming MEDIA_URL is /media/ and image_url is just the relative path
+        s["images"] = [f"/media/{img['image_url']}" if not img['image_url'].startswith('http') else img['image_url'] for img in site_images]
+        
         sites.append(s)
         
     # ── Summary counts for tabs ──────────────────────────
@@ -833,6 +900,49 @@ def admin_sites_pending_page(request):
         "has_previous": page > 1,
         "total_filtered": total_items,
     })
+
+
+def admin_site_review_page(request, site_code):
+    """Render a dedicated full-page view for a single site to approve/reject."""
+    site = site_collection.find_one({"site_code": site_code, "is_deleted": {"$ne": True}})
+    if not site:
+        from django.http import HttpResponseNotFound
+        return HttpResponseNotFound("Site not found")
+
+    site["id"] = str(site["_id"])
+    del site["_id"]
+
+    from listings.mongo import site_images_collection
+    site_images = list(site_images_collection.find({"site_code": site_code}))
+    
+    # Retain the full image object for deleting, but add the full URL for rendering
+    for img in site_images:
+        img["full_url"] = f"/media/{img['image_url']}" if not img['image_url'].startswith('http') else img['image_url']
+        
+    site["images_raw"] = site_images
+    site["images"] = [img["full_url"] for img in site_images]
+
+    # Calculate Next and Prev site codes for easy navigation
+    status = site.get("status", "pending")
+    all_sites = list(site_collection.find({"status": status, "is_deleted": {"$ne": True}}, {"site_code": 1}).sort("created_at", -1))
+    site_codes = [s.get("site_code") for s in all_sites if s.get("site_code")]
+    
+    prev_site = None
+    next_site = None
+    if site_code in site_codes:
+        idx = site_codes.index(site_code)
+        if idx > 0:
+            prev_site = site_codes[idx - 1]  # Newer site
+        if idx < len(site_codes) - 1:
+            next_site = site_codes[idx + 1]  # Older site
+
+    return render(request, "admin_site_detail.html", {
+        "site": site,
+        "prev_site": prev_site,
+        "next_site": next_site,
+        "features": SITE_FEATURES,
+    })
+
 
 def admin_approve_site(request):
     """POST: Approve or reject a pending site."""
@@ -1026,6 +1136,45 @@ def agent_sites_page(request):
     return render(request, "agent_sites.html", {"sites": sites, "agent_name": agent_name})
 
 
+def agent_review_site(request):
+    """POST: Agent recommends approval or rejection of a pending site."""
+    if request.method != "POST":
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect("/agent/sites/")
+
+    if not request.session.get("agent_phone"):
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect("/agent/portal/")
+
+    site_code   = request.POST.get("site_code", "").strip()
+    action      = request.POST.get("action", "").strip()   # "recommend_approve" | "recommend_reject"
+    note        = request.POST.get("note", "").strip()
+    agent_name  = request.session.get("agent_name", "Agent")
+
+    if site_code and action in ("recommend_approve", "recommend_reject"):
+        update_data = {
+            "agent_review": action,
+            "agent_review_note": note,
+            "agent_reviewer": agent_name,
+            "agent_reviewed_at": datetime.now(),
+        }
+        # If agent recommends approval, flag it for admin (status stays 'pending' until admin approves)
+        if action == "recommend_approve":
+            update_data["agent_flag"] = "recommended"
+        else:
+            update_data["agent_flag"] = "flagged_reject"
+
+        site_collection.update_one(
+            {"site_code": site_code},
+            {"$set": update_data}
+        )
+
+    from django.http import HttpResponseRedirect
+    return HttpResponseRedirect("/agent/sites/")
+
+
+
+
 # ================================================================
 # 🔷 ADMIN BOOKING UPDATE (Form-based — redirects back after save)
 # ================================================================
@@ -1199,6 +1348,8 @@ def admin_edit_site(request):
     zoning_type = request.POST.get("zoning_type", "")
     category    = request.POST.get("category", "")
     description = request.POST.get("description", "")
+    admin_notes = request.POST.get("admin_notes", "")
+    youtube_url = request.POST.get("youtube_url", "")
 
     if not site_code:
         return HttpResponseRedirect("/admin/sites/pending/?msg=Invalid+site")
@@ -1217,6 +1368,8 @@ def admin_edit_site(request):
         "zoning_type": zoning_type,
         "category": category,
         "description": description,
+        "admin_notes": admin_notes,
+        "youtube_url": youtube_url,
     }
     if price:
         update_data["price"] = float(price)
@@ -1231,16 +1384,20 @@ def admin_edit_site(request):
     for feature in SITE_FEATURES:
         update_data[feature["key"]] = get_bool(feature["key"])
 
-    if action == "save_approve":
+    if action == "save_approve" or action == "approved":
         update_data["status"] = "approved"
+    elif action == "reject" or action == "rejected":
+        update_data["status"] = "rejected"
 
     site_collection.update_one(
         {"site_code": site_code},
         {"$set": update_data}
     )
 
-    if action == "save_approve":
-        return HttpResponseRedirect(f"/admin/sites/pending/?msg=Site+{site_code}+saved+and+approved")
+    next_url = request.POST.get("next")
+    if next_url:
+        return HttpResponseRedirect(next_url)
+        
     return HttpResponseRedirect(f"/admin/sites/pending/?msg=Site+{site_code}+updated+successfully")
 
 
