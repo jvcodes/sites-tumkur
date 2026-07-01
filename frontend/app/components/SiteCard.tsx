@@ -12,6 +12,8 @@ interface SiteCardProps {
     price: number;
     area: number;
     image?: string;
+    images?: string[];
+    youtube_url?: string;
     status: string;
     type?: string;
     site_code?: string;

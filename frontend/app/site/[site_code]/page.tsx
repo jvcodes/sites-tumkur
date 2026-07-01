@@ -18,6 +18,7 @@ interface Site {
   description?: string;
   image?: string;
   images?: string[];
+  youtube_url?: string;
 
   // Specs
   corner_site?: boolean;
