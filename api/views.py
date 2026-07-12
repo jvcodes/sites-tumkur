@@ -27,13 +27,26 @@ def normalize_image(request, image_path):
     if image_path.startswith("http"):
         return image_path
         
-    # Ensure it starts with /media/
-    if image_path.startswith("/media/"):
-        return image_path
+    # Strip leading slash and /media/ if present
+    path = image_path
+    if path.startswith("/media/"):
+        path = path[7:]
+    elif path.startswith("media/"):
+        path = path[6:]
         
-    # Strip leading slash if present to avoid double slash
-    path = image_path.lstrip("/")
-    return f"{settings.MEDIA_URL}{path}"
+    path = path.lstrip("/")
+    
+    # Get the URL from the storage backend (works for both local and GCS)
+    try:
+        url = default_storage.url(path)
+        # In local mode, default_storage.url might just append MEDIA_URL
+        if not url.startswith("http"):
+            # Ensure it has a leading slash for relative paths if it doesn't already
+            if not url.startswith("/"):
+                url = f"/{url}"
+        return url
+    except Exception:
+        return f"{settings.MEDIA_URL}{path}"
 
 
 # --------------------------------------------------
