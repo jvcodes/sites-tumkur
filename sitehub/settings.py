@@ -135,11 +135,16 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Google Cloud Storage Settings
 if os.environ.get('GS_BUCKET_NAME'):
-    DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
     GS_BUCKET_NAME = os.environ.get('GS_BUCKET_NAME')
     GS_DEFAULT_ACL = 'publicRead'
-    # The credentials will be automatically picked up by Google Cloud Run via its service account,
-    # or can be set via GOOGLE_APPLICATION_CREDENTIALS environment variable.
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 CORS_ALLOW_ALL_ORIGINS = True
 
