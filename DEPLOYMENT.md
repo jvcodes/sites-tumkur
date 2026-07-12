@@ -160,23 +160,27 @@ In MongoDB Atlas → **Network Access**, you must whitelist:
 
 ### [NEW] Google Cloud Platform (Cloud Run)
 
-The application is now containerized and ready to be deployed to Google Cloud Run for $0/month.
+The application is now containerized and ready to be deployed to Google Cloud Run for $0/month. We use environment variables (`.env`) to ensure the codebase remains clean and can be deployed anywhere without code changes.
 
 **Prerequisites:**
 1. Install the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install).
 2. Run `gcloud auth login` and `gcloud config set project YOUR_PROJECT_ID`.
+3. Create a Google Cloud Storage Bucket for media (e.g. `gs://tumkur-sites-media`) and make it public.
 
 **Deploy Backend (Django):**
 ```bash
 # Run from the root directory of the project
 gcloud run deploy sitehub-backend --source . --region us-central1 --allow-unauthenticated \
-  --set-env-vars="DJANGO_SECRET_KEY=your-secret,MONGO_URI=your-mongo-uri,GS_BUCKET_NAME=your-bucket-name"
+  --set-env-vars="DJANGO_SECRET_KEY=your-secret,MONGO_URI=your-mongo-uri,GS_BUCKET_NAME=tumkur-sites-media"
 ```
 
 **Deploy Frontend (Next.js):**
+Because Next.js bakes `NEXT_PUBLIC_` environment variables into the optimized bundle during the build phase, you must use `--set-build-env-vars` when deploying to Cloud Run.
+
 ```bash
 # Run from the frontend/ directory
 gcloud run deploy sitehub-frontend --source . --region us-central1 --allow-unauthenticated \
+  --set-build-env-vars="NEXT_PUBLIC_BACKEND_URL=https://<your-backend-cloud-run-url>" \
   --set-env-vars="NEXT_PUBLIC_BACKEND_URL=https://<your-backend-cloud-run-url>"
 ```
 

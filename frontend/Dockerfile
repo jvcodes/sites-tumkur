@@ -18,6 +18,10 @@ COPY . .
 # Next.js telemetry is disabled
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# Accept backend URL as build argument and expose it as environment variable
+ARG NEXT_PUBLIC_BACKEND_URL
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+
 RUN npm run build
 
 # Production image, copy all the files and run next
