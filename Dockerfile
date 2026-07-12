@@ -16,6 +16,9 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # Copy project
 COPY . /app/
 
+# Collect static files for WhiteNoise
+RUN python manage.py collectstatic --noinput
+
 # Expose the port Cloud Run expects
 EXPOSE $PORT
 
