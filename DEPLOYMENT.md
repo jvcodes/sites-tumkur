@@ -18,6 +18,16 @@ This document outlines the different platforms hosting your application, what ea
 
 ---
 
+## 🚨 TODO: Upcoming Migration to Google Cloud Platform (GCP)
+*We are planning to move the architecture to GCP to eliminate Render's 50-second cold start times while maintaining a $0/mo cost.*
+
+**Planned Changes:**
+1. **Frontend & Backend (Cloud Run):** Move Next.js and Django from Vercel/Render to **Google Cloud Run**. This requires creating `Dockerfile`s for both codebases. Cloud Run auto-scales and wakes up in ~1-2 seconds, falling well within the 2 million free requests/month tier.
+2. **Image Storage (Google Cloud Storage):** Move local `/media/` image uploads to **GCS**. This prevents images from being deleted on every deployment. GCS provides 5GB free. Requires setting up `django-storages` and bucket CORS permissions.
+3. **Database & Auth:** Keep MongoDB Atlas and Firebase, as they are already free and integrate perfectly.
+
+---
+
 ## Cloud Platforms
 
 | Component | Platform | What It Does & Why We Use It |
@@ -147,6 +157,30 @@ In MongoDB Atlas → **Network Access**, you must whitelist:
 ---
 
 ## Deployment Steps
+
+### [NEW] Google Cloud Platform (Cloud Run)
+
+The application is now containerized and ready to be deployed to Google Cloud Run for $0/month.
+
+**Prerequisites:**
+1. Install the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install).
+2. Run `gcloud auth login` and `gcloud config set project YOUR_PROJECT_ID`.
+
+**Deploy Backend (Django):**
+```bash
+# Run from the root directory of the project
+gcloud run deploy sitehub-backend --source . --region us-central1 --allow-unauthenticated \
+  --set-env-vars="DJANGO_SECRET_KEY=your-secret,MONGO_URI=your-mongo-uri,GS_BUCKET_NAME=your-bucket-name"
+```
+
+**Deploy Frontend (Next.js):**
+```bash
+# Run from the frontend/ directory
+gcloud run deploy sitehub-frontend --source . --region us-central1 --allow-unauthenticated \
+  --set-env-vars="NEXT_PUBLIC_BACKEND_URL=https://<your-backend-cloud-run-url>"
+```
+
+---
 
 ### Backend — Deploy to Render
 

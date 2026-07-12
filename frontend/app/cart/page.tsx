@@ -225,7 +225,15 @@ export default function CartPage() {
   // ----------------------------------
   // EMPTY CART STATE
   // ----------------------------------
-  if (!loading && cart.length === 0) {
+  if (loading) {
+      return (
+          <div className="max-w-4xl mx-auto p-10 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          </div>
+      );
+  }
+
+  if (cart.length === 0) {
     return (
       <div className="max-w-4xl mx-auto p-10 text-center">
         <div className="text-5xl mb-4">🛒</div>

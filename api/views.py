@@ -15,6 +15,7 @@ from listings.utils import generate_site_code
 from django.core.files.storage import default_storage
 from django.conf import settings
 import os
+import re
 
 
 # --------------------------------------------------
@@ -192,14 +193,25 @@ def filter_sites_api(request):
     search = request.GET.get("search")  # General search term
     min_price = request.GET.get("min_price")
     max_price = request.GET.get("max_price")
+    min_area = request.GET.get("min_area")
+    max_area = request.GET.get("max_area")
+    facing = request.GET.get("facing")
     site_code = request.GET.get("site_code")
     sort = request.GET.get("sort")
 
     if location:
-        query["location"] = {"$regex": location, "$options": "i"}
-
+        location_list = [l.strip() for l in location.split(",") if l.strip()]
+        if location_list:
+            # Create regexes for case-insensitive exact match for multiple locations
+            query["location"] = {"$in": [re.compile(f"^{l}$", re.IGNORECASE) for l in location_list]}
     if site_code:
          query["site_code"] = {"$regex": site_code, "$options": "i"}
+         
+    if facing:
+         facing_list = [f.strip() for f in facing.split(",") if f.strip()]
+         if facing_list:
+             # Create regexes for case-insensitive exact match
+             query["facing"] = {"$in": [re.compile(f"^{f}$", re.IGNORECASE) for f in facing_list]}
 
     if search:
         query["$or"] = [
@@ -215,6 +227,13 @@ def filter_sites_api(request):
             query["price"]["$gte"] = int(min_price)
         if max_price:
             query["price"]["$lte"] = int(max_price)
+            
+    if min_area or max_area:
+        query["area"] = {}
+        if min_area:
+            query["area"]["$gte"] = int(min_area)
+        if max_area:
+            query["area"]["$lte"] = int(max_area)
 
     cursor = site_collection.find(query)
 
@@ -487,6 +506,7 @@ def create_booking_api(request):
     booking = {
         "name": name,
         "phone": phone,
+        "email": data.get("email", ""),
         "date": date,
         "time": time_str,
         "sites": sites,
@@ -524,7 +544,19 @@ def create_booking_api(request):
 def my_bookings_api(request):
     phone = request.GET.get("phone")
     email = request.GET.get("email")
+    user_id = request.GET.get("user_id")
     
+    if user_id:
+        if "@" in user_id:
+            email = user_id
+        else:
+            phone = user_id
+            
+    import re
+    if phone:
+        digits = re.sub(r'\D', '', phone)
+        phone = digits[-10:] if len(digits) >= 10 else digits
+            
     if not phone and not email:
         return Response({"error": "Phone number or email required"}, status=400)
         

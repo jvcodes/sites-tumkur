@@ -10,7 +10,7 @@ import { useWishlist } from "../context/WishlistContext";
 export default function Navbar() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
   const { wishlist } = useWishlist();
   const [visitListCount, setVisitListCount] = useState(0);
 
@@ -60,17 +60,16 @@ export default function Navbar() {
 
           {/* DESKTOP SEARCH */}
           <div className="flex-1 mx-6 hidden md:block">
-            <ClientOnly fallback={<div className="w-full h-10 border border-gray-300 rounded-full bg-gray-50"></div>}>
-              <input
-                type="text"
-                placeholder="Search locations or site_code..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={handleSearch}
-                className="w-full border border-gray-300 rounded-full px-4 py-2
-                           focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] bg-gray-50"
-              />
-            </ClientOnly>
+            <input
+              suppressHydrationWarning
+              type="text"
+              placeholder="Search locations or site_code..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleSearch}
+              className="w-full border border-gray-300 rounded-full px-4 py-2
+                         focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] bg-gray-50"
+            />
           </div>
 
           {/* MOBILE SEARCH / FILTER ICON */}
@@ -82,81 +81,69 @@ export default function Navbar() {
 
           {/* DESKTOP ACTIONS */}
           <div className="hidden md:flex items-center gap-5">
-            <Link
-              href="/wishlist"
-              className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
-            >
-              ❤️ Wishlist
-              <ClientOnly>
-                {wishlist.length > 0 && (
-                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
-                    {wishlist.length}
-                  </span>
-                )}
-              </ClientOnly>
+            <Link href="/wishlist" className="relative p-2 text-gray-600 hover:text-red-500 transition-colors group">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+              {wishlist.length > 0 && (
+                <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white group-hover:scale-110 transition-transform">
+                  {wishlist.length}
+                </span>
+              )}
+            </Link>
+            
+            <Link href="/cart" className="relative p-2 text-gray-600 hover:text-[var(--color-accent)] transition-colors group">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+              {visitListCount > 0 && (
+                <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white group-hover:scale-110 transition-transform">
+                  {visitListCount}
+                </span>
+              )}
             </Link>
 
-            <Link
-              href="/cart"
-              className="relative text-gray-700 hover:text-[var(--color-accent)] transition-colors flex items-center"
-            >
-              📋 Visit List
-              <ClientOnly>
-                {visitListCount > 0 && (
-                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
-                    {visitListCount}
-                  </span>
-                )}
-              </ClientOnly>
-            </Link>
-
-            <ClientOnly fallback={
+            {authLoading ? (
               <div className="w-24 h-9 bg-gray-100 rounded-lg animate-pulse" />
-            }>
-              {user ? (
-                <div className="relative group">
-                  <button className="flex items-center gap-2 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-gray-200">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
-                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-                    </div>
-                    <div className="flex-col items-start hidden sm:flex">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Profile</span>
-                      <span className="text-sm font-bold text-gray-800 line-clamp-1 max-w-[100px]">{user.name}</span>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </button>
+            ) : user ? (
+              <div className="relative group">
+                <button className="flex items-center gap-2 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-gray-200">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
+                    {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                  <div className="flex-col items-start hidden sm:flex">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Profile</span>
+                    <span className="text-sm font-bold text-gray-800 line-clamp-1 max-w-[100px]">{user.name}</span>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
 
-                  {/* DROPDOWN MENU */}
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 transform origin-top-right scale-95 group-hover:scale-100">
-                    <div className="p-2 space-y-1">
-                      <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
-                        <span className="opacity-80">👤</span> My Profile
-                      </Link>
-                      <Link href="/profile/visits" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
-                        <span className="opacity-80">👁️</span> My Visits
-                      </Link>
-                      <Link href="/profile/booked" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
-                        <span className="opacity-80">📅</span> Booked for Visit
-                      </Link>
-                      <Link href="/profile/my-sites" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
-                        <span className="opacity-80">🏠</span> My Uploaded Sites
-                      </Link>
-                      <div className="h-px bg-gray-100 my-1"></div>
-                      <button onClick={logout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg font-bold transition-colors">
-                        <span className="opacity-80">🚪</span> Logout
-                      </button>
-                    </div>
+                {/* DROPDOWN MENU */}
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 transform origin-top-right scale-95 group-hover:scale-100">
+                  <div className="p-2 space-y-1">
+                    <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">👤</span> My Profile
+                    </Link>
+                    <Link href="/profile/visits" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">👁️</span> My Visits
+                    </Link>
+                    <Link href="/profile/booked" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">📅</span> Booked for Visit
+                    </Link>
+                    <Link href="/profile/my-sites" className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-medium transition-colors">
+                      <span className="opacity-80">🏠</span> My Uploaded Sites
+                    </Link>
+                    <div className="h-px bg-gray-100 my-1"></div>
+                    <button onClick={logout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg font-bold transition-colors">
+                      <span className="opacity-80">🚪</span> Logout
+                    </button>
                   </div>
                 </div>
-              ) : (
-                <Link
-                  href="/login"
-                  className="bg-[var(--color-primary)] text-white px-4 md:px-6 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-light)] transition-all shadow-md text-sm md:text-base"
-                >
-                  Login
-                </Link>
-              )}
-            </ClientOnly>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="bg-[var(--color-primary)] text-white px-4 md:px-6 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-light)] transition-all shadow-md text-sm md:text-base"
+              >
+                Login
+              </Link>
+            )}
           </div>
         </div>
       </nav>
@@ -170,13 +157,11 @@ export default function Navbar() {
         <Link href="/wishlist" className="relative flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
           <span className="text-xl">❤️</span>
           <span className="text-[10px] font-bold uppercase tracking-wide">Saved</span>
-          <ClientOnly>
-            {wishlist.length > 0 && (
-              <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
-                {wishlist.length}
-              </span>
-            )}
-          </ClientOnly>
+          {wishlist.length > 0 && (
+            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
+              {wishlist.length}
+            </span>
+          )}
         </Link>
         <Link href="/upload-site" className="flex flex-col items-center gap-1 -mt-5 relative z-10">
           <div className="w-12 h-12 bg-[var(--color-accent)] rounded-full flex items-center justify-center shadow-lg border-4 border-white text-white text-2xl font-light hover:bg-[var(--color-accent-hover)] transition-colors">
@@ -187,25 +172,23 @@ export default function Navbar() {
         <Link href="/cart" className="relative flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
           <span className="text-xl">📋</span>
           <span className="text-[10px] font-bold uppercase tracking-wide">Visits</span>
-          <ClientOnly>
-            {visitListCount > 0 && (
-              <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
-                {visitListCount}
-              </span>
-            )}
-          </ClientOnly>
+          {visitListCount > 0 && (
+            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
+              {visitListCount}
+            </span>
+          )}
         </Link>
-        <ClientOnly fallback={
+        {authLoading ? (
           <Link href="/login" className="flex flex-col items-center gap-1 text-gray-600">
             <span className="text-xl">👤</span>
             <span className="text-[10px] font-bold uppercase tracking-wide">Profile</span>
           </Link>
-        }>
+        ) : (
           <Link href={user ? "/profile" : "/login"} className="flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
             <span className="text-xl">👤</span>
             <span className="text-[10px] font-bold uppercase tracking-wide">Profile</span>
           </Link>
-        </ClientOnly>
+        )}
       </nav>
     </>
   );

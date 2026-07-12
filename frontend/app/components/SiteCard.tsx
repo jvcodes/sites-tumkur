@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useWishlist } from '../context/WishlistContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface SiteCardProps {
   site: {
@@ -27,6 +27,8 @@ export default function SiteCard({ site }: SiteCardProps) {
   const displayId = site.site_code || site.id_str || site._id || '';
   const isLiked = isInWishlist(displayId);
   const [inVisitList, setInVisitList] = useState(false);
+  const [isPlayingVideo, setIsPlayingVideo] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const raw = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -54,6 +56,32 @@ export default function SiteCard({ site }: SiteCardProps) {
 
   // Graceful fallback for ID and Image
   const siteId = site.site_code || site.id_str || site._id || '#';
+
+  const scrollLeft = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (carouselRef.current) {
+      const { scrollLeft, scrollWidth, offsetWidth } = carouselRef.current;
+      // Wrap to end if at the beginning
+      if (scrollLeft <= 10) {
+        carouselRef.current.scrollTo({ left: scrollWidth, behavior: 'smooth' });
+      } else {
+        carouselRef.current.scrollBy({ left: -offsetWidth, behavior: 'smooth' });
+      }
+    }
+  };
+
+  const scrollRight = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (carouselRef.current) {
+      const { scrollLeft, scrollWidth, offsetWidth } = carouselRef.current;
+      // Wrap to start if at the end
+      if (scrollLeft + offsetWidth >= scrollWidth - 10) {
+        carouselRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        carouselRef.current.scrollBy({ left: offsetWidth, behavior: 'smooth' });
+      }
+    }
+  };
 
   // Extract YouTube ID
   const getYoutubeVideoId = (url?: string) => {
@@ -113,16 +141,19 @@ export default function SiteCard({ site }: SiteCardProps) {
       </div>
 
       {/* ── MEDIA CAROUSEL (Edge-to-Edge on mobile) ── */}
-      <div className="relative w-full aspect-[4/3] sm:aspect-video md:aspect-[4/3] bg-black">
-        <div className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar">
+      <div className="relative w-full aspect-[4/3] sm:aspect-video md:aspect-[4/3] bg-black group/carousel">
+        <div ref={carouselRef} className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth">
           {/* YouTube Video Slide */}
           {youtubeId && (
             <div className="w-full h-full flex-shrink-0 snap-center relative">
               <iframe
-                src={`https://www.youtube.com/embed/${youtubeId}?rel=0`}
-                className="w-full h-full"
+                src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0`}
+                srcDoc={`<style>*{padding:0;margin:0;overflow:hidden}html,body{height:100%}img{position:absolute;width:100%;height:100%;object-fit:cover}.play{position:absolute;top:0;bottom:0;left:0;right:0;margin:auto;width:64px;height:64px;background:rgba(0,0,0,0.6);border-radius:50%;display:flex;justify-content:center;align-items:center;color:white;border:1.5px solid rgba(255,255,255,0.4);transition:transform 0.2s}a:hover .play{transform:scale(1.1)}</style><a href=https://www.youtube.com/embed/${youtubeId}?autoplay=1><img src=https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg alt='Thumbnail'><div class='play'><svg style='width:32px;height:32px;margin-left:4px' fill='currentColor' viewBox='0 0 24 24'><path d='M8 5v14l11-7z' /></svg></div></a>`}
+                className="w-full h-full border-none"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
+                title="Property Video"
+                loading="lazy"
               />
             </div>
           )}
@@ -149,6 +180,24 @@ export default function SiteCard({ site }: SiteCardProps) {
               <div key={`dot-${i}`} className="w-1.5 h-1.5 rounded-full bg-white/50 shadow"></div>
             ))}
           </div>
+        )}
+
+        {/* Scroll Buttons */}
+        {(youtubeId || media.length > 1) && (
+          <>
+            <button 
+              onClick={scrollLeft}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-gray-800 shadow flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-white z-10"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <button 
+              onClick={scrollRight}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-gray-800 shadow flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-white z-10"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </>
         )}
 
         {site.status?.toLowerCase() === 'sold' && (

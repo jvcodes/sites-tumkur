@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
     'listings',
     'api',
     "corsheaders",
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -130,6 +132,14 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Media files (uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Google Cloud Storage Settings
+if os.environ.get('GS_BUCKET_NAME'):
+    DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+    GS_BUCKET_NAME = os.environ.get('GS_BUCKET_NAME')
+    GS_DEFAULT_ACL = 'publicRead'
+    # The credentials will be automatically picked up by Google Cloud Run via its service account,
+    # or can be set via GOOGLE_APPLICATION_CREDENTIALS environment variable.
 
 CORS_ALLOW_ALL_ORIGINS = True
 
