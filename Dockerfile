@@ -17,7 +17,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . /app/
 
 # Expose the port Cloud Run expects
-EXPOSE 8000
+EXPOSE $PORT
 
 # Command to run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "sitehub.wsgi:application"]
+CMD gunicorn --bind 0.0.0.0:$PORT sitehub.wsgi:application
