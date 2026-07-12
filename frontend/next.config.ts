@@ -6,6 +6,7 @@ const backendUrl = isProd ? 'https://sites-tumkur.onrender.com' : 'http://127.0.
 const nextConfig: NextConfig = {
   /* config options here */
   trailingSlash: true,
+  skipTrailingSlashRedirect: true,
   images: {
     remotePatterns: [
       {
@@ -39,7 +40,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*/`,
+        destination: `${backendUrl}/api/:path*`,
       },
       {
         source: '/media/:path*',

@@ -5,21 +5,26 @@ import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
 
 export default function MyVisitsPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const [visits, setVisits] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (user?.email) {
-            fetch(`http://127.0.0.1:8000/api/sites/visits/me/?user_id=${encodeURIComponent(user.email)}`)
+        if (authLoading) return;
+        const identifier = user?.email || user?.phone || "";
+        if (identifier) {
+            const queryParam = `user_id=${encodeURIComponent(identifier)}`;
+            fetch(`/api/sites/visits/me?${queryParam}`)
                 .then(res => res.json())
                 .then(data => {
                     setVisits(data);
                     setLoading(false);
                 })
                 .catch(() => setLoading(false));
+        } else {
+            setLoading(false);
         }
-    }, [user]);
+    }, [user, authLoading]);
 
     if (loading) return <div className="p-8 text-gray-500">Loading visit history...</div>;
 

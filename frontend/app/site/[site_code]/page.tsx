@@ -64,7 +64,7 @@ export default function SiteDetails() {
         setLoading(true);
 
         const res = await fetch(
-          `/api/sites/${siteCode}/`
+          `/api/sites/${siteCode}`
         );
 
         if (!res.ok) {
@@ -76,11 +76,11 @@ export default function SiteDetails() {
         setError(null);
 
         // Record Analytics Visit
-        if (user?.email) {
-          fetch("/api/sites/visits/", {
+        if (user?.email || user?.phone) {
+          fetch("/api/sites/visits", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: user.email, site_code: siteCode })
+            body: JSON.stringify({ user_id: user.email || user.phone, site_code: siteCode })
           }).catch(console.error); // Silently ignore tracking errors
         }
 

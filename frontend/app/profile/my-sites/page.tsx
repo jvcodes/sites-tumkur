@@ -36,7 +36,7 @@ export default function MySitesPage() {
                 if (user.email) params.append("user_id", user.email);
                 if (user.name)  params.append("owner", user.name);
                 const res = await fetch(
-                    `http://127.0.0.1:8000/api/sites/my-sites/?${params.toString()}`
+                    `/api/sites/my-sites?${params.toString()}`
                 );
 
                 if (!res.ok) throw new Error("Failed to fetch your sites");
@@ -61,7 +61,7 @@ export default function MySitesPage() {
         }
 
         try {
-            const res = await fetch(`http://127.0.0.1:8000/api/sites/delete-by-code/${siteCode}/`, {
+            const res = await fetch(`/api/sites/delete-by-code/${siteCode}`, {
                 method: "DELETE",
             });
 

@@ -18,11 +18,16 @@ def get_wishlist(request):
     Uses email as user identifier (passed as query param).
     GET /api/wishlist/?email=user@gmail.com
     """
-    email = request.GET.get("email", "").strip()
-    if not email:
+    user_id = request.GET.get("user_id") or request.GET.get("email")
+    if not user_id:
         return Response([])
 
-    wishlist_doc = wishlist_collection.find_one({"user_id": email})
+    import re
+    if "@" not in user_id:
+        digits = re.sub(r'\D', '', user_id)
+        user_id = digits[-10:] if len(digits) >= 10 else digits
+
+    wishlist_doc = wishlist_collection.find_one({"user_id": user_id})
     if not wishlist_doc or not wishlist_doc.get("sites"):
         return Response([])
 
@@ -46,16 +51,21 @@ def toggle_wishlist(request):
     Add or Remove a site from wishlist.
     Payload: { "email": "user@gmail.com", "site_code": "SEED-123" }
     """
-    email = request.data.get("email", "").strip()
+    user_id = request.data.get("user_id", request.data.get("email", "")).strip()
     site_code = request.data.get("site_code", "").strip()
 
-    if not email:
-        return Response({"error": "email is required"}, status=400)
+    if not user_id:
+        return Response({"error": "user_id is required"}, status=400)
     if not site_code:
         return Response({"error": "site_code is required"}, status=400)
 
+    import re
+    if "@" not in user_id:
+        digits = re.sub(r'\D', '', user_id)
+        user_id = digits[-10:] if len(digits) >= 10 else digits
+
     # Get or create wishlist doc for this user
-    wishlist_doc = wishlist_collection.find_one({"user_id": email})
+    wishlist_doc = wishlist_collection.find_one({"user_id": user_id})
     current_sites = wishlist_doc.get("sites", []) if wishlist_doc else []
 
     # Toggle
@@ -68,7 +78,7 @@ def toggle_wishlist(request):
 
     # Upsert
     wishlist_collection.update_one(
-        {"user_id": email},
+        {"user_id": user_id},
         {"$set": {"sites": current_sites}},
         upsert=True
     )

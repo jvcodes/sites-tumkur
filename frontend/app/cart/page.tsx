@@ -57,14 +57,18 @@ export default function CartPage() {
     setName(user.name || "");
 
     // Fetch phone from profile API
-    if (user.email) {
+    if (user.email || user.phone) {
       setProfileLoading(true);
-      fetch(`http://127.0.0.1:8000/api/auth/profile/me/?email=${encodeURIComponent(user.email)}`)
+      const queryParam = user.email ? `email=${encodeURIComponent(user.email)}` : `phone=${encodeURIComponent(user.phone || "")}`;
+      fetch(`/api/auth/profile/me?${queryParam}`)
         .then((r) => r.json())
         .then((profile) => {
           if (profile.phone) {
              setPhone(profile.phone);
              setPhoneFromProfile(true);
+          }
+          if (profile.name) {
+             setName(profile.name);
           }
         })
         .catch(() => {})
@@ -95,8 +99,9 @@ export default function CartPage() {
       return;
     }
     // Indian mobile number validation: 10 digits starting with 6-9
-    const cleanPhone = phone.replace(/\s+/g, "");
-    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+    const digitsOnly = phone.replace(/\D/g, "");
+    const cleanPhone = digitsOnly.slice(-10);
+    if (!/^[6-9]\d{9}$/.test(cleanPhone) || digitsOnly.length < 10) {
       alert("⚠️ Please enter a valid 10-digit Indian mobile number.");
       return;
     }
@@ -111,7 +116,7 @@ export default function CartPage() {
     };
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/bookings/create/", {
+      const res = await fetch("/api/bookings/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingData),

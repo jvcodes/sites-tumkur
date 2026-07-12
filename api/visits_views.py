@@ -14,6 +14,11 @@ def visit_site_api(request):
     
     if not user_id or not site_code:
         return Response({"error": "user_id and site_code are required"}, status=400)
+        
+    import re
+    if "@" not in user_id:
+        digits = re.sub(r'\D', '', user_id)
+        user_id = digits[-10:] if len(digits) >= 10 else digits
     
     # Check if a visit already exists to avoid dupes, or update timestamp
     existing = visits_collection.find_one({"user_id": user_id, "site_code": site_code})
@@ -40,6 +45,11 @@ def my_visits_api(request):
     
     if not user_id:
         return Response({"error": "user_id is required"}, status=400)
+        
+    import re
+    if "@" not in user_id:
+        digits = re.sub(r'\D', '', user_id)
+        user_id = digits[-10:] if len(digits) >= 10 else digits
         
     visits = list(visits_collection.find({"user_id": user_id}).sort("visit_date", -1))
     

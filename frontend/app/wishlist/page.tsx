@@ -6,22 +6,28 @@ import SiteCard from "../components/SiteCard";
 import Link from "next/link";
 
 export default function WishlistPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [sites, setSites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.email) {
-      fetchWishlistItems(user.email);
+    // Wait until AuthContext has finished reading localStorage
+    if (authLoading) return;
+
+    const identifier = user?.email || user?.phone || "";
+    if (identifier) {
+      fetchWishlistItems(identifier);
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
-  const fetchWishlistItems = async (email: string) => {
+  const fetchWishlistItems = async (identifier: string) => {
+    // Extra guard — never fire with empty string
+    if (!identifier) { setLoading(false); return; }
     try {
       const res = await fetch(
-        `/api/wishlist/?email=${encodeURIComponent(email)}`
+        `/api/wishlist?user_id=${encodeURIComponent(identifier)}`
       );
       if (res.ok) {
         const data = await res.json();

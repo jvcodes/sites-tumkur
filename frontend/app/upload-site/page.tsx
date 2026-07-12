@@ -112,7 +112,7 @@ export default function UploadSitePage() {
     images.forEach((img) => data.append("images", img));
 
     try {
-      const res = await fetch("/api/sites/create/", {
+      const res = await fetch("/api/sites/create", {
         method: "POST",
         body: data,
       });

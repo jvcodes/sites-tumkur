@@ -5,13 +5,16 @@ import { useAuth } from "../../context/AuthContext";
 import Link from "next/link";
 
 export default function BookedVisitsPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const [bookings, setBookings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (user?.email) {
-            fetch(`http://127.0.0.1:8000/api/bookings/me/?email=${encodeURIComponent(user.email)}`)
+        if (authLoading) return;
+        const identifier = user?.email || user?.phone || "";
+        if (identifier) {
+            const queryParam = `user_id=${encodeURIComponent(identifier)}`;
+            fetch(`/api/bookings/me?${queryParam}`)
                 .then(res => res.json())
                 .then(data => {
                     if (!data.error) setBookings(data);

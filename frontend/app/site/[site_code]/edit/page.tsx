@@ -42,7 +42,7 @@ export default function EditSitePage() {
         const fetchSite = async () => {
             try {
                 setLoading(true);
-                const res = await fetch(`http://127.0.0.1:8000/api/sites/${siteCode}/`);
+                const res = await fetch(`/api/sites/${siteCode}`);
 
                 if (!res.ok) {
                     throw new Error("Site not found");
@@ -100,7 +100,7 @@ export default function EditSitePage() {
 
         try {
             const res = await fetch(
-                `http://127.0.0.1:8000/api/sites/update-by-code/${siteCode}/`,
+                `/api/sites/update-by-code/${siteCode}`,
                 {
                     method: "PUT",
                     headers: {

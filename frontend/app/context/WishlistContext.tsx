@@ -12,22 +12,25 @@ interface WishlistContextType {
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const [wishlist, setWishlist] = useState<string[]>([]);
 
     // Fetch wishlist from server whenever user logs in
+    // Wait for authLoading to be false first — prevents fetch with null/empty identifier
     useEffect(() => {
-        if (user?.email) {
-            fetchWishlist(user.email);
+        if (authLoading) return;
+        const identifier = user?.email || user?.phone || "";
+        if (identifier) {
+            fetchWishlist(identifier);
         } else {
             setWishlist([]);
         }
-    }, [user]);
+    }, [user, authLoading]);
 
-    const fetchWishlist = async (email: string) => {
+    const fetchWishlist = async (identifier: string) => {
         try {
             const res = await fetch(
-                `/api/wishlist/?email=${encodeURIComponent(email)}`
+                `/api/wishlist?user_id=${encodeURIComponent(identifier)}`
             );
             if (res.ok) {
                 const data = await res.json();
@@ -43,7 +46,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     };
 
     const toggleWishlist = async (site_code: string) => {
-        if (!user?.email) {
+        if (!user?.email && !user?.phone) {
             alert("Please login to save sites to your wishlist!");
             return;
         }
@@ -55,10 +58,10 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         );
 
         try {
-            const res = await fetch(`/api/wishlist/toggle/`, {
+            const res = await fetch(`/api/wishlist/toggle`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: user.email, site_code }),
+                body: JSON.stringify({ user_id: user.email || user.phone, site_code }),
             });
 
             if (!res.ok) {
