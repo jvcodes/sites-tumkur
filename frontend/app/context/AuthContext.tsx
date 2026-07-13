@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const loginWithPhone = async (idToken: string) => {
         try {
-            const res = await fetch("/api/auth/phone", {
+            const res = await fetch("/api/auth/phone/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ idToken }),
