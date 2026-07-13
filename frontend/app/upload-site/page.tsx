@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
+import toast from "react-hot-toast";
 
 export default function UploadSitePage() {
   const { user } = useAuth();
@@ -61,7 +62,7 @@ export default function UploadSitePage() {
     e.preventDefault();
 
     if (!user) {
-      alert("You must be logged in to upload a site.");
+      toast.error("You must be logged in to upload a site.");
       router.push("/login");
       return;
     }

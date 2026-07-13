@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
 
 interface Site {
   site_code: string;
@@ -136,7 +137,7 @@ export default function SiteDetails() {
 
     localStorage.setItem("wishlist", JSON.stringify(unique));
     setInWishlist(true);
-    alert("Added to wishlist ❤️");
+    toast.success("Added to wishlist ❤️");
   };
 
   const addToVisitList = () => {
@@ -150,7 +151,7 @@ export default function SiteDetails() {
 
     localStorage.setItem("cart", JSON.stringify(unique));
     setInVisitList(true);
-    alert("Added to Visit List 📋");
+    toast.success("Added to Visit List 📋");
   };
 
   if (loading) return <p className="text-center mt-10 text-xl text-gray-600">Loading site details...</p>;

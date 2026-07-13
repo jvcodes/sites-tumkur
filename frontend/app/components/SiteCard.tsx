@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useWishlist } from '../context/WishlistContext';
 import { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 
 interface SiteCardProps {
   site: {
@@ -236,7 +237,7 @@ export default function SiteCard({ site }: SiteCardProps) {
                 }).catch(err => console.error("Error sharing", err));
               } else if (navigator.clipboard) {
                 navigator.clipboard.writeText(url);
-                alert("Link copied to clipboard!");
+                toast.success("Link copied to clipboard!");
               } else {
                 // Insecure HTTP context fallback (e.g. mobile dev server)
                 const textArea = document.createElement("textarea");
@@ -245,7 +246,7 @@ export default function SiteCard({ site }: SiteCardProps) {
                 textArea.select();
                 try {
                   document.execCommand('copy');
-                  alert("Link copied to clipboard!");
+                  toast.success("Link copied to clipboard!");
                 } catch (err) {
                   console.error('Oops, unable to copy', err);
                 }

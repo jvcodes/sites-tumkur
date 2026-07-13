@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
 
 interface Site {
     site_code: string;
@@ -69,9 +70,9 @@ export default function MySitesPage() {
 
             // Remove from UI
             setSites((prev) => prev.filter((s) => s.site_code !== siteCode));
-            alert("Site deleted successfully!");
+            toast.success("Site deleted successfully!");
         } catch (err) {
-            alert("Could not delete site. Please try again.");
+            toast.error("Could not delete site. Please try again.");
         }
     };
 

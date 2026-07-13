@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
+import toast from "react-hot-toast";
 
 interface WishlistContextType {
     wishlist: string[]; // List of site_codes
@@ -47,7 +48,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
     const toggleWishlist = async (site_code: string) => {
         if (!user?.email && !user?.phone) {
-            alert("Please login to save sites to your wishlist!");
+            toast.error("Please login to save sites to your wishlist!");
             return;
         }
 

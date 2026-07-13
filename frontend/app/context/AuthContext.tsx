@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 interface User {
     id: number;
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             router.push("/");
         } catch (error) {
             console.error("Login Error:", error);
-            alert("Login Failed");
+            toast.error("Login Failed");
         }
     };
 
@@ -91,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             router.push("/");
         } catch (error) {
             console.error("Phone Login Error:", error);
-            alert("Phone Login Failed");
+            toast.error("Phone Login Failed");
             throw error;
         }
     };

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
+import toast from "react-hot-toast";
 
 interface CartItem {
   site_code: string;
@@ -95,14 +96,14 @@ export default function CartPage() {
       return;
     }
     if (!name || !phone || !date || !time) {
-      alert("⚠️ Please fill all details — name, mobile number, date and time.");
+      toast.error("Please fill all details — name, mobile number, date and time.");
       return;
     }
     // Indian mobile number validation: 10 digits starting with 6-9
     const digitsOnly = phone.replace(/\D/g, "");
     const cleanPhone = digitsOnly.slice(-10);
     if (!/^[6-9]\d{9}$/.test(cleanPhone) || digitsOnly.length < 10) {
-      alert("⚠️ Please enter a valid 10-digit Indian mobile number.");
+      toast.error("Please enter a valid 10-digit Indian mobile number.");
       return;
     }
 
@@ -135,7 +136,7 @@ export default function CartPage() {
       setBookingReceipt(receiptData);
       setMessage("✅ Booking request submitted! Our team will call you within 24 hours to confirm your site visit.");
     } catch {
-      alert("❌ Booking failed. Please check your internet and try again.");
+      toast.error("Booking failed. Please check your internet and try again.");
     }
   };
 
