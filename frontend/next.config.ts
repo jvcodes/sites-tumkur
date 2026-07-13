@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === 'production';
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (isProd ? 'https://sites-tumkur.onrender.com' : 'http://127.0.0.1:8000');
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || (isProd ? 'https://sitehub-backend-974580685297.us-central1.run.app' : 'http://127.0.0.1:8000');
 
 const nextConfig: NextConfig = {
   /* config options here */
