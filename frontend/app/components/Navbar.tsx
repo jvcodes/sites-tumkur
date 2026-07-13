@@ -154,6 +154,15 @@ export default function Navbar() {
           <span className="text-xl">🏠</span>
           <span className="text-[10px] font-bold uppercase tracking-wide">Home</span>
         </Link>
+        <Link href="/cart" className="relative flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
+          <span className="text-xl">🛒</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide">Cart</span>
+          {visitListCount > 0 && (
+            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
+              {visitListCount}
+            </span>
+          )}
+        </Link>
         <Link href="/wishlist" className="relative flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
           <span className="text-xl">❤️</span>
           <span className="text-[10px] font-bold uppercase tracking-wide">Saved</span>
@@ -163,20 +172,9 @@ export default function Navbar() {
             </span>
           )}
         </Link>
-        <Link href="/upload-site" className="flex flex-col items-center gap-1 -mt-5 relative z-10">
-          <div className="w-12 h-12 bg-[var(--color-accent)] rounded-full flex items-center justify-center shadow-lg border-4 border-white text-white text-2xl font-light hover:bg-[var(--color-accent-hover)] transition-colors">
-            +
-          </div>
-          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mt-1">Upload</span>
-        </Link>
-        <Link href="/cart" className="relative flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
-          <span className="text-xl">🛒</span>
-          <span className="text-[10px] font-bold uppercase tracking-wide">Cart</span>
-          {visitListCount > 0 && (
-            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
-              {visitListCount}
-            </span>
-          )}
+        <Link href="/upload-site" className="flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
+          <span className="text-xl">➕</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide">Upload</span>
         </Link>
         {authLoading ? (
           <Link href="/login" className="flex flex-col items-center gap-1 text-gray-600">
