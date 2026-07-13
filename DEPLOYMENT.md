@@ -171,9 +171,8 @@ The application is now containerized and ready to be deployed to Google Cloud Ru
 ```bash
 # Run from the root directory of the project
 gcloud run deploy sitehub-backend --source . --region us-central1 --allow-unauthenticated \
-  --set-env-vars="DJANGO_SECRET_KEY=your-secret,MONGO_URI=your-mongo-uri,GS_BUCKET_NAME=tumkur-sites-media,GOOGLE_CLOUD_PROJECT=your-google-project-id"
+  --set-env-vars="DJANGO_SECRET_KEY=your-secret,MONGO_URI=your-mongo-uri,GS_BUCKET_NAME=tumkur-sites-media"
 ```
-*(Note: `GOOGLE_CLOUD_PROJECT` is strictly required for the Python Firebase Admin SDK to verify authentication tokens when using Cloud Run's Application Default Credentials).*
 
 **Deploy Frontend (Next.js):**
 Because Next.js bakes `NEXT_PUBLIC_` environment variables into the optimized bundle during the build phase, you must use `--set-build-env-vars` when deploying to Cloud Run.
