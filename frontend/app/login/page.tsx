@@ -20,16 +20,27 @@ export default function LoginPage() {
 
     useEffect(() => {
         // Initialize reCAPTCHA only when not loading so the container exists in the DOM
-        if (!loading && !(window as any).recaptchaVerifier) {
-            (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                'size': 'invisible',
-                'callback': () => {
-                    // reCAPTCHA solved
-                },
-                'expired-callback': () => {
-                    setError("reCAPTCHA expired. Please try again.");
+        if (!loading) {
+            if ((window as any).recaptchaVerifier) {
+                try {
+                    (window as any).recaptchaVerifier.clear();
+                } catch (e) {
+                    console.error("Failed to clear reCAPTCHA", e);
                 }
-            });
+            }
+            try {
+                (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                    'size': 'invisible',
+                    'callback': () => {
+                        // reCAPTCHA solved
+                    },
+                    'expired-callback': () => {
+                        setError("reCAPTCHA expired. Please try again.");
+                    }
+                });
+            } catch (e) {
+                console.error("Failed to initialize reCAPTCHA", e);
+            }
         }
     }, [loading]);
 

@@ -170,8 +170,8 @@ export default function Navbar() {
           <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mt-1">Upload</span>
         </Link>
         <Link href="/cart" className="relative flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
-          <span className="text-xl">📋</span>
-          <span className="text-[10px] font-bold uppercase tracking-wide">Visits</span>
+          <span className="text-xl">🛒</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide">Cart</span>
           {visitListCount > 0 && (
             <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white">
               {visitListCount}
