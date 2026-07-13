@@ -15,9 +15,12 @@ def initialize_firebase_admin():
             else:
                 # Fallback to local file for development
                 cred_path = os.path.join(settings.BASE_DIR, 'api', 'firebase-credentials.json')
-                cred = credentials.Certificate(cred_path)
-                
-            firebase_admin.initialize_app(cred)
+                if os.path.exists(cred_path):
+                    cred = credentials.Certificate(cred_path)
+                    firebase_admin.initialize_app(cred)
+                else:
+                    # In Google Cloud Run, it uses Application Default Credentials automatically
+                    firebase_admin.initialize_app()
             print("Firebase Admin SDK Initialized Successfully")
         except Exception as e:
             print(f"Warning: Failed to initialize Firebase Admin SDK. {e}")
