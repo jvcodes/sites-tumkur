@@ -84,7 +84,7 @@ def phone_auth_api(request):
         
     except Exception as e:
         print(f"Firebase Verification Error: {e}")
-        return Response({"error": "Invalid or expired Firebase token"}, status=401)
+        return Response({"error": f"Firebase Verification Error: {str(e)}"}, status=401)
 
 
 @api_view(['POST'])
