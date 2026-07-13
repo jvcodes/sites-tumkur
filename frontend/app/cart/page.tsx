@@ -49,13 +49,10 @@ export default function CartPage() {
   }, []);
 
   // ----------------------------------
-  // AUTO-FILL FROM SESSION ON LOGIN
+  // AUTO-FILL AND AUTO-SUBMIT ON LOGIN
   // ----------------------------------
   useEffect(() => {
     if (!user || loading) return;
-
-    // Auto-fill name immediately from auth context
-    setName(user.name || "");
 
     // Fetch phone from profile API
     if (user.email || user.phone) {
@@ -70,10 +67,32 @@ export default function CartPage() {
           }
           if (profile.name) {
              setName(profile.name);
+          } else {
+             setName(user.name || "");
           }
         })
         .catch(() => {})
-        .finally(() => setProfileLoading(false));
+        .finally(() => {
+           setProfileLoading(false);
+           // Auto-submit check after profile is loaded
+           if (sessionStorage.getItem("cart_pending_submit") === "true") {
+              sessionStorage.removeItem("cart_pending_submit");
+              const savedDate = sessionStorage.getItem("cart_date");
+              const savedTime = sessionStorage.getItem("cart_time");
+              const savedName = sessionStorage.getItem("cart_name");
+              const savedPhone = sessionStorage.getItem("cart_phone");
+              
+              if (savedDate) setDate(savedDate);
+              if (savedTime) setTime(savedTime);
+              if (savedName && !name) setName(savedName);
+              if (savedPhone && !phone) setPhone(savedPhone);
+
+              // We use a small timeout to let React set the state before calling submitBooking
+              setTimeout(() => {
+                  document.getElementById("submit-booking-btn")?.click();
+              }, 500);
+           }
+        });
     }
   }, [user, loading]);
 
@@ -90,13 +109,18 @@ export default function CartPage() {
   // SUBMIT BOOKING
   // ----------------------------------
   const submitBooking = async () => {
-    // Gate: must be logged in
-    if (!user) {
-      setShowLoginPrompt(true);
-      return;
-    }
     if (!name || !phone || !date || !time) {
       toast.error("Please fill all details — name, mobile number, date and time.");
+      return;
+    }
+    // Gate: must be logged in
+    if (!user) {
+      sessionStorage.setItem("cart_date", date);
+      sessionStorage.setItem("cart_time", time);
+      sessionStorage.setItem("cart_name", name);
+      sessionStorage.setItem("cart_phone", phone);
+      sessionStorage.setItem("cart_pending_submit", "true");
+      window.location.href = `/login?redirect=/cart`;
       return;
     }
     // Indian mobile number validation: 10 digits starting with 6-9
@@ -251,30 +275,6 @@ export default function CartPage() {
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-6">My Cart ({cart.length})</h1>
 
-      {/* Login prompt overlay — cart data is preserved */}
-      {showLoginPrompt && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
-            <div className="text-4xl mb-4">🔐</div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Sign in to continue</h2>
-            <p className="text-gray-500 text-sm mb-6">
-              Your cart is saved. Please sign in to submit your visit booking.
-            </p>
-            <Link
-              href={`/login?redirect=/cart`}
-              className="block w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition"
-            >
-              Sign In with Phone
-            </Link>
-            <button
-              onClick={() => setShowLoginPrompt(false)}
-              className="block w-full mt-3 text-gray-500 text-sm hover:text-gray-700"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
@@ -311,13 +311,23 @@ export default function CartPage() {
           {/* Show logged-in user info OR editable fields */}
           {user ? (
             <div className="mb-4">
-              {/* Name — read-only if logged in */}
+              {/* Name — read-only if logged in and provided */}
               <div className="mb-3">
                 <label className="text-xs font-bold text-gray-500 block mb-1">Your Name</label>
-                <div className="flex gap-2 items-center border rounded px-3 py-2 bg-gray-50">
-                  <span className="flex-1 text-gray-800">{name || user.name}</span>
-                  <span className="text-green-500 text-xs font-bold">✓ from account</span>
-                </div>
+                {name || user.name ? (
+                  <div className="flex gap-2 items-center border rounded px-3 py-2 bg-gray-50">
+                    <span className="flex-1 text-gray-800">{name || user.name}</span>
+                    <span className="text-green-500 text-xs font-bold">✓ from account</span>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Enter your name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                )}
               </div>
 
               {/* Phone — editable if not fetched yet */}
@@ -398,6 +408,7 @@ export default function CartPage() {
           </div>
 
           <button
+            id="submit-booking-btn"
             onClick={submitBooking}
             className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold transition"
           >

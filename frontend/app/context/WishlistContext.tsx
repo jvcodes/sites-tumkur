@@ -16,13 +16,25 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     const { user, loading: authLoading } = useAuth();
     const [wishlist, setWishlist] = useState<string[]>([]);
 
-    // Fetch wishlist from server whenever user logs in
-    // Wait for authLoading to be false first — prevents fetch with null/empty identifier
     useEffect(() => {
         if (authLoading) return;
         const identifier = user?.email || user?.phone || "";
         if (identifier) {
-            fetchWishlist(identifier);
+            fetchWishlist(identifier).then(() => {
+                const pending = sessionStorage.getItem("pending_wishlist");
+                if (pending) {
+                    sessionStorage.removeItem("pending_wishlist");
+                    // Auto-add the pending item
+                    fetch(`/api/wishlist/toggle`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ user_id: identifier, site_code: pending }),
+                    }).then(() => {
+                        toast.success("Site added to wishlist!");
+                        fetchWishlist(identifier);
+                    });
+                }
+            });
         } else {
             setWishlist([]);
         }
@@ -48,7 +60,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
     const toggleWishlist = async (site_code: string) => {
         if (!user?.email && !user?.phone) {
-            toast.error("Please login to save sites to your wishlist!");
+            sessionStorage.setItem("pending_wishlist", site_code);
+            window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
             return;
         }
 

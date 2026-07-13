@@ -1,0 +1,8 @@
+project:
+  google_cloud_project: "tumkuru-sites"
+  region: "us-central1"
+
+urls:
+  frontend_url: "https://sitehub-frontend-974580685297.us-central1.run.app"
+  backend_url: "https://sitehub-backend-974580685297.us-central1.run.app"
+  render_fallback_url: "https://sites-tumkur.onrender.com"
