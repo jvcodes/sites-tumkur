@@ -264,7 +264,7 @@ export default function CartPage() {
               href={`/login?redirect=/cart`}
               className="block w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition"
             >
-              Sign In with Google
+              Sign In with Phone
             </Link>
             <button
               onClick={() => setShowLoginPrompt(false)}

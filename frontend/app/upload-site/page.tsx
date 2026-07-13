@@ -147,7 +147,7 @@ export default function UploadSitePage() {
             href="/login"
             className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md"
           >
-            Login with Google
+            Login with Phone
           </a>
         </div>
       </div>
