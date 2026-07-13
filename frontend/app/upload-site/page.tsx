@@ -275,21 +275,55 @@ export default function UploadSitePage() {
           {/* SECTION: IMAGES */}
           <section>
             <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Photos (Multiple allowed) <span className="text-red-500">*</span></h2>
-            <div className="border-2 border-dashed border-gray-300 bg-gray-50 rounded-lg p-6 text-center hover:bg-gray-100 transition">
+            <div className="relative border-2 border-dashed border-gray-300 bg-gray-50 rounded-lg p-8 text-center hover:bg-gray-100 transition overflow-hidden">
               <input
                 type="file"
                 accept="image/*"
                 multiple
-                onChange={handleImageChange}
-                className="w-full cursor-pointer"
-                required
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setImages((prev) => [...prev, ...Array.from(e.target.files!)]);
+                  }
+                  e.target.value = ""; // Reset input so same file can be selected again
+                }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
               />
-              {images.length > 0 && (
-                <p className="mt-3 text-sm text-green-600 font-medium">
-                  {images.length} file(s) selected
-                </p>
-              )}
+              <div className="pointer-events-none">
+                <span className="text-4xl">📸</span>
+                <p className="mt-3 text-gray-700 font-semibold">Click or drag images to upload</p>
+                <p className="text-xs text-gray-500 mt-1">JPEG, PNG up to 10MB each</p>
+              </div>
             </div>
+
+            {images.length > 0 && (
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {images.map((file, idx) => {
+                  const objectUrl = URL.createObjectURL(file);
+                  return (
+                    <div key={idx} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-[4/3] shadow-sm">
+                      <img 
+                        src={objectUrl} 
+                        alt={`preview-${idx}`} 
+                        className="w-full h-full object-cover" 
+                        onLoad={() => URL.revokeObjectURL(objectUrl)}
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setImages((prev) => prev.filter((_, i) => i !== idx));
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center font-bold opacity-0 group-hover:opacity-100 transition-all hover:bg-red-700 hover:scale-110 shadow-lg z-20"
+                        title="Remove image"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {/* SUBMIT */}
