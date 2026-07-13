@@ -20,7 +20,8 @@ def initialize_firebase_admin():
                     firebase_admin.initialize_app(cred)
                 else:
                     # In Google Cloud Run, it uses Application Default Credentials automatically
-                    firebase_admin.initialize_app()
+                    # We pass the projectId explicitly to ensure verify_id_token succeeds
+                    firebase_admin.initialize_app(options={'projectId': 'tumkuru-sites'})
             print("Firebase Admin SDK Initialized Successfully")
         except Exception as e:
             print(f"Warning: Failed to initialize Firebase Admin SDK. {e}")
