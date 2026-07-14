@@ -25,7 +25,9 @@ const AREA_RANGES: FilterOption[] = [
 
 const FACING_OPTIONS = ["East", "West", "North", "South", "North-East", "North-West", "South-East", "South-West"];
 
-export default function Home() {
+import { Suspense } from "react";
+
+function HomeContent() {
   const [sites, setSites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -605,5 +607,13 @@ export default function Home() {
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
       `}} />
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }

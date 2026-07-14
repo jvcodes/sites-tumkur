@@ -12,6 +12,7 @@ interface CartItem {
   location: string;
   price: number;
   image?: string;
+  images?: string[];
   latitude?: number;
   longitude?: number;
 }
@@ -42,6 +43,7 @@ export default function CartPage() {
       location: item.location,
       price: Number(item.price),
       image: item.image,
+      images: item.images,
       latitude: item.latitude ? Number(item.latitude) : undefined,
       longitude: item.longitude ? Number(item.longitude) : undefined,
     }));
