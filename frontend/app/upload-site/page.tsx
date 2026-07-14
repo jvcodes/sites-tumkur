@@ -20,6 +20,8 @@ export default function UploadSitePage() {
     road_width: "",
     description: "",
     youtube_url: "",
+    latitude: "",
+    longitude: "",
   });
 
   // Specs
@@ -50,6 +52,27 @@ export default function UploadSitePage() {
 
   const handleChange = (e: any) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    toast.loading("Fetching location...", { id: "geo" });
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm({
+          ...form,
+          latitude: position.coords.latitude.toString(),
+          longitude: position.coords.longitude.toString(),
+        });
+        toast.success("Location retrieved!", { id: "geo" });
+      },
+      () => {
+        toast.error("Unable to retrieve your location. Please check browser permissions.", { id: "geo" });
+      }
+    );
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,6 +113,8 @@ export default function UploadSitePage() {
     data.append("road_width", form.road_width);
     data.append("description", form.description);
     data.append("youtube_url", form.youtube_url);
+    data.append("latitude", form.latitude);
+    data.append("longitude", form.longitude);
 
     // Booleans
     data.append("corner_site", String(cornerSite));
@@ -187,6 +212,27 @@ export default function UploadSitePage() {
               <div>
                 <label className="block text-sm text-gray-600 mb-1">YouTube Link (Video Walkthrough)</label>
                 <input name="youtube_url" type="url" placeholder="https://youtube.com/watch?v=..." value={form.youtube_url} onChange={handleChange} className="w-full border rounded px-3 py-2" />
+              </div>
+
+              <div className="md:col-span-2 mt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm text-gray-600 font-bold">Map Coordinates (Optional)</label>
+                  <button 
+                    type="button" 
+                    onClick={handleGetLocation}
+                    className="text-sm bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1 rounded hover:bg-blue-100 transition"
+                  >
+                    📍 Use Current Location
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <input name="latitude" placeholder="Latitude (e.g. 13.33)" value={form.latitude} onChange={handleChange} className="w-full border rounded px-3 py-2 bg-gray-50" />
+                  </div>
+                  <div>
+                    <input name="longitude" placeholder="Longitude (e.g. 77.10)" value={form.longitude} onChange={handleChange} className="w-full border rounded px-3 py-2 bg-gray-50" />
+                  </div>
+                </div>
               </div>
             </div>
           </section>

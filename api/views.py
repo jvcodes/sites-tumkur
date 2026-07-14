@@ -82,6 +82,8 @@ def hydrate_sites(request, sites):
         s["area"] = s.get("area", 0)
         s["owner"] = s.get("owner", "")
         s["youtube_url"] = s.get("youtube_url", "")
+        s["latitude"] = s.get("latitude", None)
+        s["longitude"] = s.get("longitude", None)
         
         # Hydrate text location from location_id
         if s.get("location_id") and str(s["location_id"]) in locations:
@@ -318,6 +320,16 @@ def create_site_api(request):
         dimension = request.POST.get("dimension", "")
         facing = request.POST.get("facing", "")
         youtube_url = request.POST.get("youtube_url", "")
+        
+        lat_str = request.POST.get("latitude", "")
+        lng_str = request.POST.get("longitude", "")
+        
+        try:
+            latitude = float(lat_str) if lat_str else None
+            longitude = float(lng_str) if lng_str else None
+        except ValueError:
+            return Response({"error": "Invalid GPS coordinates format"}, status=400)
+        
         # For authenticated users, grab user info (frontend passes user_id or email)
         # Authenticated user
         user_id = request.POST.get("user_id", "")
@@ -349,7 +361,7 @@ def create_site_api(request):
         def get_bool(key):
             val = request.POST.get(key, "false").lower()
             return val in ["true", "1", "yes"]
-
+            
         site_data = {
             "site_code": site_code,
             "name": name,
@@ -363,6 +375,8 @@ def create_site_api(request):
             "created_at": datetime.utcnow(),
             "updated_at": datetime.now(),
             "is_deleted": False,
+            "latitude": latitude,
+            "longitude": longitude,
             
             # Additional strings
             "road_width": request.POST.get("road_width", ""),
@@ -547,6 +561,31 @@ def create_booking_api(request):
             {"$set": {"name": name}},
             upsert=True
         )
+
+    # ---------------------------------------------------------
+    # NOTIFICATIONS
+    # ---------------------------------------------------------
+    print(f"[NOTIFICATION] WhatsApp message sent to {phone}: 'Hi {name}, your visit for {len(sites)} sites on {date} at {time_str} is requested. We will confirm shortly.'")
+    
+    if email:
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        subject = f"TumkurSites: Visit Request Confirmed for {date}"
+        message = f"Hi {name},\n\nYour visit for {len(sites)} sites on {date} at {time_str} is requested. We will call you at {phone} to confirm the details shortly.\n\nThank you,\nTumkurSites Team"
+        
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else 'noreply@tumkursites.com',
+                [email],
+                fail_silently=True,
+            )
+            print(f"[NOTIFICATION] Email sent successfully to {email}")
+        except Exception as e:
+            print(f"[NOTIFICATION] Failed to send email to {email}: {e}")
+    # ---------------------------------------------------------
 
     return Response(
         {"message": "Visiting request submitted"},

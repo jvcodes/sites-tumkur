@@ -77,7 +77,7 @@ export default function BookedVisitsPage() {
                                 {booking.sites && booking.sites.map((site: any, idx: number) => (
                                     <div key={idx} className="flex gap-4 items-center bg-gray-50 p-3 rounded border">
                                         <div className="w-16 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0">
-                                            <img src={site.image || '/no-image.svg'} alt={site.name} className="w-full h-full object-cover" />
+                                            <img src={site.images?.[0] || site.image || '/no-image.svg'} alt={site.name} className="w-full h-full object-cover" />
                                         </div>
                                         <div className="flex-1">
                                             <p className="font-bold text-gray-800">{site.name}</p>

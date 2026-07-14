@@ -20,6 +20,8 @@ interface SiteCardProps {
     site_code?: string;
     facing?: string;
     dimension?: string;
+    latitude?: number;
+    longitude?: number;
   };
 }
 
@@ -46,7 +48,9 @@ export default function SiteCard({ site }: SiteCardProps) {
       name: site.name,
       location: site.location,
       price: site.price,
-      image: site.image,
+      image: media[0],
+      latitude: site.latitude,
+      longitude: site.longitude,
     };
 
     const normalized = [...raw, siteToAdd];
@@ -62,7 +66,6 @@ export default function SiteCard({ site }: SiteCardProps) {
     e.preventDefault();
     if (carouselRef.current) {
       const { scrollLeft, scrollWidth, offsetWidth } = carouselRef.current;
-      // Wrap to end if at the beginning
       if (scrollLeft <= 10) {
         carouselRef.current.scrollTo({ left: scrollWidth, behavior: 'smooth' });
       } else {
@@ -75,7 +78,6 @@ export default function SiteCard({ site }: SiteCardProps) {
     e.preventDefault();
     if (carouselRef.current) {
       const { scrollLeft, scrollWidth, offsetWidth } = carouselRef.current;
-      // Wrap to start if at the end
       if (scrollLeft + offsetWidth >= scrollWidth - 10) {
         carouselRef.current.scrollTo({ left: 0, behavior: 'smooth' });
       } else {
@@ -93,7 +95,7 @@ export default function SiteCard({ site }: SiteCardProps) {
   const youtubeId = getYoutubeVideoId((site as any).youtube_url);
 
   // Build media array
-  const media = [];
+  const media: string[] = [];
   if (site.images && site.images.length > 0) {
     media.push(...site.images);
   } else if (site.image && site.image !== '') {
@@ -292,7 +294,11 @@ export default function SiteCard({ site }: SiteCardProps) {
           {site.facing && <span>{site.facing} Facing</span>}
         </p>
         
-        <Link href={`/site/${siteId}`} className="text-xs text-gray-400 uppercase font-bold tracking-wider hover:text-gray-600 mt-1">
+        <Link 
+          href={`/site/${siteId}`} 
+          onClick={() => sessionStorage.setItem('homeScrollPos', window.scrollY.toString())}
+          className="text-xs text-gray-400 uppercase font-bold tracking-wider hover:text-gray-600 mt-1"
+        >
           View full details &rarr;
         </Link>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SiteCard from "./components/SiteCard";
 import ClientOnly from "./components/ClientOnly";
@@ -53,6 +54,69 @@ export default function Home() {
   const [activeMobileTab, setActiveMobileTab] = useState("Location");
 
   const LIMIT = 12; // increased for desktop grid
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") || "";
+
+  // ── SessionStorage Restoration ──
+  const isRestored = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    // Check if we should restore (if coming back from a detail page)
+    const storedScroll = sessionStorage.getItem("homeScrollPos");
+    if (storedScroll) {
+      try {
+        const savedState = sessionStorage.getItem("homeState");
+        if (savedState) {
+          const parsed = JSON.parse(savedState);
+          setSites(parsed.sites || []);
+          setTotal(parsed.total || 0);
+          setPage(parsed.page || 1);
+          setHasMore(parsed.hasMore || false);
+          
+          setSelectedLocations(parsed.selectedLocations || []);
+          setSelectedPrices(parsed.selectedPrices || []);
+          setSelectedAreas(parsed.selectedAreas || []);
+          setSelectedFacings(parsed.selectedFacings || []);
+          setSortOption(parsed.sortOption || "");
+          setAppliedSearch(parsed.appliedSearch || "");
+          setInputValue(parsed.inputValue || "");
+          
+          isRestored.current = true;
+          
+          // Wait for DOM to render the sites, then scroll
+          setTimeout(() => {
+            window.scrollTo(0, parseInt(storedScroll, 10));
+            sessionStorage.removeItem("homeScrollPos"); // clear after restore
+          }, 100);
+          
+          setLoading(false);
+          return; // Skip initial fetch
+        }
+      } catch (e) {
+        console.error("Failed to restore state", e);
+      }
+    }
+    
+    // If not restoring, set search from URL if present
+    if (initialQuery) {
+      setInputValue(initialQuery);
+      setAppliedSearch(initialQuery);
+    }
+  }, [initialQuery]);
+
+  // ── Save State ──
+  useEffect(() => {
+    if (!loading && !isRestored.current && sites.length > 0) {
+      const stateToSave = {
+        sites, total, page, hasMore,
+        selectedLocations, selectedPrices, selectedAreas, selectedFacings,
+        sortOption, appliedSearch, inputValue
+      };
+      sessionStorage.setItem("homeState", JSON.stringify(stateToSave));
+    }
+  }, [sites, total, page, hasMore, selectedLocations, selectedPrices, selectedAreas, selectedFacings, sortOption, appliedSearch, inputValue, loading]);
 
   // Fetch distinct locations
   useEffect(() => {
@@ -132,6 +196,12 @@ export default function Home() {
 
   // Trigger fetch when any filter changes
   useEffect(() => {
+    // If we just restored from sessionStorage, do not re-fetch immediately 
+    // unless a filter was actually clicked *after* restore.
+    if (isRestored.current) {
+      isRestored.current = false;
+      return;
+    }
     setPage(1);
     const t = setTimeout(() => doFetch(appliedSearch, computedFilters, 1, false), 300);
     return () => clearTimeout(t);

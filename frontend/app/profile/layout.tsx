@@ -54,7 +54,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                     </div>
 
                     {/* Navigation Menu */}
-                    <div className="bg-white rounded-lg shadow-sm overflow-hidden text-sm">
+                    <div className="bg-white rounded-lg shadow-sm overflow-hidden text-sm flex flex-col justify-between h-full">
                         <ul className="divide-y divide-gray-100">
                             {menuItems.map((item) => {
                                 const isActive = pathname === item.path;
@@ -62,16 +62,39 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                     <li key={item.path}>
                                         <Link
                                             href={item.path}
-                                            className={`flex items-center gap-3 px-6 py-4 hover:bg-gray-50 transition-colors ${isActive ? "text-blue-600 bg-blue-50/50 font-semibold border-l-4 border-blue-600" : "text-gray-700 font-medium border-l-4 border-transparent"
+                                            className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors ${isActive ? "text-blue-600 bg-blue-50/50 font-semibold border-l-4 border-blue-600" : "text-gray-700 font-medium border-l-4 border-transparent"
                                                 }`}
                                         >
-                                            <span className="text-lg opacity-80">{item.icon}</span>
-                                            {item.name}
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-lg opacity-80">{item.icon}</span>
+                                                {item.name}
+                                            </div>
+                                            <span className="text-gray-300">❯</span>
                                         </Link>
                                     </li>
                                 )
                             })}
                         </ul>
+                        
+                        <div className="p-4 border-t border-gray-100 mt-4">
+                             <button
+                                 onClick={() => {
+                                     import('../../firebaseConfig').then(({ auth }) => {
+                                         import('firebase/auth').then(({ signOut }) => {
+                                             signOut(auth).then(() => {
+                                                 window.location.href = '/login';
+                                             });
+                                         });
+                                     });
+                                 }}
+                                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 font-semibold bg-red-50 hover:bg-red-100 rounded-lg transition"
+                             >
+                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                 </svg>
+                                 Log Out
+                             </button>
+                        </div>
                     </div>
                 </div>
 

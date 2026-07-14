@@ -67,3 +67,143 @@ class FilterSitesAPITests(TestCase):
         self.assertIn('price', find_call_args)
         self.assertEqual(find_call_args['price']['$gte'], 1000)
         self.assertEqual(find_call_args['price']['$lte'], 5000)
+
+class CreateSiteAPITests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @patch('api.views.site_collection')
+    @patch('listings.mongo.locations_collection')
+    @patch('listings.mongo.site_images_collection')
+    def test_create_site_with_lat_long(self, mock_site_images, mock_locations, mock_site_collection):
+        # Mock location lookup
+        mock_locations.find_one.return_value = {"_id": "loc123", "city": "Tumkur", "area": "Tumkur"}
+        
+        # We also need to mock default_storage.save inside create_site_api, but we aren't passing images here, so it's fine.
+        
+        request = self.factory.post('/api/sites/create', {
+            "name": "GPS Plot",
+            "location": "Tumkur",
+            "price": "1500000",
+            "latitude": "13.33",
+            "longitude": "77.10"
+        })
+        
+        from api.views import create_site_api
+        response = create_site_api(request)
+        
+        self.assertEqual(response.status_code, 201)
+        
+        # Verify the data that was inserted
+        insert_args = mock_site_collection.insert_one.call_args[0][0]
+        self.assertEqual(insert_args['name'], "GPS Plot")
+        self.assertEqual(insert_args['latitude'], 13.33)
+        self.assertEqual(insert_args['longitude'], 77.10)
+
+    @patch('api.views.site_collection')
+    @patch('listings.mongo.locations_collection')
+    def test_create_site_invalid_coordinates(self, mock_locations, mock_site_collection):
+        mock_locations.find_one.return_value = {"_id": "loc123", "city": "Tumkur"}
+        request = self.factory.post('/api/sites/create', {
+            "name": "Bad GPS Plot",
+            "location": "Tumkur",
+            "latitude": "invalid_lat",
+            "longitude": "77.10"
+        })
+        
+        from api.views import create_site_api
+        response = create_site_api(request)
+        
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.data)
+        mock_site_collection.insert_one.assert_not_called()
+
+    @patch('api.views.site_collection')
+    @patch('listings.mongo.locations_collection')
+    def test_create_site_duplicate_prevention(self, mock_locations, mock_site_collection):
+        mock_locations.find_one.return_value = {"_id": "loc123", "city": "Tumkur"}
+        # Mock that a site already exists with this user, dimension, and location
+        mock_site_collection.find_one.return_value = {"_id": "dup123"}
+        
+        request = self.factory.post('/api/sites/create', {
+            "name": "Dup Plot",
+            "location": "Tumkur",
+            "dimension": "30x40",
+            "user_id": "user123"
+        })
+        
+        from api.views import create_site_api
+        response = create_site_api(request)
+        
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.data)
+        mock_site_collection.insert_one.assert_not_called()
+
+class HydrateSitesTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @patch('listings.mongo.locations_collection')
+    @patch('listings.mongo.site_images_collection')
+    def test_hydrate_sites_with_location_and_gps(self, mock_site_images, mock_locations):
+        mock_locations.find.return_value = [{"_id": "507f1f77bcf86cd799439011", "city": "Tumkur City", "area": "Tumkur Area"}]
+        mock_site_images.find.return_value.sort.return_value = []
+        
+        raw_sites = [
+            {
+                "_id": "site1",
+                "site_code": "SITE-001",
+                "location_id": "507f1f77bcf86cd799439011",
+                "latitude": 13.0,
+                "longitude": 77.0
+            }
+        ]
+        
+        from api.views import hydrate_sites
+        request = self.factory.get('/')
+        hydrated = hydrate_sites(request, raw_sites)
+        
+        self.assertEqual(len(hydrated), 1)
+        self.assertEqual(hydrated[0]["location"], "Tumkur City")
+        self.assertEqual(hydrated[0]["latitude"], 13.0)
+        self.assertEqual(hydrated[0]["longitude"], 77.0)
+
+class CreateBookingAPITests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @patch('api.views.booking_collection')
+    @patch('listings.mongo.user_profiles_collection')
+    def test_create_booking_valid(self, mock_user_profiles, mock_booking_collection):
+        request = self.factory.post('/api/bookings/create', {
+            "name": "Test Booker",
+            "phone": "9999999999",
+            "date": "2026-08-01",
+            "time": "10:00",
+            "sites": ["SITE-1", "SITE-2"]
+        }, format='json')
+        
+        from api.views import create_booking_api
+        response = create_booking_api(request)
+        
+        self.assertEqual(response.status_code, 201)
+        insert_args = mock_booking_collection.insert_one.call_args[0][0]
+        self.assertEqual(insert_args['name'], "Test Booker")
+        self.assertEqual(insert_args['sites'], ["SITE-1", "SITE-2"])
+
+    def test_create_booking_empty_cart(self):
+        request = self.factory.post('/api/bookings/create', {
+            "name": "Test Booker",
+            "phone": "9999999999",
+            "date": "2026-08-01",
+            "time": "10:00",
+            "sites": []  # Empty cart!
+        }, format='json')
+        
+        from api.views import create_booking_api
+        response = create_booking_api(request)
+        
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.data)
+
+

@@ -185,21 +185,25 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
-                            <button
-                                onClick={handleVerifyOTP}
-                                disabled={isSubmitting}
-                                className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-primary)] transition-all disabled:opacity-70"
-                            >
-                                {isSubmitting ? "Verifying..." : "Verify & Sign In"}
-                            </button>
-                            
-                            <div className="text-center mt-4">
+                            <div className="flex flex-col items-center justify-center gap-3 mt-4">
                                 <button 
-                                    onClick={() => setStep("PHONE")} 
-                                    className="text-sm font-semibold text-[var(--color-accent)] hover:underline"
+                                    onClick={handleVerifyOTP}
+                                    disabled={isSubmitting}
+                                    className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-primary)] transition-all disabled:opacity-70"
                                 >
-                                    Change Phone Number
+                                    {isSubmitting ? "Verifying..." : "Verify & Sign In"}
                                 </button>
+                                
+                                <div className="text-center w-full flex justify-between px-2">
+                                    <button 
+                                        onClick={() => setStep("PHONE")} 
+                                        className="text-sm font-semibold text-gray-500 hover:text-gray-800 transition"
+                                    >
+                                        Change Number
+                                    </button>
+                                    
+                                    <ResendButton onResend={handleSendOTP} isSubmitting={isSubmitting} />
+                                </div>
                             </div>
                         </div>
                     )}
@@ -210,5 +214,30 @@ export default function LoginPage() {
                 </p>
             </div>
         </div>
+    );
+}
+
+function ResendButton({ onResend, isSubmitting }: { onResend: () => void, isSubmitting: boolean }) {
+    const [timeLeft, setTimeLeft] = useState(30);
+
+    useEffect(() => {
+        if (timeLeft <= 0) return;
+        const timerId = setInterval(() => setTimeLeft(t => t - 1), 1000);
+        return () => clearInterval(timerId);
+    }, [timeLeft]);
+
+    return (
+        <button 
+            onClick={() => {
+                if (timeLeft <= 0) {
+                    setTimeLeft(30);
+                    onResend();
+                }
+            }}
+            disabled={timeLeft > 0 || isSubmitting}
+            className={`text-sm font-semibold transition ${timeLeft > 0 ? "text-gray-400 cursor-not-allowed" : "text-[var(--color-accent)] hover:underline"}`}
+        >
+            {timeLeft > 0 ? `Resend OTP in ${timeLeft}s` : "Resend OTP"}
+        </button>
     );
 }

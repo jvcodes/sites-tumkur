@@ -44,7 +44,7 @@ export default function MyVisitsPage() {
                     {visits.map((site, i) => (
                         <div key={i} className="flex gap-4 border rounded-xl p-4 hover:shadow-md transition-shadow bg-white items-center">
                             <div className="w-32 h-24 rounded bg-gray-100 flex-shrink-0 overflow-hidden relative">
-                                <img src={site.image || '/no-image.svg'} className="w-full h-full object-cover" alt="Site" />
+                                <img src={site.images?.[0] || site.image || '/no-image.svg'} className="w-full h-full object-cover" alt="Site" />
                             </div>
 
                             <div className="flex-1">
