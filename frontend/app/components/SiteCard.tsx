@@ -159,7 +159,7 @@ export default function SiteCard({ site }: SiteCardProps) {
           {/* Image Slides */}
           {media.map((imgUrl, idx) => (
             <div key={idx} className="w-full h-full flex-shrink-0 snap-center relative">
-              <Link href={`/site/${siteId}`} className="block w-full h-full">
+              <Link href={`/site/${siteId}`} className="block w-full h-full" onClick={() => sessionStorage.setItem('homeScrollPos', window.scrollY.toString())}>
                 <img
                   src={imgUrl}
                   alt={`${site.name} - slide ${idx + 1}`}
