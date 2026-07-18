@@ -13,7 +13,7 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-    const { user, updateUser } = useAuth();
+    const { user, updateUser, logout } = useAuth();
     const router = useRouter();
     const [profile, setProfile] = useState<ProfileData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -287,10 +287,19 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            <div className="pt-8 mt-8 border-t">
+            <div className="pt-8 mt-8 border-t flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <p className="text-sm text-gray-500">
                     Account created on {new Date(profile.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
                 </p>
+                <button
+                    onClick={() => {
+                        logout();
+                        router.push("/");
+                    }}
+                    className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 px-6 py-2.5 rounded-lg font-bold transition-colors w-full md:w-auto justify-center"
+                >
+                    <span className="text-xl">🚪</span> Logout
+                </button>
             </div>
         </div>
     );

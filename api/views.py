@@ -9,7 +9,7 @@ from bson.errors import InvalidId
 from datetime import datetime
 
 from .serializers import SiteSerializer
-from listings.mongo import site_collection, booking_collection
+from listings.mongo import site_collection, booking_collection, site_images_collection, agents_collection, drafts_collection
 from listings.utils import generate_site_code
 
 from django.core.files.storage import default_storage
@@ -213,6 +213,7 @@ def filter_sites_api(request):
     facing = request.GET.get("facing")
     site_code = request.GET.get("site_code")
     sort = request.GET.get("sort")
+    is_layout = request.GET.get("is_layout")
 
     if location:
         location_list = [l.strip() for l in location.split(",") if l.strip()]
@@ -234,7 +235,11 @@ def filter_sites_api(request):
             {"location": {"$regex": search, "$options": "i"}},
             {"landmark": {"$regex": search, "$options": "i"}},
             {"site_code": {"$regex": search, "$options": "i"}},
+            {"layout_name": {"$regex": search, "$options": "i"}},
         ]
+
+    if is_layout and is_layout.lower() == "true":
+        query["is_layout"] = True
 
     if min_price or max_price:
         query["price"] = {}
@@ -403,6 +408,10 @@ def create_site_api(request):
             "electricity_nearby": get_bool("electricity_nearby"),
             "drainage_connection": get_bool("drainage_connection"),
             "asphalt_road_access": get_bool("asphalt_road_access"),
+            
+            # Layout specific
+            "is_layout": get_bool("is_layout"),
+            "layout_name": request.POST.get("layout_name", ""),
         }
 
         if area:
@@ -445,6 +454,30 @@ def create_site_api(request):
 # --------------------------------------------------
 # 🔹 PUT: Update Site
 # --------------------------------------------------
+@api_view(['POST'])
+def save_draft_api(request):
+    """Save partial form data as a draft for lead tracking."""
+    try:
+        user_id = request.data.get("user_id") or "anonymous"
+        phone = request.data.get("phone", "Unknown")
+        name = request.data.get("name", "Unknown")
+        form_data = request.data.get("form_data", {})
+        
+        # Upsert based on phone number or user_id
+        drafts_collection.update_one(
+            {"phone": phone},
+            {"$set": {
+                "user_id": user_id,
+                "name": name,
+                "form_data": form_data,
+                "last_updated": datetime.now()
+            }},
+            upsert=True
+        )
+        return Response({"status": "draft saved"}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
 @api_view(['PUT'])
 def update_site_by_code_api(request, site_code):
     data = request.data

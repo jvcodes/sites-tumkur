@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
+import dynamic from "next/dynamic";
+
+const MapPicker = dynamic(() => import("../components/MapPicker"), { 
+  ssr: false, 
+  loading: () => <div className="h-[300px] w-full bg-gray-100 animate-pulse rounded-lg border flex items-center justify-center text-gray-500">Loading map...</div> 
+});
 
 export default function UploadSitePage() {
   const { user } = useAuth();
@@ -21,8 +27,31 @@ export default function UploadSitePage() {
     description: "",
     youtube_url: "",
     latitude: "",
+    latitude: "",
     longitude: "",
   });
+
+  const [isLayout, setIsLayout] = useState(false);
+  const [layoutName, setLayoutName] = useState("");
+
+  // Draft Autosave
+  useEffect(() => {
+    if (!user || (!form.location && !form.price && !form.area)) return;
+    
+    const timeout = setTimeout(() => {
+      fetch("/api/sites/draft/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: user.phone || "Unknown",
+          name: user.name || "Unknown",
+          form_data: { ...form, isLayout, layoutName }
+        })
+      }).catch(e => console.error("Draft save failed", e));
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timeout);
+  }, [form, isLayout, layoutName, user]);
 
   // Specs
   const [cornerSite, setCornerSite] = useState(false);
@@ -117,6 +146,8 @@ export default function UploadSitePage() {
     data.append("longitude", form.longitude);
 
     // Booleans
+    data.append("is_layout", String(isLayout));
+    data.append("layout_name", layoutName);
     data.append("corner_site", String(cornerSite));
     data.append("boundary_marked", String(boundaryMarked));
     data.append("levelled_land", String(levelledLand));
@@ -214,9 +245,22 @@ export default function UploadSitePage() {
                 <input name="youtube_url" type="url" placeholder="https://youtube.com/watch?v=..." value={form.youtube_url} onChange={handleChange} className="w-full border rounded px-3 py-2" />
               </div>
 
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-2 cursor-pointer mb-3">
+                  <input type="checkbox" checked={isLayout} onChange={(e) => setIsLayout(e.target.checked)} className="w-4 h-4 text-red-600 rounded focus:ring-red-500" />
+                  <span className="text-sm font-semibold text-gray-700">Is this part of a Layout / Gated Community?</span>
+                </label>
+                {isLayout && (
+                  <div className="mb-4">
+                    <label className="block text-sm text-gray-600 mb-1">Layout Name</label>
+                    <input name="layout_name" placeholder="e.g. BDA Layout, Green Valley" value={layoutName} onChange={(e) => setLayoutName(e.target.value)} className="w-full border rounded px-3 py-2 bg-gray-50 focus:bg-white" />
+                  </div>
+                )}
+              </div>
+
               <div className="md:col-span-2 mt-2">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm text-gray-600 font-bold">Map Coordinates (Optional)</label>
+                  <label className="block text-sm text-gray-600 font-bold">Map Location (Drag pin to set coordinates)</label>
                   <button 
                     type="button" 
                     onClick={handleGetLocation}
@@ -225,12 +269,21 @@ export default function UploadSitePage() {
                     📍 Use Current Location
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                
+                <MapPicker 
+                  latitude={form.latitude} 
+                  longitude={form.longitude} 
+                  onLocationChange={(lat, lng) => setForm({ ...form, latitude: lat, longitude: lng })} 
+                />
+
+                <div className="grid grid-cols-2 gap-4 mt-3">
                   <div>
-                    <input name="latitude" placeholder="Latitude (e.g. 13.33)" value={form.latitude} onChange={handleChange} className="w-full border rounded px-3 py-2 bg-gray-50" />
+                    <label className="block text-xs text-gray-500 mb-1">Latitude</label>
+                    <input name="latitude" placeholder="e.g. 13.33" value={form.latitude} onChange={handleChange} className="w-full border rounded px-3 py-2 bg-gray-50 text-sm text-gray-600" readOnly />
                   </div>
                   <div>
-                    <input name="longitude" placeholder="Longitude (e.g. 77.10)" value={form.longitude} onChange={handleChange} className="w-full border rounded px-3 py-2 bg-gray-50" />
+                    <label className="block text-xs text-gray-500 mb-1">Longitude</label>
+                    <input name="longitude" placeholder="e.g. 77.10" value={form.longitude} onChange={handleChange} className="w-full border rounded px-3 py-2 bg-gray-50 text-sm text-gray-600" readOnly />
                   </div>
                 </div>
               </div>

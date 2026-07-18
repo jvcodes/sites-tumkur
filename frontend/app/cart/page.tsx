@@ -6,21 +6,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 
-interface CartItem {
-  site_code: string;
-  name: string;
-  location: string;
-  price: number;
-  image?: string;
-  images?: string[];
-  latitude?: number;
-  longitude?: number;
-}
+import { useCart, CartItem } from "../context/CartContext";
 
 export default function CartPage() {
   const { user, loading } = useAuth();
+  const { cart, removeFromCart, clearCart } = useCart();
   const router = useRouter();
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [message, setMessage] = useState("");
@@ -32,27 +23,7 @@ export default function CartPage() {
     sites: CartItem[]; ref: string;
   } | null>(null);
 
-  // ----------------------------------
-  // LOAD, NORMALIZE & DEDUPLICATE CART
-  // ----------------------------------
-  useEffect(() => {
-    const raw = JSON.parse(localStorage.getItem("cart") || "[]");
-    const normalized: CartItem[] = raw.map((item: any) => ({
-      site_code: item.site_code || item.code,
-      name: item.name,
-      location: item.location,
-      price: Number(item.price),
-      image: item.image,
-      images: item.images,
-      latitude: item.latitude ? Number(item.latitude) : undefined,
-      longitude: item.longitude ? Number(item.longitude) : undefined,
-    }));
-    const unique = Array.from(
-      new Map<string, CartItem>(normalized.map((item) => [item.site_code, item])).values()
-    );
-    setCart(unique);
-    localStorage.setItem("cart", JSON.stringify(unique));
-  }, []);
+  // Cart loads automatically via context
 
   // ----------------------------------
   // LOAD PROFILE DATA
@@ -89,13 +60,8 @@ export default function CartPage() {
   }, [user, loading]);
 
   // ----------------------------------
-  // REMOVE FROM CART
+  // REMOVE FROM CART is handled by context
   // ----------------------------------
-  const removeFromCart = (site_code: string) => {
-    const updated = cart.filter((item) => item.site_code !== site_code);
-    setCart(updated);
-    localStorage.setItem("cart", JSON.stringify(updated));
-  };
 
   // ----------------------------------
   // SUBMIT BOOKING
@@ -152,8 +118,7 @@ export default function CartPage() {
         sites: [...cart],
         ref: `BK${Date.now().toString().slice(-8)}`,
       };
-      localStorage.removeItem("cart");
-      setCart([]);
+      clearCart();
       setBookingReceipt(receiptData);
       setMessage("✅ Booking request submitted! Our team will call you within 24 hours to confirm your site visit.");
     } catch {

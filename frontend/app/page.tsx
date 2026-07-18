@@ -48,6 +48,7 @@ function HomeContent() {
   const [selectedPrices, setSelectedPrices] = useState<string[]>([]);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [selectedFacings, setSelectedFacings] = useState<string[]>([]);
+  const [isLayoutFilter, setIsLayoutFilter] = useState<boolean>(false);
   const [sortOption, setSortOption] = useState<string>("");
 
   // Mobile Modals
@@ -84,13 +85,20 @@ function HomeContent() {
           setSortOption(parsed.sortOption || "");
           setAppliedSearch(parsed.appliedSearch || "");
           setInputValue(parsed.inputValue || "");
+          setIsLayoutFilter(parsed.isLayoutFilter || false);
           
           isRestored.current = true;
           
           // Wait for DOM to render the sites, then scroll
-          setTimeout(() => {
+          let attempts = 0;
+          const scrollInterval = setInterval(() => {
             window.scrollTo(0, parseInt(storedScroll, 10));
-            sessionStorage.removeItem("homeScrollPos"); // clear after restore
+            attempts++;
+            if (attempts > 10) {
+              clearInterval(scrollInterval);
+              sessionStorage.removeItem("homeScrollPos");
+              isRestored.current = false; // Allow saving state again
+            }
           }, 100);
           
           setLoading(false);
@@ -114,11 +122,11 @@ function HomeContent() {
       const stateToSave = {
         sites, total, page, hasMore,
         selectedLocations, selectedPrices, selectedAreas, selectedFacings,
-        sortOption, appliedSearch, inputValue
+        sortOption, appliedSearch, inputValue, isLayoutFilter
       };
       sessionStorage.setItem("homeState", JSON.stringify(stateToSave));
     }
-  }, [sites, total, page, hasMore, selectedLocations, selectedPrices, selectedAreas, selectedFacings, sortOption, appliedSearch, inputValue, loading]);
+  }, [sites, total, page, hasMore, selectedLocations, selectedPrices, selectedAreas, selectedFacings, sortOption, appliedSearch, inputValue, isLayoutFilter, loading]);
 
   // Fetch distinct locations
   useEffect(() => {
@@ -154,9 +162,10 @@ function HomeContent() {
       location: selectedLocations.join(","), // Though API currently takes 1 location regex, we pass it.
       minPrice, maxPrice, minArea, maxArea,
       facing: selectedFacings.join(","),
-      sort: sortOption
+      sort: sortOption,
+      isLayout: isLayoutFilter
     };
-  }, [selectedLocations, selectedPrices, selectedAreas, selectedFacings, sortOption]);
+  }, [selectedLocations, selectedPrices, selectedAreas, selectedFacings, sortOption, isLayoutFilter]);
 
   const doFetch = useCallback(
     async (
@@ -176,6 +185,7 @@ function HomeContent() {
         if (filters.maxArea) url += `&max_area=${filters.maxArea}`;
         if (filters.facing) url += `&facing=${encodeURIComponent(filters.facing)}`;
         if (filters.sort) url += `&sort=${encodeURIComponent(filters.sort)}`;
+        if (filters.isLayout) url += `&is_layout=true`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -222,6 +232,7 @@ function HomeContent() {
     setSelectedPrices([]);
     setSelectedAreas([]);
     setSelectedFacings([]);
+    setIsLayoutFilter(false);
     setSortOption("");
     setAppliedSearch("");
     setInputValue("");
@@ -234,7 +245,9 @@ function HomeContent() {
     setter(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
   };
 
-  const activeFilterCount = selectedLocations.length + selectedPrices.length + selectedAreas.length + selectedFacings.length + (sortOption ? 1 : 0);
+  const activeFilterCount = useMemo(() => {
+    return selectedLocations.length + selectedPrices.length + selectedAreas.length + selectedFacings.length + (isLayoutFilter ? 1 : 0);
+  }, [selectedLocations, selectedPrices, selectedAreas, selectedFacings, isLayoutFilter]);
 
   // Reusable Sidebar Content
   const SidebarContent = () => (
@@ -248,8 +261,16 @@ function HomeContent() {
         )}
       </div>
 
-      {/* Locations */}
+      {/* Property Type */}
       <div className="space-y-3">
+        <label className="flex items-center gap-3 cursor-pointer group bg-blue-50 p-3 rounded-lg border border-blue-100 transition-colors hover:bg-blue-100">
+          <input type="checkbox" checked={isLayoutFilter} onChange={(e) => setIsLayoutFilter(e.target.checked)} className="w-5 h-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer" />
+          <span className="text-blue-800 font-bold text-sm">Layout / Gated Community</span>
+        </label>
+      </div>
+
+      {/* Locations */}
+      <div className="space-y-3 pt-2">
         <h4 className="font-semibold text-gray-800 uppercase text-xs tracking-wider">Location</h4>
         <input 
           suppressHydrationWarning

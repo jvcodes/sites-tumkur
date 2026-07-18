@@ -6,34 +6,15 @@ import ClientOnly from "./ClientOnly";
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useWishlist } from "../context/WishlistContext";
+import { useCart } from "../context/CartContext";
 
 export default function Navbar() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const { user, logout, loading: authLoading } = useAuth();
   const { wishlist } = useWishlist();
-  const [visitListCount, setVisitListCount] = useState(0);
-
-  // Update visit list count periodically to reflect changes from other components
-  useEffect(() => {
-    const updateCount = () => {
-      const raw = JSON.parse(localStorage.getItem("cart") || "[]");
-      setVisitListCount(raw.length);
-    };
-
-    updateCount(); // Initial load
-
-    // Listen for storage changes (works across tabs)
-    window.addEventListener("storage", updateCount);
-
-    // Polling as a fallback for same-tab changes since localStorage doesn't trigger 'storage' event in the same tab easily without custom events
-    const intervalId = setInterval(updateCount, 1000);
-
-    return () => {
-      window.removeEventListener("storage", updateCount);
-      clearInterval(intervalId);
-    };
-  }, []);
+  const { cart } = useCart();
+  const visitListCount = cart.length;
 
   // 🔍 Trigger search on Enter
   const handleSearch = (

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
 import toast from "react-hot-toast";
 
 interface Site {
@@ -51,7 +52,8 @@ export default function SiteDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [inVisitList, setInVisitList] = useState(false);
+  const { addToCart, isInCart } = useCart();
+  const inVisitList = isInCart(siteCode);
   const [inWishlist, setInWishlist] = useState(false);
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -101,18 +103,8 @@ export default function SiteDetails() {
   useEffect(() => {
     if (!site) return;
 
-    const cartRaw = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
     const wishlistRaw = JSON.parse(
       localStorage.getItem("wishlist") || "[]"
-    );
-
-    setInVisitList(
-      cartRaw.some(
-        (item: any) =>
-          (item.site_code || item.code) === site.site_code
-      )
     );
 
     setInWishlist(
@@ -143,14 +135,17 @@ export default function SiteDetails() {
   const addToVisitList = () => {
     if (!site || inVisitList) return;
 
-    const raw = JSON.parse(localStorage.getItem("cart") || "[]");
-    const normalized = [...raw, site].map((item: any) => ({
-      ...item, site_code: item.site_code || item.code,
-    }));
-    const unique = Array.from(new Map(normalized.map((i: Site) => [i.site_code, i])).values());
-
-    localStorage.setItem("cart", JSON.stringify(unique));
-    setInVisitList(true);
+    addToCart({
+      site_code: site.site_code,
+      name: site.name,
+      location: site.location,
+      price: site.price,
+      image: site.images?.[0] || site.image || '/no-image.svg',
+      images: site.images,
+      latitude: site.latitude,
+      longitude: site.longitude,
+    });
+    
     toast.success("Added to Visit List 📋");
   };
 

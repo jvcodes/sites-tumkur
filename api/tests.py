@@ -206,4 +206,93 @@ class CreateBookingAPITests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.data)
 
+class CartAPITests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
 
+    @patch('api.cart_views.carts_collection')
+    @patch('api.cart_views.site_collection')
+    def test_get_cart(self, mock_site_collection, mock_carts_collection):
+        mock_carts_collection.find_one.return_value = {
+            "user_id": "9999999999",
+            "sites": ["SITE-1", "SITE-2"]
+        }
+        
+        # Mock site_collection.find to return hydrated sites
+        mock_cursor = MagicMock()
+        mock_cursor.__iter__.return_value = [
+            {"_id": "1", "site_code": "SITE-1", "name": "Test 1", "price": 100, "location": "Test Loc 1"},
+            {"_id": "2", "site_code": "SITE-2", "name": "Test 2", "price": 200, "location": "Test Loc 2"}
+        ]
+        mock_site_collection.find.return_value = mock_cursor
+
+        request = self.factory.get('/api/cart/?user_id=9999999999')
+        from api.cart_views import get_cart
+        response = get_cart(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 2)
+        
+    @patch('api.cart_views.carts_collection')
+    def test_sync_cart(self, mock_carts_collection):
+        request = self.factory.post('/api/cart/sync/', {
+            "user_id": "9999999999",
+            "cart": [
+                {"site_code": "SITE-1"},
+                {"site_code": "SITE-2"},
+                {"site_code": "SITE-1"}  # Test deduplication
+            ]
+        }, format='json')
+        
+        from api.cart_views import sync_cart
+        response = sync_cart(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["total"], 2)
+        
+        update_call_args = mock_carts_collection.update_one.call_args[0]
+        self.assertEqual(update_call_args[0], {"user_id": "9999999999"})
+        self.assertEqual(update_call_args[1], {"$set": {"sites": ["SITE-1", "SITE-2"]}})
+        self.assertTrue(mock_carts_collection.update_one.call_args[1]["upsert"])
+
+class DraftAndLayoutAPITests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @patch('api.views.drafts_collection')
+    def test_save_draft_api(self, mock_drafts_collection):
+        request = self.factory.post('/api/sites/draft/', {
+            "phone": "9999999999",
+            "name": "Test User",
+            "form_data": {"price": "1000", "isLayout": True, "layoutName": "Green Valley"}
+        }, format='json')
+        
+        from api.views import save_draft_api
+        response = save_draft_api(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "draft saved")
+        
+        mock_drafts_collection.update_one.assert_called_once()
+        update_args, update_kwargs = mock_drafts_collection.update_one.call_args
+        self.assertEqual(update_args[0], {"phone": "9999999999"})
+        self.assertEqual(update_args[1]["$set"]["name"], "Test User")
+        self.assertTrue(update_kwargs["upsert"])
+
+    @patch('api.views.site_collection')
+    def test_layout_filter(self, mock_site_collection):
+        mock_cursor = MagicMock()
+        mock_cursor.skip.return_value.limit.return_value = []
+        mock_site_collection.find.return_value = mock_cursor
+        mock_site_collection.count_documents.return_value = 0
+
+        request = self.factory.get('/api/sites/filter/?is_layout=true&search=Valley')
+        from api.views import filter_sites_api
+        response = filter_sites_api(request)
+        
+        find_call_args = mock_site_collection.find.call_args[0][0]
+        self.assertTrue(find_call_args["is_layout"])
+        
+        or_conditions = find_call_args['$or']
+        fields_searched = [list(cond.keys())[0] for cond in or_conditions]
+        self.assertIn('layout_name', fields_searched)

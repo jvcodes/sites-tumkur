@@ -1,5 +1,5 @@
 from django.urls import path, re_path
-from . import views, auth_views, wishlist_views, visits_views
+from . import views, auth_views, wishlist_views, visits_views, cart_views
 
 urlpatterns = [
     re_path(r'^sites/?$', views.approved_sites_api),
@@ -10,6 +10,7 @@ urlpatterns = [
     re_path(r'^sites/update-by-code/(?P<site_code>[^/]+)/?$', views.update_site_by_code_api),
     re_path(r'^sites/delete-by-code/(?P<site_code>[^/]+)/?$', views.delete_site_by_code_api),
     re_path(r'^sites/my-sites/?$', views.my_sites_api),
+    re_path(r'^sites/draft/?$', views.save_draft_api),
 
     re_path(r'^sites/visits/?$', visits_views.visit_site_api),
     re_path(r'^sites/visits/me/?$', visits_views.my_visits_api),
@@ -62,4 +63,8 @@ urlpatterns = [
     # Wishlist (MongoDB)
     re_path(r'^wishlist/?$', wishlist_views.get_wishlist),
     re_path(r'^wishlist/toggle/?$', wishlist_views.toggle_wishlist),
+    
+    # Cart (MongoDB)
+    re_path(r'^cart/?$', cart_views.get_cart),
+    re_path(r'^cart/sync/?$', cart_views.sync_cart),
 ]

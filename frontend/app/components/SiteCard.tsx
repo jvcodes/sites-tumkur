@@ -1,7 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useWishlist } from '../context/WishlistContext';
-import { useState, useEffect, useRef } from 'react';
+import { useCart } from '../context/CartContext';
+import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 
 interface SiteCardProps {
@@ -22,45 +23,39 @@ interface SiteCardProps {
     dimension?: string;
     latitude?: number;
     longitude?: number;
+    is_layout?: boolean;
+    layout_name?: string;
   };
 }
 
 export default function SiteCard({ site }: SiteCardProps) {
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const { addToCart, isInCart } = useCart();
+  
   const displayId = site.site_code || site.id_str || site._id || '';
   const isLiked = isInWishlist(displayId);
-  const [inVisitList, setInVisitList] = useState(false);
+  const inVisitList = isInCart(displayId);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const raw = JSON.parse(localStorage.getItem("cart") || "[]");
-    setInVisitList(raw.some((item: any) => (item.site_code || item.code) === displayId));
-  }, [displayId]);
+  // Graceful fallback for ID and Image
+  const siteId = displayId || '#';
 
   const addToVisitList = (e: React.MouseEvent) => {
     e.preventDefault();
     if (inVisitList) return;
 
-    const raw = JSON.parse(localStorage.getItem("cart") || "[]");
-    const siteToAdd = {
+    addToCart({
       site_code: displayId,
       name: site.name,
       location: site.location,
       price: site.price,
-      image: media[0],
+      image: site.images?.[0] || site.image || '/no-image.svg',
+      images: site.images,
       latitude: site.latitude,
       longitude: site.longitude,
-    };
-
-    const normalized = [...raw, siteToAdd];
-    const unique = Array.from(new Map(normalized.map((i: any) => [i.site_code, i])).values());
-    localStorage.setItem("cart", JSON.stringify(unique));
-    setInVisitList(true);
+    });
   };
-
-  // Graceful fallback for ID and Image
-  const siteId = site.site_code || site.id_str || site._id || '#';
 
   const scrollLeft = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -293,6 +288,12 @@ export default function SiteCard({ site }: SiteCardProps) {
           {(site.area || site.dimension) && site.facing && <span>•</span>}
           {site.facing && <span>{site.facing} Facing</span>}
         </p>
+
+        {site.is_layout && site.layout_name && (
+          <p className="text-[10px] uppercase font-bold text-blue-600 bg-blue-50 self-start px-2 py-0.5 rounded mb-2">
+            🏡 {site.layout_name}
+          </p>
+        )}
         
         <Link 
           href={`/site/${siteId}`} 
