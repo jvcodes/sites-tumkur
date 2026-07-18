@@ -184,19 +184,23 @@ export default function SiteDetails() {
   const pricePerSqft = site.area && site.area > 0 ? Math.round(site.price / site.area) : 0;
 
   return (
-    <div className="bg-gray-50 min-h-screen py-10">
+    <div className="bg-gray-50 min-h-screen pb-10">
       
-      {/* 🔹 Back Button */}
-      <div className="max-w-6xl mx-auto px-6 mb-4">
-        <button 
-          onClick={() => router.back()} 
-          className="flex items-center text-gray-600 hover:text-blue-600 font-medium transition-colors"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to Properties
-        </button>
+      {/* 🔹 Back Button (Sticky for easy navigation) */}
+      <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-200 px-6 py-4 mb-8">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <button 
+            onClick={() => router.back()} 
+            className="flex items-center text-gray-700 hover:text-blue-600 font-semibold transition-colors"
+          >
+            <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center mr-3 shadow-sm group-hover:border-blue-300">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </div>
+            Back to Properties
+          </button>
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">

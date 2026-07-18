@@ -65,6 +65,12 @@ function HomeContent() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    // Prevent browser from automatically restoring scroll position, 
+    // so it doesn't clash with our manual restoration logic.
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
     
     // Check if we should restore (if coming back from a detail page)
     const storedScroll = sessionStorage.getItem("homeScrollPos");
@@ -96,10 +102,10 @@ function HomeContent() {
             attempts++;
             
             // If DOM is tall enough to support the target scroll, or we hit max attempts
-            if (document.documentElement.scrollHeight > targetScroll || attempts > 20) {
+            if (document.documentElement.scrollHeight > targetScroll || attempts > 50) {
               window.scrollTo({ top: targetScroll, behavior: 'instant' });
               
-              if (attempts > 20 || window.scrollY >= targetScroll - 100) {
+              if (attempts > 50 || window.scrollY >= targetScroll - 100) {
                 clearInterval(scrollInterval);
                 setTimeout(() => {
                   sessionStorage.removeItem("homeScrollPos");
