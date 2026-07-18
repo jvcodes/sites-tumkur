@@ -95,26 +95,33 @@ function HomeContent() {
           
           isRestored.current = true;
           
+          isRestored.current = true;
+          
           // Wait for DOM to render the sites, then scroll
           const targetScroll = parseInt(storedScroll, 10);
+          console.log("RESTORE SCROLL: Attempting to restore to", targetScroll);
           let attempts = 0;
+          
           const scrollInterval = setInterval(() => {
             attempts++;
             
-            // If DOM is tall enough to support the target scroll, or we hit max attempts
-            if (document.documentElement.scrollHeight > targetScroll || attempts > 50) {
-              window.scrollTo({ top: targetScroll, behavior: 'instant' });
-              
-              if (attempts > 50 || window.scrollY >= targetScroll - 100) {
-                clearInterval(scrollInterval);
-                setTimeout(() => {
-                  sessionStorage.removeItem("homeScrollPos");
-                  isRestored.current = false;
-                }, 500);
-              }
-            } else {
-              // Try to force scroll down to prompt rendering if needed
-              window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+            // Unconditionally try to scroll to the target
+            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+            
+            // Check if we've reached the target OR if we've hit the very bottom of the page
+            // (meaning we can't scroll any further even if targetScroll is larger)
+            const reachedTarget = window.scrollY >= targetScroll - 50;
+            const reachedBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 50;
+            
+            console.log(`RESTORE SCROLL [Attempt ${attempts}]: scrollY=${window.scrollY}, scrollHeight=${document.documentElement.scrollHeight}, reachedTarget=${reachedTarget}, reachedBottom=${reachedBottom}`);
+            
+            if (reachedTarget || reachedBottom || attempts > 50) {
+              console.log("RESTORE SCROLL: Finished. Removing interval.");
+              clearInterval(scrollInterval);
+              setTimeout(() => {
+                sessionStorage.removeItem("homeScrollPos");
+                isRestored.current = false;
+              }, 100);
             }
           }, 50);
           
@@ -250,10 +257,9 @@ function HomeContent() {
 
   // Trigger fetch when any filter changes
   useEffect(() => {
-    // If we just restored from sessionStorage, do not re-fetch immediately 
-    // unless a filter was actually clicked *after* restore.
+    // If we are currently restoring from sessionStorage, skip fetching.
+    // The restore logic will reset this flag when scrolling is done.
     if (isRestored.current) {
-      isRestored.current = false;
       return;
     }
     setPage(1);
