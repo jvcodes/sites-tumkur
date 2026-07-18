@@ -13,15 +13,16 @@ except ImportError:
     print("Could not import site_collection. Make sure you run this script from the project root.")
     sys.exit(1)
 
-# Sample Data
+# Tumkur specific Data
 LOCATIONS = [
-    "Tumkur", "Bengaluru", "Mysuru", "Hubballi", "Mangaluru", 
-    "Belagavi", "Davanagere", "Ballari", "Vijayapura", "Shivamogga"
+    "Tumkur City", "Kyathsandra", "Oorkunte", "Melekote", 
+    "Sira Road", "Gubbi", "Kunigal Road", "Madhugiri Road", 
+    "Vidyagiri", "SIT Extension", "Batawadi"
 ]
 
 LAYOUT_NAMES = [
-    "Silver Oak Layout", "Green Valley", "Sunrise Residency", 
-    "Golden Enclave", "Royal Palms", "Lakeview Layout"
+    "Silver Oak Layout", "Green Valley Tumkur", "Sunrise Residency", 
+    "Golden Enclave", "Royal Palms", "Lakeview Layout", "Siddhartha Nagar Layout"
 ]
 
 FACINGS = ["East", "West", "North", "South", "North-East", "North-West", "South-East", "South-West"]
@@ -30,6 +31,10 @@ YOUTUBE_URLS = [
     "https://www.youtube.com/watch?v=3JZ_D3ELwOQ"
 ]
 IMAGE_URL = "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1000&auto=format&fit=crop"
+
+# Tumkur City Center Coordinates
+TUMKUR_LAT = 13.3379
+TUMKUR_LNG = 77.1173
 
 def generate_dummy_site():
     is_layout = random.choice([True, False])
@@ -40,14 +45,27 @@ def generate_dummy_site():
     price_per_sqft = random.randint(1500, 5000)
     total_price = area * price_per_sqft
 
+    # 60% chance to be within 10km (~0.09 degrees), 40% chance within 30km (~0.27 degrees)
+    if random.random() < 0.6:
+        # 10km radius
+        lat_offset = random.uniform(-0.09, 0.09)
+        lng_offset = random.uniform(-0.09, 0.09)
+    else:
+        # 30km radius
+        lat_offset = random.uniform(-0.27, 0.27)
+        lng_offset = random.uniform(-0.27, 0.27)
+
+    site_lat = TUMKUR_LAT + lat_offset
+    site_lng = TUMKUR_LNG + lng_offset
+
     site = {
         "site_code": f"DUMMY-{str(uuid.uuid4())[:8].upper()}",
-        "name": f"Premium Plot in {location}",
+        "name": f"Premium Plot near {location}",
         "location": location,
         "landmark": f"Near {random.choice(['Hospital', 'School', 'Mall', 'Highway'])}",
         "youtube_url": random.choice(YOUTUBE_URLS),
-        "latitude": str(12.9716 + random.uniform(-0.1, 0.1)),
-        "longitude": str(77.5946 + random.uniform(-0.1, 0.1)),
+        "latitude": str(site_lat),
+        "longitude": str(site_lng),
         "area": str(area),
         "dimension": f"{random.randint(30, 50)} x {random.randint(40, 100)}",
         "facing": random.choice(FACINGS),
@@ -64,19 +82,19 @@ def generate_dummy_site():
         "phone": "9999999999",
         "email": "admin@sitehub.com",
         "image": IMAGE_URL,
-        "status": "Available",
+        "status": "approved",
         "created_at": datetime.datetime.utcnow().isoformat()
     }
     return site
 
 def main():
-    print("Generating 1000 dummy sites...")
+    print("Generating 1000 localized Tumkur dummy sites...")
     sites = [generate_dummy_site() for _ in range(1000)]
     
     print("Inserting into MongoDB...")
     result = site_collection.insert_many(sites)
     
-    print(f"Successfully inserted {len(result.inserted_ids)} dummy sites.")
+    print(f"Successfully inserted {len(result.inserted_ids)} dummy sites localized in Tumkur.")
 
 if __name__ == "__main__":
     main()
