@@ -90,16 +90,27 @@ function HomeContent() {
           isRestored.current = true;
           
           // Wait for DOM to render the sites, then scroll
+          const targetScroll = parseInt(storedScroll, 10);
           let attempts = 0;
           const scrollInterval = setInterval(() => {
-            window.scrollTo(0, parseInt(storedScroll, 10));
             attempts++;
-            if (attempts > 10) {
-              clearInterval(scrollInterval);
-              sessionStorage.removeItem("homeScrollPos");
-              isRestored.current = false; // Allow saving state again
+            
+            // If DOM is tall enough to support the target scroll, or we hit max attempts
+            if (document.documentElement.scrollHeight > targetScroll || attempts > 20) {
+              window.scrollTo({ top: targetScroll, behavior: 'instant' });
+              
+              if (attempts > 20 || window.scrollY >= targetScroll - 100) {
+                clearInterval(scrollInterval);
+                setTimeout(() => {
+                  sessionStorage.removeItem("homeScrollPos");
+                  isRestored.current = false;
+                }, 500);
+              }
+            } else {
+              // Try to force scroll down to prompt rendering if needed
+              window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
             }
-          }, 100);
+          }, 50);
           
           setLoading(false);
           return; // Skip initial fetch
