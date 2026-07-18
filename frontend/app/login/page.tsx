@@ -92,7 +92,13 @@ export default function LoginPage() {
             router.push("/");
         } catch (err: any) {
             console.error("Error verifying OTP", err);
-            setError("Invalid OTP code. Please check and try again.");
+            // Distinguish between Firebase invalid OTP and Backend connection error
+            // (To make sure we don't hide backend deployment/database errors again)
+            if (err.message === "Phone Login failed" || err.message?.includes("fetch") || err.message?.includes("network")) {
+                setError("Server error: Failed to connect to backend database (Check deployment environment variables and MongoDB IP whitelist).");
+            } else {
+                setError("Invalid OTP code. Please check and try again.");
+            }
         } finally {
             setIsSubmitting(false);
         }
