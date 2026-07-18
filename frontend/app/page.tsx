@@ -198,6 +198,31 @@ function HomeContent() {
         if (filters.sort) url += `&sort=${encodeURIComponent(filters.sort)}`;
         if (filters.isLayout) url += `&is_layout=true`;
 
+        // ── PERSONALIZATION: Boost preferred location ──
+        // Only apply boosting when the user hasn't applied any active
+        // filters or explicit sort. This ensures that:
+        // 1. The "default" homepage view is personalized to show the
+        //    user's recently-browsed area first.
+        // 2. Any manual filter/sort overrides personalization, because
+        //    the user's explicit intent should always win.
+        // 3. We don't boost on "Load More" (append) to avoid reordering
+        //    the grid while the user is browsing.
+        const hasActiveFilters = search || filters.location || filters.minPrice
+          || filters.maxPrice || filters.minArea || filters.maxArea
+          || filters.facing || filters.isLayout;
+        const hasExplicitSort = !!filters.sort;
+
+        if (!hasActiveFilters && !hasExplicitSort && !append) {
+          try {
+            const preferredLoc = localStorage.getItem('sitehub_preferred_loc');
+            if (preferredLoc) {
+              url += `&boost_location=${encodeURIComponent(preferredLoc)}`;
+            }
+          } catch {
+            // localStorage may be unavailable (SSR, private browsing) — ignore
+          }
+        }
+
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();

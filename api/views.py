@@ -198,14 +198,39 @@ def approved_sites_api(request):
 
 
 # --------------------------------------------------
-# 🔹 GET: Filter Sites + Sort
+# 🔹 GET: Filter Sites + Sort (with Personalization Boosting)
+# --------------------------------------------------
+# This endpoint powers the homepage property grid. It supports:
+#   - Multi-filter querying (location, price, area, facing, search, is_layout)
+#   - Explicit sorting (price_low, price_high)
+#   - Personalization boosting via `boost_location` param
+#
+# PERSONALIZATION STRATEGY (Hybrid Boosting System):
+# When a user browses a property, the frontend saves that property's
+# location to localStorage. On subsequent homepage loads (without active
+# filters or explicit sorts), the frontend sends `boost_location=<loc>`
+# to this endpoint. We use a MongoDB Aggregation Pipeline to assign a
+# `boost_score` of 1 to properties matching the boosted location and 0
+# to everything else. We then sort by boost_score DESC, created_at DESC.
+# This pushes the user's preferred area to the top without hiding other
+# properties — they simply appear further down the grid.
+#
+# EDGE CASES HANDLED:
+# - If boost_location is empty or missing, no boosting occurs.
+# - If the user applies an explicit sort (price_low/price_high), boosting
+#   is disabled to respect the user's manual intent.
+# - Compiled regex objects are NOT used inside $match in an aggregation
+#   pipeline because pymongo's $regex syntax is required instead. We
+#   convert them to {"$regex": ..., "$options": "i"} dicts.
 # --------------------------------------------------
 @api_view(['GET'])
 def filter_sites_api(request):
+    # ── Base filter: only show approved, non-deleted sites ──
     query = {"status": "approved", "is_deleted": {"$ne": True}}
 
+    # ── Extract all filter parameters from the request ──
     location = request.GET.get("location")
-    search = request.GET.get("search")  # General search term
+    search = request.GET.get("search")
     min_price = request.GET.get("min_price")
     max_price = request.GET.get("max_price")
     min_area = request.GET.get("min_area")
@@ -214,20 +239,29 @@ def filter_sites_api(request):
     site_code = request.GET.get("site_code")
     sort = request.GET.get("sort")
     is_layout = request.GET.get("is_layout")
+    boost_location = request.GET.get("boost_location", "").strip()
 
+    # ── Build the $match filter query ──
+    # IMPORTANT: In aggregation pipelines, we cannot use compiled Python
+    # regex objects (re.compile). We must use MongoDB's {"$regex": ..., "$options": ...}
+    # dict syntax instead. This is different from the cursor-based .find() API.
     if location:
         location_list = [l.strip() for l in location.split(",") if l.strip()]
         if location_list:
-            # Create regexes for case-insensitive exact match for multiple locations
-            query["location"] = {"$in": [re.compile(f"^{l}$", re.IGNORECASE) for l in location_list]}
+            # Case-insensitive exact match for each location using anchored regex
+            query["location"] = {
+                "$in": [{"$regex": f"^{re.escape(l)}$", "$options": "i"} for l in location_list]
+            }
+
     if site_code:
-         query["site_code"] = {"$regex": site_code, "$options": "i"}
-         
+        query["site_code"] = {"$regex": site_code, "$options": "i"}
+
     if facing:
-         facing_list = [f.strip() for f in facing.split(",") if f.strip()]
-         if facing_list:
-             # Create regexes for case-insensitive exact match
-             query["facing"] = {"$in": [re.compile(f"^{f}$", re.IGNORECASE) for f in facing_list]}
+        facing_list = [f.strip() for f in facing.split(",") if f.strip()]
+        if facing_list:
+            query["facing"] = {
+                "$in": [{"$regex": f"^{re.escape(f)}$", "$options": "i"} for f in facing_list]
+            }
 
     if search:
         query["$or"] = [
@@ -247,7 +281,7 @@ def filter_sites_api(request):
             query["price"]["$gte"] = int(min_price)
         if max_price:
             query["price"]["$lte"] = int(max_price)
-            
+
     if min_area or max_area:
         query["area"] = {}
         if min_area:
@@ -255,22 +289,65 @@ def filter_sites_api(request):
         if max_area:
             query["area"]["$lte"] = int(max_area)
 
-    cursor = site_collection.find(query)
-
-    if sort == "price_low":
-        cursor = cursor.sort("price", 1)
-    elif sort == "price_high":
-        cursor = cursor.sort("price", -1)
-
-    # ---------------- PAGINATION ----------------
+    # ── Pagination ──
     page = int(request.GET.get("page", 1))
     limit = int(request.GET.get("limit", 12))
-    skip = (page - 1) * limit
+    skip_val = (page - 1) * limit
 
+    # ── Total count (for frontend "X properties found" display) ──
     total = site_collection.count_documents(query)
-    cursor = cursor.skip(skip).limit(limit)
 
-    sites = hydrate_sites(request, list(cursor))
+    # ── Build the Aggregation Pipeline ──
+    # We always use an aggregation pipeline (even without boosting) for
+    # consistency and future extensibility. The pipeline stages are:
+    #   1. $match  — apply all user filters
+    #   2. $addFields (optional) — inject boost_score for personalization
+    #   3. $sort   — order results by boost_score or explicit sort
+    #   4. $skip   — pagination offset
+    #   5. $limit  — page size
+    pipeline = [{"$match": query}]
+
+    # ── Determine sort order ──
+    if sort == "price_low":
+        # User explicitly chose price ascending — respect this over boosting
+        pipeline.append({"$sort": {"price": 1}})
+    elif sort == "price_high":
+        # User explicitly chose price descending — respect this over boosting
+        pipeline.append({"$sort": {"price": -1}})
+    elif boost_location:
+        # PERSONALIZATION: No explicit sort requested, and we have a
+        # preferred location from the user's browsing history.
+        # Inject a computed field that scores matching properties higher.
+        # Uses case-insensitive regex match via $regexMatch for robustness.
+        pipeline.append({
+            "$addFields": {
+                "boost_score": {
+                    "$cond": {
+                        "if": {
+                            "$regexMatch": {
+                                "input": {"$ifNull": ["$location", ""]},
+                                "regex": f"^{re.escape(boost_location)}$",
+                                "options": "i"
+                            }
+                        },
+                        "then": 1,
+                        "else": 0
+                    }
+                }
+            }
+        })
+        # Sort boosted properties first, then by recency within each group
+        pipeline.append({"$sort": {"boost_score": -1, "created_at": -1}})
+    else:
+        # Default sort: newest first (no boosting, no explicit sort)
+        pipeline.append({"$sort": {"created_at": -1}})
+
+    # ── Pagination stages ──
+    pipeline.append({"$skip": skip_val})
+    pipeline.append({"$limit": limit})
+
+    # ── Execute pipeline and hydrate results ──
+    sites = hydrate_sites(request, list(site_collection.aggregate(pipeline)))
 
     serializer = SiteSerializer(sites, many=True)
     return Response({

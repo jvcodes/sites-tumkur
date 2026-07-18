@@ -79,6 +79,17 @@ export default function SiteDetails() {
         setSite(data);
         setError(null);
 
+        // ── PERSONALIZATION: Save preferred location ──
+        // When a user views a property, we record its location in
+        // localStorage. The homepage reads this value and sends it as
+        // `boost_location` to the API, which pushes properties from
+        // this area to the top of the grid. This creates an Amazon-style
+        // "based on your browsing" effect without needing a backend
+        // user profile or authentication.
+        if (data.location) {
+          localStorage.setItem('sitehub_preferred_loc', data.location);
+        }
+
         // Record Analytics Visit
         if (user?.email || user?.phone) {
           fetch("/api/sites/visits", {
