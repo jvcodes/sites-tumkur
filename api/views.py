@@ -248,10 +248,9 @@ def filter_sites_api(request):
     if location:
         location_list = [l.strip() for l in location.split(",") if l.strip()]
         if location_list:
-            # Case-insensitive exact match for each location using anchored regex
-            query["location"] = {
-                "$in": [{"$regex": f"^{re.escape(l)}$", "$options": "i"} for l in location_list]
-            }
+            # Case-insensitive exact match for each location using regex alternation
+            regex_pattern = "^(" + "|".join([re.escape(l) for l in location_list]) + ")$"
+            query["location"] = {"$regex": regex_pattern, "$options": "i"}
 
     if site_code:
         query["site_code"] = {"$regex": site_code, "$options": "i"}
@@ -259,9 +258,8 @@ def filter_sites_api(request):
     if facing:
         facing_list = [f.strip() for f in facing.split(",") if f.strip()]
         if facing_list:
-            query["facing"] = {
-                "$in": [{"$regex": f"^{re.escape(f)}$", "$options": "i"} for f in facing_list]
-            }
+            regex_pattern = "^(" + "|".join([re.escape(f) for f in facing_list]) + ")$"
+            query["facing"] = {"$regex": regex_pattern, "$options": "i"}
 
     if search:
         query["$or"] = [
@@ -310,10 +308,10 @@ def filter_sites_api(request):
     # ── Determine sort order ──
     if sort == "price_low":
         # User explicitly chose price ascending — respect this over boosting
-        pipeline.append({"$sort": {"price": 1}})
+        pipeline.append({"$sort": {"price": 1, "_id": 1}})
     elif sort == "price_high":
         # User explicitly chose price descending — respect this over boosting
-        pipeline.append({"$sort": {"price": -1}})
+        pipeline.append({"$sort": {"price": -1, "_id": 1}})
     elif boost_location:
         # PERSONALIZATION: No explicit sort requested, and we have a
         # preferred location from the user's browsing history.
@@ -337,10 +335,10 @@ def filter_sites_api(request):
             }
         })
         # Sort boosted properties first, then by recency within each group
-        pipeline.append({"$sort": {"boost_score": -1, "created_at": -1}})
+        pipeline.append({"$sort": {"boost_score": -1, "created_at": -1, "_id": 1}})
     else:
         # Default sort: newest first (no boosting, no explicit sort)
-        pipeline.append({"$sort": {"created_at": -1}})
+        pipeline.append({"$sort": {"created_at": -1, "_id": 1}})
 
     # ── Pagination stages ──
     pipeline.append({"$skip": skip_val})

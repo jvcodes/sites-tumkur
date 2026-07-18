@@ -72,7 +72,7 @@ class FilterSitesAPITests(TestCase):
 
     @patch('api.views.site_collection')
     def test_filter_by_multiple_locations(self, mock_site_collection):
-        """Verify that comma-separated locations produce an $in regex array."""
+        """Verify that comma-separated locations produce a regex alternation query."""
         mock_site_collection.aggregate.return_value = []
         mock_site_collection.count_documents.return_value = 0
 
@@ -82,10 +82,11 @@ class FilterSitesAPITests(TestCase):
         pipeline = mock_site_collection.aggregate.call_args[0][0]
         match_query = _get_match_stage(pipeline)
         
-        # Should translate into an $in regex query
+        # Should translate into a regex alternation query
         self.assertIn('location', match_query)
-        self.assertIn('$in', match_query['location'])
-        self.assertEqual(len(match_query['location']['$in']), 2)
+        self.assertIn('$regex', match_query['location'])
+        self.assertEqual(match_query['location']['$regex'], "^(Tumkur|Sira)$")
+        self.assertEqual(match_query['location']['$options'], "i")
 
     @patch('api.views.site_collection')
     def test_filter_by_price_range(self, mock_site_collection):
@@ -372,6 +373,7 @@ class BoostLocationAPITests(TestCase):
         self.assertIsNotNone(sort_stage, "Pipeline should contain $sort")
         self.assertEqual(sort_stage.get("boost_score"), -1)
         self.assertEqual(sort_stage.get("created_at"), -1)
+        self.assertEqual(sort_stage.get("_id"), 1)
 
     @patch('api.views.site_collection')
     def test_boost_location_disabled_when_explicit_sort(self, mock_site_collection):
@@ -392,7 +394,7 @@ class BoostLocationAPITests(TestCase):
 
         # $sort should be price ascending
         sort_stage = _get_stage(pipeline, "$sort")
-        self.assertEqual(sort_stage, {"price": 1})
+        self.assertEqual(sort_stage, {"price": 1, "_id": 1})
 
     @patch('api.views.site_collection')
     def test_no_boost_when_empty_location(self, mock_site_collection):
@@ -412,4 +414,4 @@ class BoostLocationAPITests(TestCase):
 
         # Default sort by created_at DESC
         sort_stage = _get_stage(pipeline, "$sort")
-        self.assertEqual(sort_stage, {"created_at": -1})
+        self.assertEqual(sort_stage, {"created_at": -1, "_id": 1})
