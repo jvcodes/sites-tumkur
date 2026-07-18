@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import toast from "react-hot-toast";
@@ -46,6 +46,7 @@ interface Site {
 export default function SiteDetails() {
   const params = useParams();
   const siteCode = params.site_code as string;
+  const router = useRouter();
   const { user } = useAuth();
 
   const [site, setSite] = useState<Site | null>(null);
@@ -173,6 +174,20 @@ export default function SiteDetails() {
 
   return (
     <div className="bg-gray-50 min-h-screen py-10">
+      
+      {/* 🔹 Back Button */}
+      <div className="max-w-6xl mx-auto px-6 mb-4">
+        <button 
+          onClick={() => router.back()} 
+          className="flex items-center text-gray-600 hover:text-blue-600 font-medium transition-colors"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Properties
+        </button>
+      </div>
+
       <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
 
         {/* LEFT COLUMN: Main content */}
