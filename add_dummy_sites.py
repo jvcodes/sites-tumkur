@@ -15,9 +15,12 @@ except ImportError:
 
 # Tumkur specific Data
 LOCATIONS = [
-    "Tumkur City", "Kyathsandra", "Oorkunte", "Melekote", 
-    "Sira Road", "Gubbi", "Kunigal Road", "Madhugiri Road", 
-    "Vidyagiri", "SIT Extension", "Batawadi"
+    "S.S. Puram", "Mandipet", "Melekote", "Batawadi", "Sadashivanagar", "Sira Gate", 
+    "Jayanagar", "Gokula Extension", "Saraswathipuram", "Bheemasandra", "Maralur", 
+    "Gandhi Nagar", "Sapthagiri Extension", "Heggere", "Belagumba", "Devarayapatna", 
+    "Kyathasandra", "Antharasanahalli", "Vasanthanarasapura", "Shettihalli", 
+    "Arakere", "Kora", "Satyamangala", "Dibbur", "Manchakalkuppe", "Oorkarpet", 
+    "Upparahalli", "Siddarameshwara Extension", "Kuvempu Nagar", "Vivekananda Nagar", "Shanti Nagar"
 ]
 
 LAYOUT_NAMES = [
