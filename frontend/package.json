@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:e2e": "playwright test"
+    "test": "npm run test:e2e && npm run test:lighthouse",
+    "test:e2e": "playwright test",
+    "test:lighthouse": "lhci autorun",
+    "test:visual": "playwright test tests/visual.spec.ts --update-snapshots"
   },
   "dependencies": {
     "firebase": "^12.16.0",
@@ -19,6 +22,8 @@
     "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.21",

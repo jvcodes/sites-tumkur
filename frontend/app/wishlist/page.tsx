@@ -45,7 +45,7 @@ export default function WishlistPage() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
           <div className="text-5xl mb-4">❤️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Login Required</h2>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h1>
           <p className="text-gray-500 mb-4">Please login to view your saved sites.</p>
           <Link
             href="/login"
@@ -59,7 +59,7 @@ export default function WishlistPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-12">
+    <div className="min-h-screen bg-gray-50 px-6 py-12">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-[var(--color-primary)] mb-2">
           My Wishlist ❤️
@@ -99,6 +99,6 @@ export default function WishlistPage() {
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 }

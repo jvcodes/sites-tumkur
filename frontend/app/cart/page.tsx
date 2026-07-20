@@ -222,7 +222,7 @@ export default function CartPage() {
     return (
       <div className="max-w-4xl mx-auto p-10 text-center">
         <div className="text-5xl mb-4">🛒</div>
-        <h2 className="text-2xl font-semibold mb-3">Your Cart is Empty</h2>
+        <h1 className="text-2xl font-semibold mb-3">Your Cart is Empty</h1>
         <p className="text-gray-500 mb-6">{message || "Add sites to your cart to schedule a visit."}</p>
         <Link href="/" className="inline-block bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">
           Browse Sites

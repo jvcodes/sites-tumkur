@@ -42,8 +42,8 @@ export default function MyVisitsPage() {
             ) : (
                 <div className="grid gap-4">
                     {visits.map((site, i) => (
-                        <div key={i} className="flex gap-4 border rounded-xl p-4 hover:shadow-md transition-shadow bg-white items-center">
-                            <div className="w-32 h-24 rounded bg-gray-100 flex-shrink-0 overflow-hidden relative">
+                        <div key={i} className="flex flex-col md:flex-row gap-4 border rounded-xl p-4 hover:shadow-md transition-shadow bg-white md:items-center">
+                            <div className="w-full md:w-32 h-48 md:h-24 rounded bg-gray-100 flex-shrink-0 overflow-hidden relative">
                                 <img src={site.images?.[0] || site.image || '/no-image.svg'} className="w-full h-full object-cover" alt="Site" />
                             </div>
 
@@ -58,7 +58,7 @@ export default function MyVisitsPage() {
                                     </span>
                                 </div>
 
-                                <div className="flex gap-4 mt-3 text-sm">
+                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-3 text-sm">
                                     <div className="flex items-center gap-1">
                                         <span className="text-gray-400 font-medium">Last Viewed:</span>
                                         <span className="text-gray-800 font-semibold">{new Date(site.visit_date).toLocaleDateString()}</span>
@@ -72,11 +72,11 @@ export default function MyVisitsPage() {
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-2 pl-4 border-l">
+                            <div className="flex flex-row md:flex-col justify-between items-center md:items-start gap-2 pt-4 mt-2 border-t md:pt-0 md:mt-0 md:border-t-0 md:border-l md:pl-4">
                                 <p className="font-extrabold text-lg text-red-600">₹{site.price.toLocaleString()}</p>
                                 <Link
                                     href={`/site/${site.site_code}`}
-                                    className="text-center bg-white border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-4 py-1.5 rounded text-sm font-bold transition-colors"
+                                    className="text-center bg-white border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-4 py-1.5 rounded text-sm font-bold transition-colors w-full sm:w-auto"
                                 >
                                     View Again
                                 </Link>

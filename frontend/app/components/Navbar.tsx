@@ -28,7 +28,7 @@ export default function Navbar() {
   return (
     <>
       {/* ── TOP NAVBAR ────────────────────────────────────────────── */}
-      <nav className="bg-white shadow sticky top-0 z-50">
+      <nav aria-label="Main navigation" className="bg-white shadow sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
           
           {/* LOGO */}
@@ -55,14 +55,14 @@ export default function Navbar() {
 
           {/* MOBILE SEARCH / FILTER ICON */}
           <div className="flex md:hidden items-center gap-4">
-            <button className="text-gray-600 p-2 bg-gray-50 rounded-full border border-gray-100">
+            <button aria-label="Search" className="text-gray-600 p-2 bg-gray-50 rounded-full border border-gray-100">
               🔍
             </button>
           </div>
 
           {/* DESKTOP ACTIONS */}
           <div className="hidden md:flex items-center gap-5">
-            <Link href="/wishlist" className="relative p-2 text-gray-600 hover:text-red-500 transition-colors group">
+            <Link href="/wishlist" aria-label="Wishlist" className="relative p-2 text-gray-600 hover:text-red-500 transition-colors group">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
               {wishlist.length > 0 && (
                 <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white group-hover:scale-110 transition-transform">
@@ -71,7 +71,7 @@ export default function Navbar() {
               )}
             </Link>
             
-            <Link href="/cart" className="relative p-2 text-gray-600 hover:text-[var(--color-accent)] transition-colors group">
+            <Link href="/cart" aria-label="Cart" className="relative p-2 text-gray-600 hover:text-[var(--color-accent)] transition-colors group">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               {visitListCount > 0 && (
                 <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white group-hover:scale-110 transition-transform">
@@ -84,7 +84,7 @@ export default function Navbar() {
               <div className="w-24 h-9 bg-gray-100 rounded-lg animate-pulse" />
             ) : user ? (
               <div className="relative group">
-                <button className="flex items-center gap-2 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-gray-200">
+                <button aria-label="Profile Menu" className="flex items-center gap-2 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-gray-200">
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
                     {user.name ? user.name.charAt(0).toUpperCase() : "U"}
                   </div>
@@ -130,7 +130,7 @@ export default function Navbar() {
       </nav>
 
       {/* ── MOBILE BOTTOM NAVIGATION BAR ──────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center justify-around py-3 pb-safe z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+      <nav aria-label="Bottom navigation" className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center justify-around py-3 pb-safe z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
         <Link href="/" className="flex flex-col items-center gap-1 text-gray-600 hover:text-[var(--color-accent)]">
           <span className="text-xl">🏠</span>
           <span className="text-[10px] font-bold uppercase tracking-wide">Home</span>

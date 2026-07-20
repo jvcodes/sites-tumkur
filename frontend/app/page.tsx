@@ -380,7 +380,7 @@ function HomeContent() {
   );
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-16 md:pb-0">
+    <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
       
       {/* ── HEADER / NAV ─────────────────────────────────── */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
@@ -468,12 +468,13 @@ function HomeContent() {
           {/* Header & Sort */}
           <div className="hidden md:flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Plots for Sale in Tumkur</h2>
+              <h1 className="text-xl font-bold text-gray-900">Plots for Sale in Tumkur</h1>
               {!loading && <p className="text-gray-500 text-sm mt-1">{total} properties found</p>}
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-gray-700">Sort by:</span>
+              <label htmlFor="desktop-sort" className="text-sm font-semibold text-gray-700">Sort by:</label>
               <select 
+                id="desktop-sort"
                 suppressHydrationWarning
                 value={sortOption} 
                 onChange={(e) => setSortOption(e.target.value)}
@@ -487,7 +488,7 @@ function HomeContent() {
           </div>
 
           <div className="md:hidden mb-4">
-             <h2 className="text-lg font-bold text-gray-900">Plots in Tumkur</h2>
+             <h1 className="text-lg font-bold text-gray-900">Plots in Tumkur</h1>
              {!loading && <p className="text-gray-500 text-xs">{total} properties found</p>}
           </div>
 
@@ -545,7 +546,7 @@ function HomeContent() {
           <div className="relative bg-white w-full rounded-t-2xl animate-slide-up pb-safe">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="font-bold text-lg">Sort By</h3>
-              <button onClick={() => setIsMobileSortOpen(false)} className="p-2 text-gray-500">✕</button>
+              <button aria-label="Close sort" onClick={() => setIsMobileSortOpen(false)} className="p-2 text-gray-500">✕</button>
             </div>
             <div className="p-2">
               {[
@@ -587,9 +588,8 @@ function HomeContent() {
             
             {/* 2-Column Content */}
             <div className="flex-1 flex overflow-hidden min-h-[50vh]">
-              {/* Left Tabs */}
               <div className="w-1/3 bg-gray-100 border-r border-gray-200 overflow-y-auto">
-                {["Location", "Price", "Area", "Facing"].map(tab => (
+                {["Type", "Location", "Price", "Area", "Facing"].map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveMobileTab(tab)}
@@ -600,8 +600,15 @@ function HomeContent() {
                 ))}
               </div>
               
-              {/* Right Content */}
               <div className="w-2/3 bg-white overflow-y-auto p-4 space-y-4">
+              {activeMobileTab === "Type" && (
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={isLayoutFilter} onChange={(e) => setIsLayoutFilter(e.target.checked)} className="w-5 h-5 rounded border-gray-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
+                    <span className="text-sm text-gray-700 font-bold">Layout / Gated Community</span>
+                  </label>
+                </div>
+              )}
               {activeMobileTab === "Location" && (
                 <div className="space-y-3">
                   <input 
@@ -675,7 +682,7 @@ function HomeContent() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
       `}} />
-    </main>
+    </div>
   );
 }
 

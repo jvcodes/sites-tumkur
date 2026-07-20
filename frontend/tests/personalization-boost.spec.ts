@@ -19,14 +19,14 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('SiteHub Personalization Boosting', () => {
 
-  test('should boost properties from recently viewed location to top of grid', async ({ page }) => {
+  test('should boost properties from recently viewed location to top of grid', async ({ page, isMobile }) => {
     // ── Step 1: Load homepage and note the first property's location ──
     await page.goto('http://localhost:3000/');
-    await expect(page.locator('text=properties found').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=📍').first()).toBeVisible({ timeout: 15000 });
 
     // Grab the location text from the first SiteCard header (the 📍 badge area)
     const firstCardLocation = await page
-      .locator('h3.text-sm.font-bold')
+      .locator('h2.text-sm.font-bold')
       .first()
       .innerText();
 
@@ -34,7 +34,7 @@ test.describe('SiteHub Personalization Boosting', () => {
     // We scan the visible SiteCards to find one with a different location.
     // If all visible cards are from the same location, we still proceed
     // (the boost will simply reorder by created_at within that location).
-    const allCardLocations = await page.locator('h3.text-sm.font-bold').allInnerTexts();
+    const allCardLocations = await page.locator('h2.text-sm.font-bold').allInnerTexts();
     let targetIndex = 0;
     for (let i = 0; i < allCardLocations.length; i++) {
       if (allCardLocations[i] !== firstCardLocation) {
@@ -66,13 +66,13 @@ test.describe('SiteHub Personalization Boosting', () => {
     // We do a fresh navigation to ensure the homepage reads localStorage
     // and passes boost_location to the API.
     await page.goto('http://localhost:3000/');
-    await expect(page.locator('text=properties found').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('h2.text-sm.font-bold').first()).toBeVisible({ timeout: 15000 });
 
     // ── Step 5: Verify the boosted location appears at the top ──
     // The first property on the refreshed homepage should now be from
     // the location we just viewed (or at least the same area).
     const boostedFirstLocation = await page
-      .locator('h3.text-sm.font-bold')
+      .locator('h2.text-sm.font-bold')
       .first()
       .innerText();
 
@@ -80,22 +80,27 @@ test.describe('SiteHub Personalization Boosting', () => {
     expect(boostedFirstLocation).toBe(storedLoc);
   });
 
-  test('should NOT boost when user applies explicit sort', async ({ page }) => {
+  test('should NOT boost when user applies explicit sort', async ({ page, isMobile }) => {
     // Pre-seed localStorage with a known preferred location
     await page.goto('http://localhost:3000/');
     await page.evaluate(() => localStorage.setItem('sitehub_preferred_loc', 'Gubbi'));
     
     // Reload to let boosting take effect
     await page.reload();
-    await expect(page.locator('text=properties found').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=📍').first()).toBeVisible({ timeout: 15000 });
 
     // Verify the API request included boost_location
     // (We can't directly check the URL, but we can verify the first result)
     
     // Now apply an explicit sort — this should override boosting
-    // Click the desktop sort dropdown
-    const sortDropdown = page.locator('select').first();
-    await sortDropdown.selectOption('price_low');
+    if (isMobile) {
+      await page.getByRole('button', { name: 'Sort' }).click({ force: true });
+      await page.waitForTimeout(300);
+      await page.getByRole('button', { name: 'Price: Low to High' }).click({ force: true });
+    } else {
+      const sortDropdown = page.locator('select').first();
+      await sortDropdown.selectOption('price_low');
+    }
     
     // Wait for the fetch debounce (300ms) + network
     await page.waitForTimeout(1500);

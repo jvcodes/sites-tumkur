@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Agent Manual Testing', () => {
-  test('Login and interact with Layout and Map', async ({ page, context }) => {
+  test('Login and interact with Layout and Map', async ({ page, context, isMobile }) => {
     // 1. Visit Homepage
     await page.goto('http://localhost:3000/');
     await page.waitForLoadState('networkidle');
@@ -14,10 +14,22 @@ test.describe('Agent Manual Testing', () => {
     });
     await page.reload();
     await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000); // Wait for React hydration
     await page.screenshot({ path: '../agent_test_2_logged_in.png' });
 
     // 2. Test Layout Filter
-    await page.getByText('Layout / Gated Community').click();
+    if (isMobile) {
+      // Open the filter drawer on mobile
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.getByRole('button', { name: 'Filter' }).click({ force: true });
+      // Wait for the modal content to appear
+      await expect(page.locator('h3').filter({ hasText: 'Filters' }).last()).toBeVisible({ timeout: 10000 });
+      await page.getByRole('button', { name: 'Type' }).click();
+      await page.locator('label', { hasText: "Layout / Gated Community" }).last().click();
+      await page.getByRole('button', { name: 'Apply Filters' }).click({ force: true });
+    } else {
+      await page.locator('label', { hasText: "Layout / Gated Community" }).first().click({ force: true });
+    }
     await page.waitForTimeout(1000); // Wait for API fetch
     await page.screenshot({ path: '../agent_test_3_layout_filter.png' });
 

@@ -125,15 +125,15 @@ export default function SiteCard({ site }: SiteCardProps) {
             📍
           </div>
           <div className="flex flex-col">
-            <h3 className="text-sm font-bold text-gray-900 leading-tight">
+            <h2 className="text-sm font-bold text-gray-900 leading-tight">
               {site.location}
-            </h3>
+            </h2>
             <p className="text-[11px] text-gray-500">
               ID: {displayId} • {site.status ? site.status.toUpperCase() : 'AVAILABLE'}
             </p>
           </div>
         </div>
-        <button className="text-gray-400 hover:text-gray-600">
+        <button aria-label="More options" className="text-gray-400 hover:text-gray-600">
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" /></svg>
         </button>
       </div>
@@ -184,12 +184,14 @@ export default function SiteCard({ site }: SiteCardProps) {
         {(youtubeId || media.length > 1) && (
           <>
             <button 
+              aria-label="Previous image"
               onClick={scrollLeft}
               className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-gray-800 shadow flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-white z-10"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
             </button>
             <button 
+              aria-label="Next image"
               onClick={scrollRight}
               className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 text-gray-800 shadow flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-white z-10"
             >
@@ -210,6 +212,7 @@ export default function SiteCard({ site }: SiteCardProps) {
         <div className="flex items-center gap-4">
           {/* Wishlist */}
           <button
+            aria-label={isLiked ? "Remove from wishlist" : "Add to wishlist"}
             onClick={(e) => {
               e.preventDefault();
               toggleWishlist(displayId);
@@ -223,6 +226,7 @@ export default function SiteCard({ site }: SiteCardProps) {
           
           {/* Share (Native Web Share) */}
           <button 
+            aria-label="Share property"
             onClick={(e) => {
               e.preventDefault();
               const url = `${window.location.origin}/site/${siteId}`;
@@ -272,7 +276,7 @@ export default function SiteCard({ site }: SiteCardProps) {
       <div className="px-4 pb-3 flex flex-col">
         <div className="flex items-baseline gap-2 mb-1">
           <span className="text-[15px] font-extrabold text-gray-900">{formatPrice(site.price)}</span>
-          <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+          <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
             {shortPrice(site.price)}
           </span>
         </div>
@@ -298,7 +302,7 @@ export default function SiteCard({ site }: SiteCardProps) {
         <Link 
           href={`/site/${siteId}`} 
           onClick={() => sessionStorage.setItem('homeScrollPos', window.scrollY.toString())}
-          className="text-xs text-gray-400 uppercase font-bold tracking-wider hover:text-gray-600 mt-1"
+          className="text-xs text-gray-600 uppercase font-bold tracking-wider hover:text-gray-900 mt-1"
         >
           View full details &rarr;
         </Link>

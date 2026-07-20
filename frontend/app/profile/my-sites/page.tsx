@@ -77,7 +77,20 @@ export default function MySitesPage() {
     };
 
     if (!user) {
-        return <div className="text-center mt-20 text-xl text-gray-600">Please log in to view your profile.</div>;
+        return (
+            <div className="text-center mt-20 flex flex-col items-center">
+                <p className="text-xl text-gray-600 mb-6">Please log in to view your profile.</p>
+                <button
+                    onClick={() => router.back()}
+                    className="flex items-center text-white bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-3 rounded-lg shadow-sm transition-colors"
+                >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Go Back
+                </button>
+            </div>
+        );
     }
 
     return (
@@ -87,7 +100,18 @@ export default function MySitesPage() {
             {loading ? (
                 <p className="text-gray-500">Loading your sites...</p>
             ) : error ? (
-                <p className="text-red-500">{error}</p>
+                <div className="text-center py-10">
+                    <p className="text-red-500 mb-6">{error}</p>
+                    <button
+                        onClick={() => router.back()}
+                        className="inline-flex items-center text-white bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-2 rounded-lg shadow-sm transition-colors"
+                    >
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Go Back
+                    </button>
+                </div>
             ) : sites.length === 0 ? (
                 <div className="bg-gray-50 border rounded-lg p-10 text-center">
                     <p className="text-gray-600 mb-4">You haven't uploaded any sites yet.</p>

@@ -24,7 +24,7 @@ export default function RootLayout({
             <CartProvider>
               <Toaster position="top-center" />
               <Navbar />
-              {children}
+              <main>{children}</main>
             </CartProvider>
           </WishlistProvider>
         </AuthProvider>

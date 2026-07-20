@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
 
 interface ProfileData {
@@ -131,7 +132,40 @@ export default function ProfilePage() {
 
     return (
         <div className="space-y-8">
-            <h1 className="text-2xl font-bold text-gray-800 border-b pb-4">Personal Information</h1>
+            {/* Mobile Navigation Hub - Visible to all, but especially crucial for mobile since they don't have the hover dropdown */}
+            <div className="md:hidden">
+                <h1 className="text-2xl font-bold text-gray-800 border-b pb-4 mb-4">My Account</h1>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+                    <Link href="/profile/visits" className="flex items-center gap-3 bg-white p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                        <span className="text-2xl">👁️</span>
+                        <div className="flex-1">
+                            <p className="font-bold text-gray-800">My Visits</p>
+                            <p className="text-xs text-gray-500">Recently viewed properties</p>
+                        </div>
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                    </Link>
+                    
+                    <Link href="/profile/booked" className="flex items-center gap-3 bg-white p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                        <span className="text-2xl">📅</span>
+                        <div className="flex-1">
+                            <p className="font-bold text-gray-800">Booked for Visit</p>
+                            <p className="text-xs text-gray-500">Your scheduled site visits</p>
+                        </div>
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                    </Link>
+
+                    <Link href="/profile/my-sites" className="flex items-center gap-3 bg-white p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                        <span className="text-2xl">🏠</span>
+                        <div className="flex-1">
+                            <p className="font-bold text-gray-800">My Uploaded Sites</p>
+                            <p className="text-xs text-gray-500">Manage your properties</p>
+                        </div>
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                    </Link>
+                </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-800 border-b pb-4">Personal Information</h2>
 
             {profileMsg && (
                 <div className={`p-4 rounded-lg text-sm font-semibold mb-4 ${

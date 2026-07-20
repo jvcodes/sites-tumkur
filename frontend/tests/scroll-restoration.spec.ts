@@ -7,7 +7,7 @@ test.describe('SiteHub Scroll Restoration', () => {
     
     // 1. Go to homepage
     await page.goto('http://localhost:3000/');
-    await expect(page.locator('text=properties found').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=properties found').and(page.locator(':visible')).first()).toBeVisible({ timeout: 15000 });
 
     // 2. Click "Load More" to append more items
     const loadMoreBtn = page.locator('button', { hasText: 'Load More Properties' });

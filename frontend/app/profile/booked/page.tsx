@@ -75,21 +75,25 @@ export default function BookedVisitsPage() {
                             <h4 className="font-semibold text-gray-700 mb-2">Sites to view:</h4>
                             <div className="grid gap-3">
                                 {booking.sites && booking.sites.map((site: any, idx: number) => (
-                                    <div key={idx} className="flex gap-4 items-center bg-gray-50 p-3 rounded border">
-                                        <div className="w-16 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0">
-                                            <img src={site.images?.[0] || site.image || '/no-image.svg'} alt={site.name} className="w-full h-full object-cover" />
+                                    <div key={idx} className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center bg-gray-50 p-3 rounded border">
+                                        <div className="flex gap-3 items-center w-full sm:w-auto flex-1">
+                                            <div className="w-16 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0">
+                                                <img src={site.images?.[0] || site.image || '/no-image.svg'} alt={site.name} className="w-full h-full object-cover" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-gray-800">{site.name}</p>
+                                                <p className="text-xs text-gray-500">{site.location}</p>
+                                            </div>
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="font-bold text-gray-800">{site.name}</p>
-                                            <p className="text-xs text-gray-500">{site.location}</p>
+                                        <div className="flex justify-between items-center w-full sm:w-auto sm:justify-end gap-4 border-t pt-2 sm:border-0 sm:pt-0">
+                                            <div className="text-left sm:text-right">
+                                                <p className="text-xs text-gray-400">Price</p>
+                                                <p className="font-semibold text-red-600">₹{site.price?.toLocaleString()}</p>
+                                            </div>
+                                            <Link href={`/site/${site.site_code}`} className="text-xs font-bold text-blue-600 hover:bg-blue-50 border border-blue-200 px-3 py-1.5 rounded transition-colors bg-white">
+                                               View
+                                            </Link>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-gray-400">Price</p>
-                                            <p className="font-semibold text-red-600">₹{site.price?.toLocaleString()}</p>
-                                        </div>
-                                        <Link href={`/site/${site.site_code}`} className="text-xs font-bold text-blue-600 hover:underline">
-                                           View
-                                        </Link>
                                     </div>
                                 ))}
                             </div>
