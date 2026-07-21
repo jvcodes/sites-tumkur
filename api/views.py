@@ -240,6 +240,19 @@ def filter_sites_api(request):
     sort = request.GET.get("sort")
     is_layout = request.GET.get("is_layout")
     boost_location = request.GET.get("boost_location", "").strip()
+    page = int(request.GET.get("page", 1))
+
+    # ── CACHING: Default Homepage ──
+    has_filters = any([location, search, min_price, max_price, min_area, max_area, facing, site_code, is_layout])
+    has_sort = bool(sort)
+    has_boost = bool(boost_location)
+    is_default_query = not has_filters and not has_sort and not has_boost and page == 1
+
+    if is_default_query:
+        from django.core.cache import cache
+        cached_response = cache.get("default_homepage_sites")
+        if cached_response:
+            return Response(cached_response)
 
     # ── Build the $match filter query ──
     # IMPORTANT: In aggregation pipelines, we cannot use compiled Python
@@ -348,12 +361,19 @@ def filter_sites_api(request):
     sites = hydrate_sites(request, list(site_collection.aggregate(pipeline)))
 
     serializer = SiteSerializer(sites, many=True)
-    return Response({
+    
+    response_data = {
         "results": serializer.data,
         "total": total,
         "page": page,
         "limit": limit
-    })
+    }
+
+    if is_default_query:
+        from django.core.cache import cache
+        cache.set("default_homepage_sites", response_data, 300) # 5 minutes cache
+
+    return Response(response_data)
 
 
 # --------------------------------------------------

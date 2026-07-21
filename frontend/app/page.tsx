@@ -267,15 +267,15 @@ function HomeContent() {
     return () => clearTimeout(t);
   }, [appliedSearch, computedFilters, doFetch]);
 
-  const handleSearchClick = () => setAppliedSearch(inputValue);
+  const handleSearchClick = useCallback(() => setAppliedSearch(inputValue), [inputValue]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     const next = page + 1;
     setPage(next);
     doFetch(appliedSearch, computedFilters, next, true);
-  };
+  }, [page, appliedSearch, computedFilters, doFetch]);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setSelectedLocations([]);
     setSelectedPrices([]);
     setSelectedAreas([]);
@@ -286,12 +286,11 @@ function HomeContent() {
     setInputValue("");
     setLocationSearch("");
     setIsMobileFilterOpen(false);
-  };
+  }, []);
 
-  // Helper for toggling array state
-  const toggleSelection = (setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) => {
+  const toggleSelection = useCallback((setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) => {
     setter(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
-  };
+  }, []);
 
   const activeFilterCount = useMemo(() => {
     return selectedLocations.length + selectedPrices.length + selectedAreas.length + selectedFacings.length + (isLayoutFilter ? 1 : 0);

@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
-import { useState, useRef } from 'react';
+import { useState, useRef, memo } from 'react';
 import toast from 'react-hot-toast';
 
 interface SiteCardProps {
@@ -28,7 +28,7 @@ interface SiteCardProps {
   };
 }
 
-export default function SiteCard({ site }: SiteCardProps) {
+const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { addToCart, isInCart } = useCart();
   
@@ -309,4 +309,6 @@ export default function SiteCard({ site }: SiteCardProps) {
       </div>
     </div>
   );
-}
+});
+
+export default SiteCard;
