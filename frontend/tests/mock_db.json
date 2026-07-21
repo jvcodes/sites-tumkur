@@ -1,0 +1,52 @@
+{
+  "results": [
+    {
+      "id": "60a7b4c9e1b2c3d4e5f6a7b8",
+      "site_code": "MOCK001",
+      "name": "Prime Mock Site A",
+      "location": "Tumkur",
+      "price": 2500000,
+      "area": 1200,
+      "facing": "east",
+      "dimension": "30x40",
+      "status": "approved",
+      "images": ["/no-image.svg"],
+      "latitude": 13.3379,
+      "longitude": 77.1173,
+      "is_layout": false
+    },
+    {
+      "id": "60a7b4c9e1b2c3d4e5f6a7b9",
+      "site_code": "MOCK002",
+      "name": "Luxury Mock Site B",
+      "location": "Gubbi",
+      "price": 4500000,
+      "area": 2400,
+      "facing": "north",
+      "dimension": "40x60",
+      "status": "approved",
+      "images": ["/no-image.svg"],
+      "latitude": 13.3100,
+      "longitude": 76.9400,
+      "is_layout": false
+    },
+    {
+      "id": "60a7b4c9e1b2c3d4e5f6a7ba",
+      "site_code": "MOCK003",
+      "name": "Commercial Layout C",
+      "location": "Sira",
+      "price": 8500000,
+      "area": 4000,
+      "facing": "east",
+      "dimension": "50x80",
+      "status": "approved",
+      "images": ["/no-image.svg"],
+      "latitude": 13.7400,
+      "longitude": 76.9000,
+      "is_layout": true
+    }
+  ],
+  "total": 3,
+  "page": 1,
+  "limit": 12
+}
