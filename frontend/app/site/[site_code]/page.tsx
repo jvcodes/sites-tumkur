@@ -21,6 +21,8 @@ interface Site {
   image?: string;
   images?: string[];
   youtube_url?: string;
+  latitude?: number;
+  longitude?: number;
 
   // Specs
   corner_site?: boolean;

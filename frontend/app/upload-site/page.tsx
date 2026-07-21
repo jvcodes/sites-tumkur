@@ -27,7 +27,6 @@ export default function UploadSitePage() {
     description: "",
     youtube_url: "",
     latitude: "",
-    latitude: "",
     longitude: "",
   });
 
