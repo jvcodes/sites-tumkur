@@ -11,8 +11,14 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "Backend tests passed!`n" -ForegroundColor Green
 
-Write-Host "Running Frontend E2E Tests..." -ForegroundColor Cyan
+Write-Host "Running Frontend Tests..." -ForegroundColor Cyan
 Push-Location frontend
+npm run test:typecheck
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Frontend typecheck failed. Stopping." -ForegroundColor Red
+    Pop-Location
+    exit $LASTEXITCODE
+}
 npm run test:e2e
 $FrontendExitCode = $LASTEXITCODE
 Pop-Location

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npm run test:e2e && npm run test:lighthouse",
+    "test": "npm run test:typecheck && npm run test:e2e && npm run test:lighthouse",
+    "test:typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "test:lighthouse": "lhci autorun",
     "test:visual": "playwright test tests/visual.spec.ts --update-snapshots"

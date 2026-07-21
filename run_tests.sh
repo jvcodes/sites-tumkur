@@ -12,8 +12,14 @@ if [ $BACKEND_STATUS -ne 0 ]; then
 fi
 echo -e "\e[32mBackend tests passed!\n\e[0m"
 
-echo -e "\e[36mRunning Frontend E2E Tests...\e[0m"
+echo -e "\e[36mRunning Frontend Tests...\e[0m"
 cd frontend || exit 1
+npm run test:typecheck
+TYPECHECK_STATUS=$?
+if [ $TYPECHECK_STATUS -ne 0 ]; then
+    echo -e "\e[31mFrontend typecheck failed.\e[0m"
+    exit $TYPECHECK_STATUS
+fi
 npm run test:e2e
 FRONTEND_STATUS=$?
 cd ..
