@@ -292,24 +292,65 @@ export default function CartPage() {
           })()}
 
           {cart.map((item) => (
-            <div key={item.site_code} className="flex gap-4 bg-white rounded-lg shadow-sm p-4">
-              <img
-                src={item.images?.[0] || item.image || "/no-image.svg"}
-                alt={item.name}
-                className="w-36 h-28 object-cover rounded border"
-              />
-              <div className="flex-1">
-                <Link href={`/site/${item.site_code}`}>
-                  <h3 className="text-lg font-semibold hover:text-red-600">{item.name}</h3>
-                </Link>
-                <p className="text-sm text-gray-500 mt-1">📍 {item.location}</p>
-                <p className="text-red-600 font-semibold mt-2">₹ {item.price.toLocaleString()}</p>
-                <button
-                  onClick={() => removeFromCart(item.site_code)}
-                  className="text-sm text-red-600 mt-3 hover:underline"
-                >
-                  ❌ Remove
-                </button>
+            <div key={item.site_code} className="flex flex-col sm:flex-row gap-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100 p-4">
+              <Link href={`/site/${item.site_code}`} className="shrink-0">
+                <img
+                  src={item.images?.[0] || item.image || "/no-image.svg"}
+                  alt={item.name}
+                  className="w-full sm:w-40 h-40 sm:h-32 object-cover rounded-lg border border-gray-100"
+                />
+              </Link>
+              <div className="flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start gap-2">
+                    <Link href={`/site/${item.site_code}`}>
+                      <h3 className="text-lg font-bold text-gray-900 hover:text-red-600 transition-colors leading-tight">
+                        {item.name}
+                      </h3>
+                    </Link>
+                    <button
+                      onClick={() => removeFromCart(item.site_code)}
+                      className="text-gray-400 hover:text-red-500 p-1 -m-1 transition-colors"
+                      title="Remove from Cart"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                    <span className="text-blue-500">📍</span> {item.location}
+                  </p>
+                  
+                  {/* Property Specs (Area, Dimension, Facing) */}
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {item.area ? (
+                      <span className="px-2 py-1 bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 rounded-md">
+                        {item.area} Sq.ft
+                      </span>
+                    ) : null}
+                    {item.dimension ? (
+                      <span className="px-2 py-1 bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 rounded-md">
+                        📏 {item.dimension}
+                      </span>
+                    ) : null}
+                    {item.facing ? (
+                      <span className="px-2 py-1 bg-blue-50 border border-blue-100 text-xs font-semibold text-blue-700 rounded-md">
+                        🧭 {item.facing} Facing
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-end mt-4">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Asking Price</span>
+                    <span className="text-xl font-black text-gray-900">
+                      ₹{item.price >= 10000000 ? `${(item.price/10000000).toFixed(2)} Cr` : item.price >= 100000 ? `${(item.price/100000).toFixed(1)} Lakh` : item.price.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <Link href={`/site/${item.site_code}`} className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-wider">
+                    View Details &rarr;
+                  </Link>
+                </div>
               </div>
             </div>
           ))}

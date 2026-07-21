@@ -12,6 +12,9 @@ export interface CartItem {
   images?: string[];
   latitude?: number;
   longitude?: number;
+  area?: number;
+  dimension?: string;
+  facing?: string;
 }
 
 interface CartContextType {
@@ -83,6 +86,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             images: site.images,
             latitude: site.location?.latitude,
             longitude: site.location?.longitude,
+            area: site.area,
+            dimension: site.dimension,
+            facing: site.facing,
           }));
 
           // 3. Merge local and DB cart

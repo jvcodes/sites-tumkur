@@ -54,6 +54,9 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
       images: site.images,
       latitude: site.latitude,
       longitude: site.longitude,
+      area: site.area,
+      dimension: site.dimension,
+      facing: site.facing,
     });
   };
 
