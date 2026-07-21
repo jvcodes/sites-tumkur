@@ -14,6 +14,14 @@ echo -e "\e[32mBackend tests passed!\n\e[0m"
 
 echo -e "\e[36mRunning Frontend Tests...\e[0m"
 cd frontend || exit 1
+echo -e "\e[36mRunning Frontend Linting...\e[0m"
+npm run lint
+LINT_STATUS=$?
+if [ $LINT_STATUS -ne 0 ]; then
+    echo -e "\e[31mFrontend linting failed.\e[0m"
+    exit $LINT_STATUS
+fi
+
 npm run test:typecheck
 TYPECHECK_STATUS=$?
 if [ $TYPECHECK_STATUS -ne 0 ]; then

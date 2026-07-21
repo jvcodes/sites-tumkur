@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npm run test:typecheck && npm run test:e2e && npm run test:lighthouse",
+    "test": "npm run lint && npm run test:typecheck && npm run test:e2e && npm run test:lighthouse",
     "test:typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "test:lighthouse": "lhci autorun",

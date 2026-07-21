@@ -13,6 +13,13 @@ Write-Host "Backend tests passed!`n" -ForegroundColor Green
 
 Write-Host "Running Frontend Tests..." -ForegroundColor Cyan
 Push-Location frontend
+Write-Host "Running Frontend Linting..." -ForegroundColor Cyan
+npm run lint
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Frontend linting failed. Stopping." -ForegroundColor Red
+    Pop-Location
+    exit $LASTEXITCODE
+}
 npm run test:typecheck
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Frontend typecheck failed. Stopping." -ForegroundColor Red
