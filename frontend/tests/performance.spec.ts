@@ -72,4 +72,50 @@ test.describe('SiteHub Performance & Timing Tests (Mocked API)', () => {
     
     expect(filterTime).toBeLessThan(THRESHOLDS.FILTER_ACTION);
   });
+
+  const pagesToTest = [
+    { name: 'Cart Page', path: '/cart', expectedText: 'Shopping Cart' },
+    { name: 'Wishlist Page', path: '/wishlist', expectedText: 'My Wishlist' },
+    { name: 'Upload Site Page', path: '/upload-site', expectedText: 'Post Property' },
+    { name: 'Profile Page', path: '/profile', expectedText: 'My Profile' }
+  ];
+
+  for (const p of pagesToTest) {
+    test(`${p.name} should load within threshold`, async ({ page }) => {
+      const startTime = Date.now();
+      
+      await page.goto(p.path);
+      
+      // We don't strictly test for the text if the page redirects (e.g. Profile redirects to /login if not authed)
+      // So we just wait for the page to finish network idle or domcontentloaded
+      await page.waitForLoadState('domcontentloaded');
+
+      const loadTime = Date.now() - startTime;
+      console.log(`${p.name} Load Time: ${loadTime}ms`);
+      
+      expect(loadTime).toBeLessThan(THRESHOLDS.HOMEPAGE_LOAD);
+    });
+  }
+
+  test('Site Details Page should load within threshold', async ({ page }) => {
+    // Mock the site details API
+    await page.route('**/api/sites/MOCK001', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockDb.results[0])
+      });
+    });
+
+    const startTime = Date.now();
+    await page.goto('/site/MOCK001');
+    
+    // Wait for the mock site to render
+    await expect(page.getByText('Prime Mock Site A')).toBeVisible();
+
+    const loadTime = Date.now() - startTime;
+    console.log(`Site Details Load Time: ${loadTime}ms`);
+    
+    expect(loadTime).toBeLessThan(THRESHOLDS.HOMEPAGE_LOAD);
+  });
 });
