@@ -74,14 +74,31 @@ test.describe('SiteHub Performance & Timing Tests (Mocked API)', () => {
   });
 
   const pagesToTest = [
-    { name: 'Cart Page', path: '/cart', expectedText: 'Shopping Cart' },
-    { name: 'Wishlist Page', path: '/wishlist', expectedText: 'My Wishlist' },
-    { name: 'Upload Site Page', path: '/upload-site', expectedText: 'Post Property' },
-    { name: 'Profile Page', path: '/profile', expectedText: 'My Profile' }
+    { name: 'Cart Page', path: '/cart' },
+    { name: 'Wishlist Page', path: '/wishlist' },
+    { name: 'Upload Site Page', path: '/upload-site' },
+    { name: 'Profile Page', path: '/profile' },
+    { name: 'Profile Booked Page', path: '/profile/booked' },
+    { name: 'Profile Visits Page', path: '/profile/visits' },
+    { name: 'Profile Wishlist Page', path: '/profile/wishlist' },
+    { name: 'Site Edit Page', path: '/site/MOCK001/edit' },
+    { name: 'Agent Portal', path: '/agent' },
+    { name: 'Admin Hub', path: '/admin' },
   ];
 
   for (const p of pagesToTest) {
     test(`${p.name} should load within threshold`, async ({ page }) => {
+      // For site edit, we need to mock the API request for the site details
+      if (p.path.includes('/site/MOCK001/edit')) {
+        await page.route('**/api/sites/MOCK001', async (route) => {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(mockDb.results[0])
+          });
+        });
+      }
+
       const startTime = Date.now();
       
       await page.goto(p.path);

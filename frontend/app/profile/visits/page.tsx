@@ -21,8 +21,9 @@ export default function MyVisitsPage() {
                     setLoading(false);
                 })
                 .catch(() => setLoading(false));
-        } else {
-            setLoading(false);
+        } else if (!authLoading) {
+            // Using a timeout prevents React's cascading render warning
+            setTimeout(() => setLoading(false), 0);
         }
     }, [user, authLoading]);
 

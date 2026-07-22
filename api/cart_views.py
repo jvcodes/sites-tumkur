@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from listings.mongo import carts_collection, site_collection
-from .views import hydrate_sites
+from .views.utils import hydrate_sites
 from .serializers import SiteSerializer
 import re
 

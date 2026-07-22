@@ -2,7 +2,7 @@ import json
 from unittest.mock import patch, MagicMock
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
-from api.views import filter_sites_api
+from api.views.sites import filter_sites_api
 
 
 def _get_match_stage(pipeline):
@@ -39,7 +39,7 @@ class FilterSitesAPITests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     def test_search_by_keyword(self, mock_site_collection):
         """Verify that a search term triggers $or regex queries across
         name, location, landmark, site_code, and layout_name fields."""
@@ -70,7 +70,7 @@ class FilterSitesAPITests(TestCase):
         self.assertIn('name', fields_searched)
         self.assertIn('location', fields_searched)
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     def test_filter_by_multiple_locations(self, mock_site_collection):
         """Verify that comma-separated locations produce a regex alternation query."""
         mock_site_collection.aggregate.return_value = []
@@ -88,7 +88,7 @@ class FilterSitesAPITests(TestCase):
         self.assertEqual(match_query['location']['$regex'], "^(Tumkur|Sira)$")
         self.assertEqual(match_query['location']['$options'], "i")
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     def test_filter_by_price_range(self, mock_site_collection):
         """Verify that min_price and max_price produce $gte/$lte on the price field."""
         mock_site_collection.aggregate.return_value = []
@@ -107,7 +107,7 @@ class CreateSiteAPITests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     @patch('listings.mongo.locations_collection')
     @patch('listings.mongo.site_images_collection')
     def test_create_site_with_lat_long(self, mock_site_images, mock_locations, mock_site_collection):
@@ -124,7 +124,7 @@ class CreateSiteAPITests(TestCase):
             "longitude": "77.10"
         })
         
-        from api.views import create_site_api
+        from api.views.sites import create_site_api
         response = create_site_api(request)
         
         self.assertEqual(response.status_code, 201)
@@ -135,7 +135,7 @@ class CreateSiteAPITests(TestCase):
         self.assertEqual(insert_args['latitude'], 13.33)
         self.assertEqual(insert_args['longitude'], 77.10)
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     @patch('listings.mongo.locations_collection')
     def test_create_site_invalid_coordinates(self, mock_locations, mock_site_collection):
         mock_locations.find_one.return_value = {"_id": "loc123", "city": "Tumkur"}
@@ -146,14 +146,14 @@ class CreateSiteAPITests(TestCase):
             "longitude": "77.10"
         })
         
-        from api.views import create_site_api
+        from api.views.sites import create_site_api
         response = create_site_api(request)
         
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.data)
         mock_site_collection.insert_one.assert_not_called()
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     @patch('listings.mongo.locations_collection')
     def test_create_site_duplicate_prevention(self, mock_locations, mock_site_collection):
         mock_locations.find_one.return_value = {"_id": "loc123", "city": "Tumkur"}
@@ -167,7 +167,7 @@ class CreateSiteAPITests(TestCase):
             "user_id": "user123"
         })
         
-        from api.views import create_site_api
+        from api.views.sites import create_site_api
         response = create_site_api(request)
         
         self.assertEqual(response.status_code, 400)
@@ -194,7 +194,7 @@ class HydrateSitesTests(TestCase):
             }
         ]
         
-        from api.views import hydrate_sites
+        from api.views.utils import hydrate_sites
         request = self.factory.get('/')
         hydrated = hydrate_sites(request, raw_sites)
         
@@ -207,7 +207,7 @@ class CreateBookingAPITests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
 
-    @patch('api.views.booking_collection')
+    @patch('api.views.bookings.booking_collection')
     @patch('listings.mongo.user_profiles_collection')
     def test_create_booking_valid(self, mock_user_profiles, mock_booking_collection):
         request = self.factory.post('/api/bookings/create', {
@@ -218,7 +218,7 @@ class CreateBookingAPITests(TestCase):
             "sites": ["SITE-1", "SITE-2"]
         }, format='json')
         
-        from api.views import create_booking_api
+        from api.views.bookings import create_booking_api
         response = create_booking_api(request)
         
         self.assertEqual(response.status_code, 201)
@@ -235,7 +235,7 @@ class CreateBookingAPITests(TestCase):
             "sites": []  # Empty cart!
         }, format='json')
         
-        from api.views import create_booking_api
+        from api.views.bookings import create_booking_api
         response = create_booking_api(request)
         
         self.assertEqual(response.status_code, 400)
@@ -294,7 +294,7 @@ class DraftAndLayoutAPITests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
 
-    @patch('api.views.drafts_collection')
+    @patch('api.views.sites.drafts_collection')
     def test_save_draft_api(self, mock_drafts_collection):
         request = self.factory.post('/api/sites/draft/', {
             "phone": "9999999999",
@@ -302,7 +302,7 @@ class DraftAndLayoutAPITests(TestCase):
             "form_data": {"price": "1000", "isLayout": True, "layoutName": "Green Valley"}
         }, format='json')
         
-        from api.views import save_draft_api
+        from api.views.sites import save_draft_api
         response = save_draft_api(request)
         
         self.assertEqual(response.status_code, 200)
@@ -314,14 +314,14 @@ class DraftAndLayoutAPITests(TestCase):
         self.assertEqual(update_args[1]["$set"]["name"], "Test User")
         self.assertTrue(update_kwargs["upsert"])
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     def test_layout_filter(self, mock_site_collection):
         """Verify that is_layout=true and search work together in the pipeline."""
         mock_site_collection.aggregate.return_value = []
         mock_site_collection.count_documents.return_value = 0
 
         request = self.factory.get('/api/sites/filter/?is_layout=true&search=Valley')
-        from api.views import filter_sites_api
+        from api.views.sites import filter_sites_api
         response = filter_sites_api(request)
         
         pipeline = mock_site_collection.aggregate.call_args[0][0]
@@ -344,7 +344,7 @@ class BoostLocationAPITests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     def test_boost_location_injects_addfields_and_sort(self, mock_site_collection):
         """When boost_location is provided and no explicit sort is set,
         the pipeline should contain an $addFields stage with boost_score
@@ -375,7 +375,7 @@ class BoostLocationAPITests(TestCase):
         self.assertEqual(sort_stage.get("created_at"), -1)
         self.assertEqual(sort_stage.get("_id"), 1)
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     def test_boost_location_disabled_when_explicit_sort(self, mock_site_collection):
         """When user sets an explicit sort (e.g. price_low), boosting should
         be completely disabled — no $addFields, and sort should be by price."""
@@ -396,7 +396,7 @@ class BoostLocationAPITests(TestCase):
         sort_stage = _get_stage(pipeline, "$sort")
         self.assertEqual(sort_stage, {"price": 1, "_id": 1})
 
-    @patch('api.views.site_collection')
+    @patch('api.views.sites.site_collection')
     def test_no_boost_when_empty_location(self, mock_site_collection):
         """When boost_location is empty or missing, no $addFields should
         be injected and the default sort (created_at DESC) should apply."""

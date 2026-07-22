@@ -1,7 +1,25 @@
+import os
+from pathlib import Path
 from pymongo import MongoClient
+from dotenv import load_dotenv
 
-# client = MongoClient("mongodb://127.0.0.1:27017/")
-client = MongoClient("mongodb+srv://jagadeeshtv1995_db_user:OUHCLZWV826eJQNY@cluster0.qkx1rqe.mongodb.net/?appName=Cluster0")
+# Ensure dotenv is loaded with absolute path
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
+import sys
+
+# Get MONGO_URI from environment variables or fallback to localhost
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/")
+
+# Use mongomock for testing to avoid hitting a real database and timing out
+if 'test' in sys.argv:
+    import mongomock
+    print("USING MONGOMOCK FOR TESTS!")
+    client = mongomock.MongoClient()
+else:
+    client = MongoClient(MONGO_URI)
+    
 db = client["site_db"]
 
 # Core Collections

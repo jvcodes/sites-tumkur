@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from datetime import datetime
 
 from listings.mongo import visits_collection, site_collection
-from .views import hydrate_sites
+from .views.utils import hydrate_sites
 from .serializers import SiteSerializer
 
 @api_view(['POST'])

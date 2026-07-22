@@ -232,12 +232,17 @@ export default function CartPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <h1 className="text-2xl font-semibold mb-6">My Cart ({cart.length})</h1>
+    <div className="max-w-7xl mx-auto p-6 md:p-10 font-sans">
+      <div className="flex items-center gap-4 mb-8 border-b border-gray-100 pb-4">
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Your Visit List</h1>
+        <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold shadow-sm border border-red-200">
+          {cart.length} Properties
+        </span>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* LEFT: CART ITEMS */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-8 space-y-6">
           
           {/* Time/Distance Estimation Warning */}
           {cart.length > 1 && (() => {
@@ -263,191 +268,224 @@ export default function CartPage() {
                 }
               });
 
-              let warningColorClass = "bg-blue-50 border-blue-500 text-blue-800";
-              let warningTextClass = "text-blue-600";
-              let warningMsg = `You have added ${cart.length} properties to your visit list. Please allocate approximately ${cart.length * 45} minutes for your overall visit including transit times.`;
+              let warningColorClass = "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-blue-900";
+              let icon = "🗺️";
+              let warningMsg = `You have added ${cart.length} properties to your visit list. Please allocate approximately ${Math.ceil(cart.length * 45 / 60)} hours for your overall visit including transit times.`;
 
               if (maxDistance > 30) {
-                warningColorClass = "bg-purple-50 border-purple-500 text-purple-800";
-                warningTextClass = "text-purple-600";
+                warningColorClass = "bg-gradient-to-r from-purple-50 to-fuchsia-50 border-purple-200 text-purple-900";
                 warningMsg = `These properties are spread very far apart (over 30km from the center). This visit might take a full day. Consider splitting this into two trips.`;
               } else if (maxDistance > 20) {
-                warningColorClass = "bg-red-50 border-red-500 text-red-800";
-                warningTextClass = "text-red-600";
+                warningColorClass = "bg-gradient-to-r from-orange-50 to-red-50 border-orange-200 text-orange-900";
                 warningMsg = `These properties are quite far apart (over 20km from the center). Please expect significant driving time between locations.`;
               } else if (maxDistance > 10) {
-                warningColorClass = "bg-yellow-50 border-yellow-500 text-yellow-800";
-                warningTextClass = "text-yellow-700";
+                warningColorClass = "bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200 text-amber-900";
                 warningMsg = `Some of these properties are spread out (over 10km from the center). Please allocate extra time for travel.`;
               }
 
               return (
-                <div className={`${warningColorClass} border-l-4 p-4 rounded mb-4`}>
-                  <h3 className="font-bold mb-1">🗓️ Multi-Site Visit Estimation</h3>
-                  <p className={`${warningTextClass} text-sm`}>
-                    {warningMsg}
-                  </p>
+                <div className={`${warningColorClass} border shadow-sm p-5 rounded-2xl mb-6 transition-all`}>
+                  <div className="flex items-start gap-4">
+                    <div className="text-3xl bg-white p-2 rounded-xl shadow-sm">{icon}</div>
+                    <div>
+                      <h3 className="font-extrabold text-lg mb-1">Route & Time Estimation</h3>
+                      <p className="text-sm font-medium opacity-90 leading-relaxed">
+                        {warningMsg}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               );
           })()}
 
-          {cart.map((item) => (
-            <div key={item.site_code} className="flex flex-col sm:flex-row gap-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100 p-4">
-              <Link href={`/site/${item.site_code}`} className="shrink-0">
-                <img
-                  src={item.images?.[0] || item.image || "/no-image.svg"}
-                  alt={item.name}
-                  className="w-full sm:w-40 h-40 sm:h-32 object-cover rounded-lg border border-gray-100"
-                />
-              </Link>
-              <div className="flex-1 flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start gap-2">
-                    <Link href={`/site/${item.site_code}`}>
-                      <h3 className="text-lg font-bold text-gray-900 hover:text-red-600 transition-colors leading-tight">
-                        {item.name}
-                      </h3>
-                    </Link>
-                    <button
-                      onClick={() => removeFromCart(item.site_code)}
-                      className="text-gray-400 hover:text-red-500 p-1 -m-1 transition-colors"
-                      title="Remove from Cart"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
-                    <span className="text-blue-500">📍</span> {item.location}
-                  </p>
-                  
-                  {/* Property Specs (Area, Dimension, Facing) */}
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {item.area ? (
-                      <span className="px-2 py-1 bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 rounded-md">
-                        {item.area} Sq.ft
-                      </span>
-                    ) : null}
-                    {item.dimension ? (
-                      <span className="px-2 py-1 bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 rounded-md">
-                        📏 {item.dimension}
-                      </span>
-                    ) : null}
-                    {item.facing ? (
-                      <span className="px-2 py-1 bg-blue-50 border border-blue-100 text-xs font-semibold text-blue-700 rounded-md">
-                        🧭 {item.facing} Facing
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
+          <div className="space-y-5">
+            {cart.map((item) => (
+              <div key={item.site_code} className="group relative flex flex-col sm:flex-row gap-6 bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300">
+                
+                <Link href={`/site/${item.site_code}`} className="shrink-0 overflow-hidden rounded-xl">
+                  <img
+                    src={item.images?.[0] || item.image || "/no-image.svg"}
+                    alt={item.name}
+                    className="w-full sm:w-48 h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                </Link>
 
-                <div className="flex justify-between items-end mt-4">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Asking Price</span>
-                    <span className="text-xl font-black text-gray-900">
-                      ₹{item.price >= 10000000 ? `${(item.price/10000000).toFixed(2)} Cr` : item.price >= 100000 ? `${(item.price/100000).toFixed(1)} Lakh` : item.price.toLocaleString("en-IN")}
-                    </span>
+                <div className="flex-1 flex flex-col justify-between py-1">
+                  <div>
+                    <div className="flex justify-between items-start gap-4">
+                      <Link href={`/site/${item.site_code}`}>
+                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors leading-tight">
+                          {item.name}
+                        </h3>
+                      </Link>
+                      <button
+                        onClick={() => removeFromCart(item.site_code)}
+                        className="bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                        title="Remove from List"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+                    
+                    <p className="text-sm text-gray-500 mt-2 flex items-center gap-1.5 font-medium">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      {item.location}
+                    </p>
+                    
+                    {/* Detailed Specifications */}
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {item.area ? (
+                        <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-lg">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                          <span className="text-xs font-bold text-gray-700">{item.area} Sq.ft</span>
+                        </div>
+                      ) : null}
+                      
+                      {item.dimension ? (
+                        <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-lg">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                          <span className="text-xs font-bold text-gray-700">{item.dimension}</span>
+                        </div>
+                      ) : null}
+                      
+                      {item.facing ? (
+                        <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg">
+                          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                          <span className="text-xs font-bold text-blue-700">{item.facing} Facing</span>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                  <Link href={`/site/${item.site_code}`} className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-wider">
-                    View Details &rarr;
-                  </Link>
+
+                  <div className="flex justify-between items-end mt-6">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Asking Price</span>
+                      <span className="text-2xl font-black text-gray-900 tracking-tight">
+                        ₹{item.price >= 10000000 ? `${(item.price/10000000).toFixed(2)} Cr` : item.price >= 100000 ? `${(item.price/100000).toFixed(1)} L` : item.price.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                    <Link href={`/site/${item.site_code}`} className="group/btn flex items-center gap-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition-colors">
+                      View details
+                      <svg className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
           {/* Recommendations Block */}
-          <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 mt-6 text-center">
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Tip: Pick 3 or 4 places</h3>
-            <p className="text-sm text-gray-600 mb-4 max-w-md mx-auto">
-              It's best to visit a few places in one trip to see what you like.
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 border border-gray-200 mt-8 text-center flex flex-col items-center shadow-inner">
+            <div className="bg-white p-4 rounded-full shadow-sm mb-4">
+              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+            </div>
+            <h3 className="text-xl font-extrabold text-gray-900 mb-2">Want to explore more?</h3>
+            <p className="text-sm text-gray-500 mb-6 max-w-sm">
+              We recommend viewing at least 3-4 properties in a single trip to get a complete picture of the neighborhood.
             </p>
-            <Link href="/" className="inline-block border-2 border-red-600 text-red-600 font-bold px-6 py-2 rounded hover:bg-red-50 transition">
-              Add More Places
+            <Link href="/" className="inline-block bg-white text-gray-900 shadow-sm border border-gray-200 font-bold px-8 py-3 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all">
+              Continue Browsing
             </Link>
           </div>
 
         </div>
 
         {/* RIGHT: CHECKOUT */}
-        <div className="bg-white rounded-lg shadow-sm p-6 h-fit">
-          <h2 className="text-lg font-semibold mb-4">Booking Details</h2>
-          
-          <div className="bg-green-50 text-green-800 text-sm p-3 rounded-lg border border-green-200 mb-6">
-            <p className="font-bold">Free to visit</p>
-            <p className="text-xs mt-1 text-green-700">No pressure to buy. Just come and see.</p>
-          </div>
-
-          {/* Show logged-in user info */}
-          {user ? (
-            <div className="mb-4 space-y-3">
+        <div className="lg:col-span-4">
+          <div className="bg-white rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 p-6 sm:p-8 sticky top-24">
+            <h2 className="text-xl font-extrabold mb-6 text-gray-900 flex items-center gap-2">
+              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              Schedule Visit
+            </h2>
+            
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-xl border border-green-100 mb-8 flex items-start gap-3">
+              <span className="text-xl mt-0.5">✨</span>
               <div>
-                <label className="text-xs font-bold text-gray-500 block mb-1">Your Name</label>
-                <div className="flex gap-2 items-center border rounded px-3 py-2 bg-gray-50">
-                  <span className="flex-1 text-gray-800">{profile?.name || user.name || <span className="text-red-500 text-xs font-bold">Missing - Update in Profile</span>}</span>
+                <p className="font-bold text-emerald-900">100% Free Site Visit</p>
+                <p className="text-xs text-emerald-700 mt-1 leading-relaxed">Schedule a convenient time and an agent will assist you on location.</p>
+              </div>
+            </div>
+
+            {/* Show logged-in user info */}
+            {user ? (
+              <div className="mb-6 space-y-4">
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5 ml-1">Your Name</label>
+                  <div className="flex gap-2 items-center border border-gray-200 rounded-xl px-4 py-3 bg-gray-50/50">
+                    <span className="flex-1 text-gray-900 font-medium">{profile?.name || user.name || <span className="text-red-500 text-xs font-bold bg-red-50 px-2 py-1 rounded">Update in Profile required</span>}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5 ml-1">Phone Number</label>
+                  <div className="flex gap-2 items-center border border-gray-200 rounded-xl px-4 py-3 bg-gray-50/50">
+                    <span className="flex-1 text-gray-900 font-medium">
+                      {profileLoading ? (
+                        <span className="animate-pulse bg-gray-200 h-4 w-24 block rounded"></span>
+                      ) : (profile?.phone || user.phone || <span className="text-red-500 text-xs font-bold bg-red-50 px-2 py-1 rounded">Update in Profile required</span>)}
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-500 block mb-1">Phone Number</label>
-                <div className="flex gap-2 items-center border rounded px-3 py-2 bg-gray-50">
-                  <span className="flex-1 text-gray-800">
-                    {profileLoading ? "Loading..." : (profile?.phone || user.phone || <span className="text-red-500 text-xs font-bold">Missing - Update in Profile</span>)}
-                  </span>
+            ) : (
+              <div className="mb-6">
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-4 rounded-xl flex gap-3 shadow-sm">
+                  <span className="text-xl">🔐</span>
+                  <p>
+                    <strong>Sign in to continue.</strong> Your details will be loaded automatically to confirm the booking.
+                  </p>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="mb-4">
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg mb-3">
-                💡 <strong>Sign in</strong> to proceed with scheduling. Your details will be loaded automatically.
+            )}
+
+            {/* Date & Time */}
+            <div className="space-y-4 mb-8">
+              <div>
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5 ml-1">Visit Date</label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow text-gray-800 font-medium"
+                  min={new Date().toISOString().split("T")[0]}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5 ml-1">Preferred Time</label>
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow text-gray-800 font-medium"
+                  required
+                />
               </div>
             </div>
-          )}
 
-          {/* Date & Time */}
-          <div className="flex gap-2 mb-5">
-            <div className="flex-1">
-              <label className="text-xs font-bold text-gray-500 block mb-1">Visit Date</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
-                min={new Date().toISOString().split("T")[0]}
-                required
-              />
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-100">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500 font-medium">Sites Selected</span>
+                <span className="bg-gray-800 text-white font-bold px-2 py-0.5 rounded-md">{cart.length}</span>
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="text-xs font-bold text-gray-500 block mb-1">Preferred Time</label>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
-                required
-              />
-            </div>
+
+            <button
+              id="submit-booking-btn"
+              onClick={submitBooking}
+              disabled={profileLoading}
+              className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white py-4 rounded-xl hover:from-red-700 hover:to-rose-700 font-extrabold text-lg shadow-lg hover:shadow-red-600/25 transition-all disabled:opacity-50 disabled:hover:shadow-none"
+            >
+              {user ? "Confirm Booking Request" : "Sign in to Schedule"}
+            </button>
+
+            {message && (
+              <div className="mt-6 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-5 py-4 rounded-xl flex gap-3 font-medium">
+                <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                {message}
+              </div>
+            )}
           </div>
-
-          <div className="flex justify-between text-sm mb-5 pb-4 border-b text-gray-600">
-            <span>Sites to visit</span>
-            <span className="font-bold text-gray-800">{cart.length}</span>
-          </div>
-
-          <button
-            id="submit-booking-btn"
-            onClick={submitBooking}
-            disabled={profileLoading}
-            className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-semibold transition disabled:opacity-50"
-          >
-            {user ? "Submit Visit Request" : "Sign in & Submit"}
-          </button>
-
-          {message && (
-            <div className="mt-4 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg">
-              {message}
-            </div>
-          )}
         </div>
       </div>
     </div>
