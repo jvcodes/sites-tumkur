@@ -26,8 +26,20 @@ if ($LASTEXITCODE -ne 0) {
     Pop-Location
     exit $LASTEXITCODE
 }
+
+Write-Host "Starting Mock Backend Server..." -ForegroundColor Cyan
+$Env:USE_MONGOMOCK = "1"
+$BackendProcess = Start-Process -FilePath "python" -ArgumentList "manage.py runserver 8000" -NoNewWindow -PassThru
+Start-Sleep -Seconds 5
+
+$Env:CI = "1"
 npm run test:e2e
 $FrontendExitCode = $LASTEXITCODE
+
+Write-Host "Stopping Mock Backend Server..." -ForegroundColor Cyan
+Stop-Process -Id $BackendProcess.Id -Force
+$Env:USE_MONGOMOCK = ""
+
 Pop-Location
 
 if ($FrontendExitCode -ne 0) {

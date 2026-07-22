@@ -13,14 +13,26 @@ import sys
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/")
 
 # Use mongomock for testing to avoid hitting a real database and timing out
-if 'test' in sys.argv:
+if 'test' in sys.argv or os.environ.get("USE_MONGOMOCK") == "1":
     import mongomock
     print("USING MONGOMOCK FOR TESTS!")
     client = mongomock.MongoClient()
+    db = client["site_db"]
+    # Auto-seed mock data for frontend E2E tests
+    if os.environ.get("USE_MONGOMOCK") == "1":
+        try:
+            import json
+            mock_db_path = os.path.join(BASE_DIR, 'frontend', 'tests', 'mock_db.json')
+            with open(mock_db_path, 'r') as f:
+                data = json.load(f)
+                if data.get("results"):
+                    db["sites"].insert_many(data["results"])
+                    print(f"Seeded {len(data['results'])} mock sites into mongomock.")
+        except Exception as e:
+            print(f"Warning: Failed to auto-seed mongomock: {e}")
 else:
     client = MongoClient(MONGO_URI)
-    
-db = client["site_db"]
+    db = client["site_db"]
 
 # Core Collections
 site_collection = db["sites"]

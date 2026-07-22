@@ -18,7 +18,7 @@ test.describe('SiteHub Scroll Restoration', () => {
     }
 
     // 3. Find the last link and scroll to it
-    const links = page.locator('a[href^="/site/"]');
+    const links = page.locator('a:has-text("View full details")');
     const linkCount = await links.count();
     
     // We just click the last link available to ensure we are clicking something far down

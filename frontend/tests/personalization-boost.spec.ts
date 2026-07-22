@@ -46,8 +46,8 @@ test.describe('SiteHub Personalization Boosting', () => {
     // Record the location we are about to view
     const viewedLocation = allCardLocations[targetIndex];
 
-    // Click on the property image link to navigate to details
-    const targetCard = page.locator('a[href^="/site/"]').nth(targetIndex);
+    // Click on the property link to navigate to details
+    const targetCard = page.locator('a:has-text("View full details")').nth(targetIndex);
     await targetCard.click();
 
     // ── Step 3: Verify we're on the detail page ──
@@ -65,6 +65,10 @@ test.describe('SiteHub Personalization Boosting', () => {
     // ── Step 4: Navigate back to homepage (fresh load, not browser back) ──
     // We do a fresh navigation to ensure the homepage reads localStorage
     // and passes boost_location to the API.
+    
+    // Clear sessionStorage so the homepage does not restore the old un-boosted state
+    await page.evaluate(() => sessionStorage.clear());
+    
     await page.goto('http://localhost:3000/');
     await expect(page.locator('h2.text-sm.font-bold').first()).toBeVisible({ timeout: 15000 });
 

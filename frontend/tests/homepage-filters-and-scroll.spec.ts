@@ -13,16 +13,16 @@ test.describe('SiteHub Homepage Filters & Scroll Restoration', () => {
     const initialCount = parseInt(initialText.split(' ')[0], 10);
     expect(initialCount).toBeGreaterThan(0);
     
-    // 2. Apply a filter (e.g. Under 20 Lakhs)
+    // 2. Apply a filter (e.g. 20 Lakhs - 50 Lakhs)
     if (isMobile) {
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.getByRole('button', { name: 'Filter' }).click({ force: true });
       await expect(page.locator('h3').filter({ hasText: 'Filters' }).last()).toBeVisible({ timeout: 10000 });
       await page.getByRole('button', { name: 'Price' }).click();
-      await page.locator('label', { hasText: "Under 20 Lakhs" }).last().click({ force: true });
+      await page.locator('label', { hasText: "20 Lakhs - 50 Lakhs" }).last().click({ force: true });
       await page.getByRole('button', { name: 'Apply Filters' }).click({ force: true });
     } else {
-      await page.locator('label', { hasText: "Under 20 Lakhs" }).first().click({ force: true });
+      await page.locator('label', { hasText: "20 Lakhs - 50 Lakhs" }).first().click({ force: true });
     }
     
     // Wait for the API to fetch and update the count (it should be less than the total)
@@ -35,7 +35,7 @@ test.describe('SiteHub Homepage Filters & Scroll Restoration', () => {
     
     // 3. Click the first property card to go to the Details Page
     // The SiteCard contains a link with the location text
-    const firstPropertyLink = page.locator('a[href^="/site/"]').first();
+    const firstPropertyLink = page.locator('a:has-text("View full details")').first();
     await firstPropertyLink.click();
     
     // Verify we are on the details page
