@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import { AuthProvider } from "./context/AuthContext";
 import { WishlistProvider } from "./context/WishlistContext";
 import { CartProvider } from "./context/CartContext";
+import Providers from "./providers";
 
 import { Toaster } from "react-hot-toast";
 
@@ -19,15 +20,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-gray-100" suppressHydrationWarning>
-        <AuthProvider>
-          <WishlistProvider>
-            <CartProvider>
-              <Toaster position="top-center" />
-              <Navbar />
-              <main>{children}</main>
-            </CartProvider>
-          </WishlistProvider>
-        </AuthProvider>
+        <Providers>
+          <AuthProvider>
+            <WishlistProvider>
+              <CartProvider>
+                <Toaster position="top-center" />
+                <Navbar />
+                <main>{children}</main>
+              </CartProvider>
+            </WishlistProvider>
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

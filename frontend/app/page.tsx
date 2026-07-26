@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SiteCard from "./components/SiteCard";
 import ClientOnly from "./components/ClientOnly";
+import { useQuery } from "@tanstack/react-query";
+import { fetchApi } from "../lib/api-client";
 
 // Types for Filters
 type FilterOption = { label: string; value: string; min?: number; max?: number };
@@ -153,14 +155,17 @@ function HomeContent() {
   }, [sites, total, page, hasMore, selectedLocations, selectedPrices, selectedAreas, selectedFacings, sortOption, appliedSearch, inputValue, isLayoutFilter, loading]);
 
   // Fetch distinct locations
+  const { data: locationsData } = useQuery({
+    queryKey: ['locations'],
+    queryFn: () => fetchApi<{locations: string[]}>('/api/sites/locations'),
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
-    fetch("/api/sites/locations")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.locations?.length) setLocations(data.locations);
-      })
-      .catch(() => {});
-  }, []);
+    if (locationsData?.locations?.length) {
+      setLocations(locationsData.locations);
+    }
+  }, [locationsData]);
 
   const filteredLocations = locations.filter(loc => loc.toLowerCase().includes(locationSearch.toLowerCase()));
 

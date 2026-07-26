@@ -7,6 +7,8 @@ import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 
 import { useCart, CartItem } from "../context/CartContext";
+import { useQuery } from "@tanstack/react-query";
+import { fetchApi } from "../../lib/api-client";
 
 export default function CartPage() {
   const { user, loading } = useAuth();
@@ -28,36 +30,40 @@ export default function CartPage() {
   // ----------------------------------
   // LOAD PROFILE DATA
   // ----------------------------------
+  const { data: profileData, isLoading: profileLoadingData } = useQuery({
+    queryKey: ['profile', user?.email, user?.phone],
+    queryFn: () => {
+      const queryParam = user?.email ? `email=${encodeURIComponent(user.email)}` : `phone=${encodeURIComponent(user?.phone || "")}`;
+      return fetchApi<{name?: string, phone?: string}>(`/api/auth/profile/me?${queryParam}`);
+    },
+    enabled: !!user && (!!user.email || !!user.phone) && !loading,
+  });
+
   useEffect(() => {
-    if (!user || loading) return;
+    if (profileData) {
+      setProfile(profileData);
+      setProfileLoading(false);
 
-    if (user.email || user.phone) {
-      setProfileLoading(true);
-      const queryParam = user.email ? `email=${encodeURIComponent(user.email)}` : `phone=${encodeURIComponent(user.phone || "")}`;
-      fetch(`/api/auth/profile/me?${queryParam}`)
-        .then((r) => r.json())
-        .then((data) => {
-          setProfile(data);
-        })
-        .catch(() => {})
-        .finally(() => {
-           setProfileLoading(false);
-           
-           // Auto-submit check after profile is loaded
-           if (sessionStorage.getItem("cart_pending_submit") === "true") {
-              sessionStorage.removeItem("cart_pending_submit");
-              const savedDate = sessionStorage.getItem("cart_date");
-              const savedTime = sessionStorage.getItem("cart_time");
-              if (savedDate) setDate(savedDate);
-              if (savedTime) setTime(savedTime);
+      // Auto-submit check after profile is loaded
+      if (sessionStorage.getItem("cart_pending_submit") === "true") {
+        sessionStorage.removeItem("cart_pending_submit");
+        const savedDate = sessionStorage.getItem("cart_date");
+        const savedTime = sessionStorage.getItem("cart_time");
+        if (savedDate) setDate(savedDate);
+        if (savedTime) setTime(savedTime);
 
-              setTimeout(() => {
-                  document.getElementById("submit-booking-btn")?.click();
-              }, 500);
-           }
-        });
+        setTimeout(() => {
+          document.getElementById("submit-booking-btn")?.click();
+        }, 500);
+      }
     }
-  }, [user, loading]);
+  }, [profileData]);
+
+  useEffect(() => {
+    if (profileLoadingData) {
+      setProfileLoading(true);
+    }
+  }, [profileLoadingData]);
 
   // ----------------------------------
   // REMOVE FROM CART is handled by context
