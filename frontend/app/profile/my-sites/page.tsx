@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchApi, ApiError } from "../../../lib/api-client";
 
 interface Site {
     site_code: string;
@@ -17,63 +18,46 @@ interface Site {
 export default function MySitesPage() {
     const { user } = useAuth();
     const router = useRouter();
-    const [sites, setSites] = useState<Site[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-    useEffect(() => {
-        // If not logged in, wait or redirect (useAuth can be slow if it checks local storage)
-        if (user === null) {
-            // Optional: you could redirect to login here if you prefer
-            // router.push("/login");
-            return;
-        }
-
-        const fetchMySites = async () => {
-            try {
-                setLoading(true);
-                // Assuming your backend uses user.name as the owner matching field
-                const params = new URLSearchParams();
-                if (user.email) params.append("user_id", user.email);
-                if (user.name)  params.append("owner", user.name);
-                const res = await fetch(
-                    `/api/sites/my-sites?${params.toString()}`
-                );
-
-                if (!res.ok) throw new Error("Failed to fetch your sites");
-
-                const data = await res.json();
-                setSites(data);
-            } catch (err) {
-                setError("Error loading sites.");
-            } finally {
-                setLoading(false);
+    const { data: sites = [], isLoading, error } = useQuery<Site[], ApiError>({
+        queryKey: ["my-sites", user?.email, user?.phone, user?.name],
+        queryFn: async () => {
+            if (!user) return [];
+            
+            const params = new URLSearchParams();
+            if (user.email) {
+                params.append("user_id", user.email);
+            } else if (user.phone) {
+                params.append("user_id", user.phone);
             }
-        };
+            if (user.name) {
+                params.append("owner", user.name);
+            }
+            
+            return fetchApi<Site[]>(`/api/sites/my-sites?${params.toString()}`);
+        },
+        enabled: !!user,
+    });
 
-        if (user) {
-            fetchMySites();
+    const deleteMutation = useMutation({
+        mutationFn: async (siteCode: string) => {
+            return fetchApi(`/api/sites/delete-by-code/${siteCode}`, { method: "DELETE" });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["my-sites"] });
+            toast.success("Site deleted successfully!");
+        },
+        onError: () => {
+            toast.error("Could not delete site. Please try again.");
         }
-    }, [user]);
+    });
 
     const handleDelete = async (siteCode: string) => {
         if (!confirm(`Are you sure you want to delete site ${siteCode}? This cannot be undone.`)) {
             return;
         }
-
-        try {
-            const res = await fetch(`/api/sites/delete-by-code/${siteCode}`, {
-                method: "DELETE",
-            });
-
-            if (!res.ok) throw new Error("Failed to delete site");
-
-            // Remove from UI
-            setSites((prev) => prev.filter((s) => s.site_code !== siteCode));
-            toast.success("Site deleted successfully!");
-        } catch (err) {
-            toast.error("Could not delete site. Please try again.");
-        }
+        deleteMutation.mutate(siteCode);
     };
 
     if (!user) {
@@ -97,11 +81,11 @@ export default function MySitesPage() {
         <div className="space-y-6">
             <h1 className="text-2xl font-bold text-gray-800 border-b pb-4">My Uploaded Sites</h1>
 
-            {loading ? (
+            {isLoading ? (
                 <p className="text-gray-500">Loading your sites...</p>
             ) : error ? (
                 <div className="text-center py-10">
-                    <p className="text-red-500 mb-6">{error}</p>
+                    <p className="text-red-500 mb-6">{error.message}</p>
                     <button
                         onClick={() => router.back()}
                         className="inline-flex items-center text-white bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-2 rounded-lg shadow-sm transition-colors"
