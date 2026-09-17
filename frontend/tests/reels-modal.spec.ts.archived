@@ -1,0 +1,183 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('Property Video Reels Experience & Robust Testing', () => {
+  test.beforeEach(async ({ page }) => {
+    // Grant clipboard permissions for share testing
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
+    await page.addInitScript(() => {
+      localStorage.setItem('token', 'test-token');
+      localStorage.setItem('user', JSON.stringify({ id: 999, name: 'Test User', email: 'tester@example.com' }));
+    });
+    await page.goto('http://localhost:3000/');
+    // Wait for properties with videos to load
+    await expect(page.locator('[data-testid="watch-reels-btn"]')).toBeVisible({ timeout: 15000 });
+  });
+
+  test('should open Reels modal and exit cleanly via Back / Close button', async ({ page, isMobile }) => {
+    // 1. Open Reels
+    await page.locator('[data-testid="watch-reels-btn"]').click();
+    const modal = page.locator('[data-testid="reels-modal"]');
+    await expect(modal).toBeVisible();
+
+    // 2. Exit via Back / Close button
+    if (isMobile) {
+      await page.locator('[data-testid="reels-back-to-browse"]').click();
+    } else {
+      await page.locator('[data-testid="reels-close-desktop"]').click();
+    }
+
+    // Modal should close and return cleanly to browsing listings
+    await expect(modal).not.toBeVisible();
+    await expect(page).toHaveURL('http://localhost:3000/');
+  });
+
+  test('should close Reels modal on browser back navigation without leaving homepage', async ({ page }) => {
+    // 1. Open Reels
+    await page.locator('[data-testid="watch-reels-btn"]').click();
+    const modal = page.locator('[data-testid="reels-modal"]');
+    await expect(modal).toBeVisible();
+
+    // 2. Trigger browser / device back navigation
+    await page.goBack();
+
+    // Modal should close on popstate, staying on homepage
+    await expect(modal).not.toBeVisible();
+    await expect(page).toHaveURL('http://localhost:3000/');
+  });
+
+  test('should close Reels modal when ESC key is pressed', async ({ page }) => {
+    await page.locator('[data-testid="watch-reels-btn"]').click();
+    const modal = page.locator('[data-testid="reels-modal"]');
+    await expect(modal).toBeVisible();
+
+    // Press Escape
+    await page.keyboard.press('Escape');
+
+    await expect(modal).not.toBeVisible();
+  });
+
+  test('should test Share button functionality and fallback copy to clipboard', async ({ page, isMobile }) => {
+    await page.locator('[data-testid="watch-reels-btn"]').click();
+    await expect(page.locator('[data-testid="reels-modal"]')).toBeVisible();
+
+    // Click Share button
+    const shareBtn = isMobile
+      ? page.locator('[data-testid="reels-share-button-mobile"]')
+      : page.locator('[data-testid="reels-share-button-desktop"]');
+    await shareBtn.click();
+
+    // The share sheet or toast should appear
+    const shareSheet = page.locator('[data-testid="share-sheet-modal"]');
+    const toastElem = page.locator('div[role="status"], div:has-text("link copied"), div:has-text("Shared")');
+
+    // If share sheet is open, click Copy button
+    if (await shareSheet.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await expect(page.locator('[data-testid="share-whatsapp-button"]')).toBeVisible();
+      const copyBtn = page.locator('[data-testid="share-copy-button"]');
+      await expect(copyBtn).toBeVisible();
+      await copyBtn.click();
+    }
+
+    // Verify copy confirmation
+    await expect(
+      page.locator('text=Property link copied to clipboard!').or(page.locator('text=Shared successfully!'))
+    ).toBeVisible({ timeout: 5000 });
+  });
+
+  test('should support toggling between All Tours and Liked / Saved Tours', async ({ page, isMobile }) => {
+    await page.locator('[data-testid="watch-reels-btn"]').click();
+    await expect(page.locator('[data-testid="reels-modal"]')).toBeVisible();
+
+    // 1. Initially check Saved tours (should be 0 or show empty state if clean session)
+    await page.locator('[data-testid="reels-tab-saved"]').click();
+
+    // Check if empty state is shown
+    const emptyState = page.locator('text=No Saved Video Tours');
+    const hasEmptyState = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (hasEmptyState) {
+      // 2. Switch back to All Tours
+      await page.locator('[data-testid="reels-tab-all"]').click();
+
+      // 3. Like/Save the current tour
+      const likeBtn = page.locator('[data-testid="reels-like-button"]').first();
+      await likeBtn.click();
+
+      // 4. Switch back to Saved Tours
+      await page.locator('[data-testid="reels-tab-saved"]').click();
+
+      // Now the empty state should NOT be visible and the saved item should appear
+      await expect(emptyState).not.toBeVisible();
+    }
+  });
+
+  test('should navigate to next video tour on vertical touch swipe on mobile', async ({ page, isMobile, browserName }) => {
+    test.skip(!isMobile || browserName === 'webkit', 'Synthetic touch event simulation is tested on Chromium/Mobile Chrome');
+    await page.locator('[data-testid="watch-reels-btn"]').click();
+    await expect(page.locator('[data-testid="reels-modal"]')).toBeVisible();
+
+    // Verify initial video index (1/)
+    await expect(page.locator('text=1/').first()).toBeVisible();
+
+    // Trigger vertical touch swipe up (cross-browser compatible for Chromium and WebKit)
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="reels-gesture-overlay"]');
+      if (!el) return;
+      try {
+        const doc = document as any;
+        let startTouch: any;
+        let moveTouch: any;
+        let endTouch: any;
+
+        if (typeof Touch !== 'undefined') {
+          try {
+            startTouch = new Touch({ identifier: 1, target: el, clientX: 200, clientY: 400 });
+            moveTouch = new Touch({ identifier: 1, target: el, clientX: 200, clientY: 250 });
+            endTouch = new Touch({ identifier: 1, target: el, clientX: 200, clientY: 100 });
+          } catch {
+            // WebKit illegal constructor fallback
+            if (doc.createTouch) {
+              startTouch = doc.createTouch(window, el, 1, 200, 400, 200, 400);
+              moveTouch = doc.createTouch(window, el, 1, 200, 250, 200, 250);
+              endTouch = doc.createTouch(window, el, 1, 200, 100, 200, 100);
+            }
+          }
+        }
+
+        if (startTouch && endTouch) {
+          el.dispatchEvent(new TouchEvent('touchstart', { touches: [startTouch], changedTouches: [startTouch], bubbles: true }));
+          el.dispatchEvent(new TouchEvent('touchmove', { touches: [moveTouch || endTouch], changedTouches: [moveTouch || endTouch], bubbles: true }));
+          el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [endTouch], bubbles: true }));
+        }
+      } catch (err) {
+        console.warn('Touch simulation note:', err);
+      }
+    });
+
+    // Verify it smoothly transitioned to next tour (2/)
+    await expect(page.locator('text=2/').first()).toBeVisible({ timeout: 5000 });
+  });
+
+  test('should ensure exactly ONE iframe in DOM with muted autoplay and native YouTube controls', async ({ page }) => {
+    await page.locator('[data-testid="watch-reels-btn"]').click();
+    await expect(page.locator('[data-testid="reels-modal"]')).toBeVisible();
+
+    // Verify exactly ONE iframe is mounted in DOM to prevent duplicate sound / audio leaks
+    const iframes = page.locator('iframe[title]');
+    await expect(iframes).toHaveCount(1);
+
+    // Verify YouTube iframe parameters: autoplay=1 (smooth start), mute=1 (browser policy), controls=1 (native YouTube controls)
+    const iframe = iframes.first();
+    await expect(iframe).toBeVisible();
+    const src = await iframe.getAttribute('src');
+    expect(src).toContain('autoplay=1');
+    expect(src).toContain('mute=1');
+    expect(src).toContain('controls=1');
+
+    // Verify custom sound buttons were removed in favor of YouTube's native player controls
+    await expect(page.locator('[data-testid="reels-sound-toggle"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="reels-sound-toggle-desktop"]')).not.toBeVisible();
+  });
+});
+
+

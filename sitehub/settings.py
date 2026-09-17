@@ -165,3 +165,13 @@ REST_FRAMEWORK = {
     ],
     'EXCEPTION_HANDLER': 'api.exceptions.custom_exception_handler',
 }
+
+# Cache Configuration (Fast In-Memory Caching for Instant Filter & Feed Responses)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'sitehub-cache',
+        'TIMEOUT': 60,  # 60 seconds default TTL
+    }
+}
+

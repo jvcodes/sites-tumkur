@@ -41,6 +41,7 @@ booking_collection = db["bookings"]
 
 # New Normalized Collections
 locations_collection = db["locations"]
+landmarks_collection = db["landmarks"]
 site_images_collection = db["site_images"]
 visits_collection = db["visits"]
 user_profiles_collection = db["user_profiles"]
@@ -58,6 +59,10 @@ def setup_database_indexes():
     site_collection.create_index("user_id")
     site_collection.create_index("is_deleted")
     site_collection.create_index([("user_id", 1), ("dimension", 1), ("location_id", 1)]) # Help prevent duplicates
+    # Compound indexes for fast filtered searches and reels queries
+    site_collection.create_index([("status", 1), ("is_deleted", 1), ("created_at", -1)])
+    site_collection.create_index([("status", 1), ("is_deleted", 1), ("price", 1)])
+    site_collection.create_index([("status", 1), ("is_deleted", 1), ("youtube_url", 1)])
     
     # Locations Indexes
     locations_collection.create_index([("city", 1), ("area", 1)], unique=True)

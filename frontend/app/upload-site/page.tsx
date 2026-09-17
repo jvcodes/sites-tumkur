@@ -33,24 +33,60 @@ export default function UploadSitePage() {
   const [isLayout, setIsLayout] = useState(false);
   const [layoutName, setLayoutName] = useState("");
 
-  // Draft Autosave
-  useEffect(() => {
-    if (!user || (!form.location && !form.price && !form.area)) return;
-    
-    const timeout = setTimeout(() => {
-      fetch("/api/sites/draft/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: user.phone || "Unknown",
-          name: user.name || "Unknown",
-          form_data: { ...form, isLayout, layoutName }
-        })
-      }).catch(e => console.error("Draft save failed", e));
-    }, 2000); // 2 second debounce
+  // Landmarks state
+  const [availableLandmarks, setAvailableLandmarks] = useState<string[]>([]);
+  const [nearbyLandmarks, setNearbyLandmarks] = useState<Array<{ landmark: string; distance_km?: number }>>([]);
+  const [selectedLandmark, setSelectedLandmark] = useState<string>("");
+  const [customLandmark, setCustomLandmark] = useState<string>("");
+  const [landmarkDistance, setLandmarkDistance] = useState<string>("");
 
-    return () => clearTimeout(timeout);
-  }, [form, isLayout, layoutName, user]);
+  // Fetch available Tumkur landmarks from backend API with fallback
+  useEffect(() => {
+    fetch("/api/sites/landmarks/")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.landmarks && Array.isArray(data.landmarks)) {
+          setAvailableLandmarks(data.landmarks.map((l: any) => l.name));
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load landmarks:", err);
+        setAvailableLandmarks([
+          "Tumkur Railway Station",
+          "Tumkur KSRTC Bus Stand",
+          "Siddaganga Mutt / Kyatsandra",
+          "SIT College (Siddaganga Institute of Technology)",
+          "Tumkur University",
+          "District Hospital Tumkur",
+          "Gubbi Gate",
+          "NH-48 Highway (Bangalore-Pune)",
+          "Amanikere Lake & Park",
+          "Vasanthanarasapura Industrial Area",
+          "Tumkur DC Office / Mini Vidhana Soudha",
+        ]);
+      });
+  }, []);
+
+  const handleAddLandmark = () => {
+    const name = selectedLandmark === "__custom__" ? customLandmark.trim() : selectedLandmark.trim();
+    if (!name) {
+      toast.error("Please select or enter a landmark name");
+      return;
+    }
+    if (nearbyLandmarks.some((l) => l.landmark.toLowerCase() === name.toLowerCase())) {
+      toast.error("This landmark is already added");
+      return;
+    }
+    const dist = landmarkDistance ? parseFloat(landmarkDistance) : undefined;
+    setNearbyLandmarks((prev) => [...prev, { landmark: name, distance_km: dist }]);
+    setSelectedLandmark("");
+    setCustomLandmark("");
+    setLandmarkDistance("");
+  };
+
+  const handleRemoveLandmark = (index: number) => {
+    setNearbyLandmarks((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // Specs
   const [cornerSite, setCornerSite] = useState(false);
@@ -62,7 +98,7 @@ export default function UploadSitePage() {
   const [loanFacility, setLoanFacility] = useState(false);
 
   // Legal
-  const [bbmpApproved, setBbmpApproved] = useState(false);
+  const [tudaApproved, setTudaApproved] = useState(false);
   const [aKhata, setAKhata] = useState(false);
   const [clearTitle, setClearTitle] = useState(false);
   const [bankLoanApproved, setBankLoanApproved] = useState(false);
@@ -73,6 +109,25 @@ export default function UploadSitePage() {
   const [electricityNearby, setElectricityNearby] = useState(false);
   const [drainageConnection, setDrainageConnection] = useState(false);
   const [asphaltRoadAccess, setAsphaltRoadAccess] = useState(false);
+
+  // Draft Autosave
+  useEffect(() => {
+    if (!user || (!form.location && !form.price && !form.area)) return;
+    
+    const timeout = setTimeout(() => {
+      fetch("/api/sites/draft/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: user.phone || "Unknown",
+          name: user.name || "Unknown",
+          form_data: { ...form, isLayout, layoutName, tudaApproved, nearbyLandmarks }
+        })
+      }).catch(e => console.error("Draft save failed", e));
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timeout);
+  }, [form, isLayout, layoutName, tudaApproved, nearbyLandmarks, user]);
 
   const [images, setImages] = useState<File[]>([]);
   const [message, setMessage] = useState("");
@@ -153,7 +208,8 @@ export default function UploadSitePage() {
     data.append("negotiable", String(negotiable));
     data.append("loan_facility", String(loanFacility));
 
-    data.append("bbmp_approved", String(bbmpApproved));
+    data.append("tuda_approved", String(tudaApproved));
+    data.append("bbmp_approved", String(tudaApproved));
     data.append("a_khata", String(aKhata));
     data.append("clear_title", String(clearTitle));
     data.append("bank_loan_approved", String(bankLoanApproved));
@@ -163,6 +219,9 @@ export default function UploadSitePage() {
     data.append("electricity_nearby", String(electricityNearby));
     data.append("drainage_connection", String(drainageConnection));
     data.append("asphalt_road_access", String(asphaltRoadAccess));
+
+    // Landmarks with distance
+    data.append("nearby_landmarks", JSON.stringify(nearbyLandmarks));
 
     // Images
     images.forEach((img) => data.append("images", img));
@@ -252,7 +311,7 @@ export default function UploadSitePage() {
                 {isLayout && (
                   <div className="mb-4">
                     <label className="block text-sm text-gray-600 mb-1">Layout Name</label>
-                    <input name="layout_name" placeholder="e.g. BDA Layout, Green Valley" value={layoutName} onChange={(e) => setLayoutName(e.target.value)} className="w-full border rounded px-3 py-2 bg-gray-50 focus:bg-white" />
+                    <input name="layout_name" placeholder="e.g. TUDA Layout, Siddaganga Layout, Green Valley" value={layoutName} onChange={(e) => setLayoutName(e.target.value)} className="w-full border rounded px-3 py-2 bg-gray-50 focus:bg-white" />
                   </div>
                 )}
               </div>
@@ -287,6 +346,117 @@ export default function UploadSitePage() {
                 </div>
               </div>
             </div>
+          </section>
+
+          {/* SECTION: NEARBY LANDMARKS */}
+          <section className="bg-amber-50/60 p-6 rounded-xl border border-amber-200">
+            <div className="border-b border-amber-200 pb-2 mb-4">
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <span>📍</span> Tumkur Key Landmarks & Distances
+              </h2>
+              <p className="text-xs text-gray-600 mt-1">
+                Help buyers find your site by selecting nearby major landmarks in Tumkur and specifying their distance in km.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              <div className={selectedLandmark === "__custom__" ? "md:col-span-5" : "md:col-span-6"}>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Select Landmark (Tumkur)
+                </label>
+                <select
+                  value={selectedLandmark}
+                  onChange={(e) => setSelectedLandmark(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white border-gray-300 focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-xs"
+                  data-testid="landmark-select"
+                >
+                  <option value="">-- Choose a Landmark --</option>
+                  {availableLandmarks.map((lm) => (
+                    <option key={lm} value={lm}>
+                      {lm}
+                    </option>
+                  ))}
+                  <option value="__custom__">+ Enter Custom Landmark</option>
+                </select>
+              </div>
+
+              {selectedLandmark === "__custom__" && (
+                <div className="md:col-span-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Custom Landmark Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Siddaganga Hospital"
+                    value={customLandmark}
+                    onChange={(e) => setCustomLandmark(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm border-gray-300 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    data-testid="custom-landmark-input"
+                  />
+                </div>
+              )}
+
+              <div className={selectedLandmark === "__custom__" ? "md:col-span-3" : "md:col-span-4"}>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Distance in km (optional)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder="e.g. 2.5"
+                    value={landmarkDistance}
+                    onChange={(e) => setLandmarkDistance(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm border-gray-300 focus:ring-2 focus:ring-amber-500 focus:outline-none pr-10"
+                    data-testid="landmark-distance-input"
+                  />
+                  <span className="absolute right-3 top-2 text-xs text-gray-400 font-medium pointer-events-none">km</span>
+                </div>
+              </div>
+
+              <div className={selectedLandmark === "__custom__" ? "md:col-span-12" : "md:col-span-2"}>
+                <button
+                  type="button"
+                  onClick={handleAddLandmark}
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 px-3 rounded-lg text-sm shadow-sm transition-colors flex items-center justify-center gap-1"
+                  data-testid="add-landmark-btn"
+                >
+                  <span>+ Add</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Display Selected Landmarks */}
+            {nearbyLandmarks.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-amber-200" data-testid="selected-landmarks-list">
+                <div className="text-xs font-semibold text-gray-700 mb-2">Added Landmarks:</div>
+                <div className="flex flex-wrap gap-2">
+                  {nearbyLandmarks.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-2 bg-white border border-amber-300 text-amber-950 px-3 py-1.5 rounded-full text-xs font-medium shadow-xs"
+                      data-testid={`added-landmark-${idx}`}
+                    >
+                      <span>📍 {item.landmark}</span>
+                      {item.distance_km !== undefined && (
+                        <span className="bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded text-[11px]">
+                          {item.distance_km} km
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLandmark(idx)}
+                        className="text-gray-400 hover:text-red-600 font-bold ml-1 text-sm leading-none"
+                        title="Remove landmark"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
 
           {/* SECTION: SPECS */}
@@ -337,7 +507,7 @@ export default function UploadSitePage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Legal & Approval Status</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <label className="flex items-center space-x-2 text-sm text-gray-700"><input type="checkbox" checked={bbmpApproved} onChange={e => setBbmpApproved(e.target.checked)} className="rounded text-red-600" /> <span>BBMP Approved</span></label>
+              <label className="flex items-center space-x-2 text-sm text-gray-700"><input type="checkbox" data-testid="tuda-approved-checkbox" checked={tudaApproved} onChange={e => setTudaApproved(e.target.checked)} className="rounded text-red-600" /> <span className="font-medium text-emerald-800">TUDA Approved</span></label>
               <label className="flex items-center space-x-2 text-sm text-gray-700"><input type="checkbox" checked={aKhata} onChange={e => setAKhata(e.target.checked)} className="rounded text-red-600" /> <span>A-Khata</span></label>
               <label className="flex items-center space-x-2 text-sm text-gray-700"><input type="checkbox" checked={clearTitle} onChange={e => setClearTitle(e.target.checked)} className="rounded text-red-600" /> <span>Clear Title</span></label>
               <label className="flex items-center space-x-2 text-sm text-gray-700"><input type="checkbox" checked={layoutApproved} onChange={e => setLayoutApproved(e.target.checked)} className="rounded text-red-600" /> <span>Layout Approved</span></label>

@@ -4,6 +4,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
 import { useState, useRef, memo } from 'react';
 import toast from 'react-hot-toast';
+import { useScrollReveal } from '../../hooks/useScrollReveal';
 
 interface SiteCardProps {
   site: {
@@ -25,6 +26,8 @@ interface SiteCardProps {
     longitude?: number;
     is_layout?: boolean;
     layout_name?: string;
+    tuda_approved?: boolean;
+    bbmp_approved?: boolean;
   };
 }
 
@@ -35,8 +38,8 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
   const displayId = site.site_code || site.id_str || site._id || '';
   const isLiked = isInWishlist(displayId);
   const inVisitList = isInCart(displayId);
-  const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const { ref: cardRef, isVisible } = useScrollReveal({ threshold: 0.1 });
 
   // Graceful fallback for ID and Image
   const siteId = displayId || '#';
@@ -84,14 +87,6 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
     }
   };
 
-  // Extract YouTube ID
-  const getYoutubeVideoId = (url?: string) => {
-    if (!url) return null;
-    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-    return match ? match[1] : null;
-  };
-  const youtubeId = getYoutubeVideoId((site as any).youtube_url);
-
   // Build media array
   const media: string[] = [];
   if (site.images && site.images.length > 0) {
@@ -119,7 +114,12 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
   };
 
   return (
-    <div className="bg-white md:rounded-xl md:shadow-sm md:border md:border-gray-200 overflow-hidden mb-2 border-b border-gray-100 pb-4 md:pb-0 flex flex-col">
+    <div 
+      ref={cardRef}
+      className={`bg-white md:rounded-xl md:shadow-sm md:border md:border-gray-200 overflow-hidden mb-2 border-b border-gray-100 pb-4 md:pb-0 flex flex-col transition-all duration-700 ease-out transform ${
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+      }`}
+    >
       
       {/* ── HEADER (Like Instagram User Info) ── */}
       <div className="px-4 py-3 flex items-center justify-between">
@@ -144,21 +144,6 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
       {/* ── MEDIA CAROUSEL (Edge-to-Edge on mobile) ── */}
       <div className="relative w-full aspect-[4/3] sm:aspect-video md:aspect-[4/3] bg-black group/carousel">
         <div ref={carouselRef} className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth">
-          {/* YouTube Video Slide */}
-          {youtubeId && (
-            <div className="w-full h-full flex-shrink-0 snap-center relative">
-              <iframe
-                src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0`}
-                srcDoc={`<style>*{padding:0;margin:0;overflow:hidden}html,body{height:100%}img{position:absolute;width:100%;height:100%;object-fit:cover}.play{position:absolute;top:0;bottom:0;left:0;right:0;margin:auto;width:64px;height:64px;background:rgba(0,0,0,0.6);border-radius:50%;display:flex;justify-content:center;align-items:center;color:white;border:1.5px solid rgba(255,255,255,0.4);transition:transform 0.2s}a:hover .play{transform:scale(1.1)}</style><a href=https://www.youtube.com/embed/${youtubeId}?autoplay=1><img src=https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg alt='Thumbnail'><div class='play'><svg style='width:32px;height:32px;margin-left:4px' fill='currentColor' viewBox='0 0 24 24'><path d='M8 5v14l11-7z' /></svg></div></a>`}
-                className="w-full h-full border-none"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title="Property Video"
-                loading="lazy"
-              />
-            </div>
-          )}
-
           {/* Image Slides */}
           {media.map((imgUrl, idx) => (
             <div key={idx} className="w-full h-full flex-shrink-0 snap-center relative">
@@ -166,7 +151,10 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
                 <img
                   src={imgUrl}
                   alt={`${site.name} - slide ${idx + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-opacity duration-500 ease-in-out opacity-0"
+                  loading="lazy"
+                  decoding="async"
+                  onLoad={(e) => (e.currentTarget.style.opacity = '1')}
                 />
               </Link>
             </div>
@@ -174,17 +162,16 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
         </div>
 
         {/* Carousel Indicators (Dots) */}
-        {(youtubeId || media.length > 1) && (
+        {media.length > 1 && (
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
-            {youtubeId && <div className="w-1.5 h-1.5 rounded-full bg-white/80 shadow"></div>}
             {media.map((_, i) => (
-              <div key={`dot-${i}`} className="w-1.5 h-1.5 rounded-full bg-white/50 shadow"></div>
+              <div key={`dot-${i}`} className="w-1.5 h-1.5 rounded-full bg-white/70 shadow"></div>
             ))}
           </div>
         )}
 
         {/* Scroll Buttons */}
-        {(youtubeId || media.length > 1) && (
+        {media.length > 1 && (
           <>
             <button 
               aria-label="Previous image"
@@ -203,16 +190,28 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
           </>
         )}
 
+        {(site.tuda_approved || site.bbmp_approved) && (
+          <div className="absolute top-3 left-3 bg-emerald-700/90 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 z-10 pointer-events-none">
+            <span>✓</span>
+            <span>TUDA Approved</span>
+          </div>
+        )}
+
         {site.status?.toLowerCase() === 'sold' && (
           <div className="absolute top-3 right-3 bg-red-600 text-white text-xs font-black px-2 py-1 rounded shadow-lg uppercase z-10">
             SOLD
           </div>
         )}
+
+        <div className="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-md pointer-events-none flex items-center gap-1 opacity-90">
+          <span>View details</span>
+          <span>→</span>
+        </div>
       </div>
 
-      {/* ── ACTION BAR (Heart, Share, Visit) ── */}
+      {/* ── ACTION BAR (Heart, Share, Tour, Visit) ── */}
       <div className="px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Wishlist */}
           <button
             aria-label={isLiked ? "Remove from wishlist" : "Add to wishlist"}
@@ -276,17 +275,25 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
       </div>
 
       {/* ── DETAILS (Price, Specs, Desc) ── */}
-      <div className="px-4 pb-3 flex flex-col">
-        <div className="flex items-baseline gap-2 mb-1">
-          <span className="text-[15px] font-extrabold text-gray-900">{formatPrice(site.price)}</span>
-          <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
-            {shortPrice(site.price)}
-          </span>
-        </div>
-        
-        <p className="text-sm font-semibold text-gray-800 line-clamp-1 mb-1">
-          {site.name}
-        </p>
+      <div className="px-4 pb-4 flex flex-col">
+        <Link 
+          href={`/site/${siteId}`}
+          onClick={() => sessionStorage.setItem('homeScrollPos', window.scrollY.toString())}
+          className="group/title block"
+        >
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-[16px] font-extrabold text-gray-900 group-hover/title:text-red-600 transition-colors">
+              {formatPrice(site.price)}
+            </span>
+            <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
+              {shortPrice(site.price)}
+            </span>
+          </div>
+          
+          <p className="text-sm font-semibold text-gray-800 line-clamp-1 mb-1 group-hover/title:text-red-600 transition-colors">
+            {site.name}
+          </p>
+        </Link>
 
         <p className="text-xs text-gray-500 mb-2 flex flex-wrap gap-1 items-center">
           {site.area && <span>{site.area} Sq.ft</span>}
@@ -297,17 +304,20 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
         </p>
 
         {site.is_layout && site.layout_name && (
-          <p className="text-[10px] uppercase font-bold text-blue-600 bg-blue-50 self-start px-2 py-0.5 rounded mb-2">
+          <p className="text-[10px] uppercase font-bold text-blue-600 bg-blue-50 self-start px-2 py-0.5 rounded mb-1">
             🏡 {site.layout_name}
           </p>
         )}
         
+        {/* Prominent Primary Call-to-Action (High-Contrast, Full-Width Button) */}
         <Link 
           href={`/site/${siteId}`} 
           onClick={() => sessionStorage.setItem('homeScrollPos', window.scrollY.toString())}
-          className="text-xs text-gray-600 uppercase font-bold tracking-wider hover:text-gray-900 mt-1"
+          data-testid="view-full-details-btn"
+          className="mt-2.5 w-full py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-xs tracking-wide shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 group/btn active:scale-[0.99]"
         >
-          View full details &rarr;
+          <span>View full details</span>
+          <span className="font-bold text-sm group-hover/btn:translate-x-1 transition-transform">→</span>
         </Link>
       </div>
     </div>

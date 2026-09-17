@@ -12,6 +12,23 @@ from listings.utils import generate_site_code
 from api.views.utils import normalize_image, hydrate_sites
 from api.serializers import SiteSerializer
 
+SITE_FEATURES = [
+    {"key": "corner_site", "label": "Corner Site"},
+    {"key": "boundary_marked", "label": "Boundary Marked"},
+    {"key": "levelled_land", "label": "Levelled Land"},
+    {"key": "negotiable", "label": "Price Negotiable"},
+    {"key": "loan_facility", "label": "Loan Facility"},
+    {"key": "tuda_approved", "label": "TUDA Approved"},
+    {"key": "a_khata", "label": "A-Khata"},
+    {"key": "clear_title", "label": "Clear Title"},
+    {"key": "bank_loan_approved", "label": "Bank Loan Approved"},
+    {"key": "layout_approved", "label": "Layout Approved"},
+    {"key": "borewell_water", "label": "Borewell Water"},
+    {"key": "electricity_nearby", "label": "Electricity Nearby"},
+    {"key": "drainage_connection", "label": "Drainage Connection"},
+    {"key": "asphalt_road_access", "label": "Asphalt Road Access"},
+]
+
 @api_view(['GET'])
 def approved_sites_api(request):
     page = int(request.GET.get("page", 1))
@@ -57,11 +74,12 @@ def filter_sites_api(request):
     site_code = request.GET.get("site_code")
     sort = request.GET.get("sort")
     is_layout = request.GET.get("is_layout")
+    has_video = request.GET.get("has_video")
     boost_location = request.GET.get("boost_location", "").strip()
     page = int(request.GET.get("page", 1))
 
     # ── CACHING: Default Homepage ──
-    has_filters = any([location, search, min_price, max_price, min_area, max_area, facing, site_code, is_layout])
+    has_filters = any([location, search, min_price, max_price, min_area, max_area, facing, site_code, is_layout, has_video])
     has_sort = bool(sort)
     has_boost = bool(boost_location)
     is_default_query = not has_filters and not has_sort and not has_boost and page == 1
@@ -103,6 +121,9 @@ def filter_sites_api(request):
 
     if is_layout and is_layout.lower() == "true":
         query["is_layout"] = True
+
+    if has_video and has_video.lower() == "true":
+        query["youtube_url"] = {"$exists": True, "$ne": "", "$nin": [None, ""]}
 
     if min_price or max_price:
         query["price"] = {}
@@ -176,9 +197,13 @@ def filter_sites_api(request):
     pipeline.append({"$limit": limit})
 
     # ── Execute pipeline and hydrate results ──
+    print("DEBUG PIPELINE:", pipeline)
     sites = hydrate_sites(request, list(site_collection.aggregate(pipeline)))
 
     serializer = SiteSerializer(sites, many=True)
+    
+    print("DEBUG boost_location:", boost_location)
+    print("DEBUG first 3 sites returned:", [(s.get("site_code"), s.get("location")) for s in sites[:3]])
     
     response_data = {
         "results": serializer.data,
@@ -214,7 +239,7 @@ def my_sites_api(request):
 
     sites = hydrate_sites(request, list(site_collection.find(query).sort("created_at", -1)))
 
-    from .serializers import SiteSerializer
+    from api.serializers import SiteSerializer
     serializer = SiteSerializer(sites, many=True)
     return Response(serializer.data)
 
@@ -302,7 +327,8 @@ def create_site_api(request):
             "loan_facility": get_bool("loan_facility"),
             
             # Booleans: Legal & Approval
-            "bbmp_approved": get_bool("bbmp_approved"),
+            "tuda_approved": get_bool("tuda_approved") if "tuda_approved" in request.POST else get_bool("bbmp_approved"),
+            "bbmp_approved": get_bool("tuda_approved") if "tuda_approved" in request.POST else get_bool("bbmp_approved"),
             "a_khata": get_bool("a_khata"),
             "clear_title": get_bool("clear_title"),
             "bank_loan_approved": get_bool("bank_loan_approved"),
@@ -329,6 +355,27 @@ def create_site_api(request):
         if description:
             site_data["description"] = description
 
+        # Parse nearby_landmarks with distance
+        nearby_landmarks_raw = request.POST.get("nearby_landmarks")
+        if nearby_landmarks_raw:
+            try:
+                import json
+                if isinstance(nearby_landmarks_raw, str):
+                    parsed_landmarks = json.loads(nearby_landmarks_raw)
+                else:
+                    parsed_landmarks = nearby_landmarks_raw
+                if isinstance(parsed_landmarks, list):
+                    site_data["nearby_landmarks"] = [
+                        {
+                            "landmark": str(item.get("landmark", "")).strip(),
+                            "distance_km": float(item.get("distance_km", 0)) if item.get("distance_km") is not None and str(item.get("distance_km")).strip() != "" else None
+                        }
+                        for item in parsed_landmarks
+                        if item.get("landmark")
+                    ]
+            except Exception:
+                pass
+
         # ✅ SAVE MULTIPLE IMAGES PROPERLY IN NORMALIZED COLLECTION
         images = request.FILES.getlist("images")
         
@@ -343,7 +390,7 @@ def create_site_api(request):
         site_collection.insert_one(site_data)
 
         return Response(
-            {"message": "Site submitted for approval"},
+            {"message": "Site submitted for approval", "site_code": site_code},
             status=status.HTTP_201_CREATED
         )
 
@@ -390,13 +437,39 @@ def update_site_by_code_api(request, site_code):
         "dimension", "facing", "road_width", "landmark",
         "corner_site", "boundary_marked", "levelled_land",
         "negotiable", "loan_facility", 
-        "bbmp_approved", "a_khata", "clear_title", "bank_loan_approved", "layout_approved",
-        "borewell_water", "electricity_nearby", "drainage_connection", "asphalt_road_access"
+        "tuda_approved", "bbmp_approved", "a_khata", "clear_title", "bank_loan_approved", "layout_approved",
+        "borewell_water", "electricity_nearby", "drainage_connection", "asphalt_road_access",
+        "nearby_landmarks"
     ]
 
     for field in allowed_fields:
         if field in data:
             update_data[field] = data[field]
+
+    if "tuda_approved" in data:
+        update_data["tuda_approved"] = bool(data["tuda_approved"])
+        update_data["bbmp_approved"] = bool(data["tuda_approved"])
+    elif "bbmp_approved" in data:
+        update_data["tuda_approved"] = bool(data["bbmp_approved"])
+        update_data["bbmp_approved"] = bool(data["bbmp_approved"])
+
+    if "nearby_landmarks" in data:
+        landmarks_val = data["nearby_landmarks"]
+        if isinstance(landmarks_val, str):
+            try:
+                import json
+                landmarks_val = json.loads(landmarks_val)
+            except Exception:
+                landmarks_val = []
+        if isinstance(landmarks_val, list):
+            update_data["nearby_landmarks"] = [
+                {
+                    "landmark": str(item.get("landmark", "")).strip(),
+                    "distance_km": float(item.get("distance_km", 0)) if item.get("distance_km") is not None and str(item.get("distance_km")).strip() != "" else None
+                }
+                for item in landmarks_val
+                if item.get("landmark")
+            ]
 
     if not update_data:
         return Response(
@@ -452,10 +525,48 @@ def site_detail_by_code_api(request, site_code):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    site = hydrate_sites(request, [site])[0]
+    # Find adjacent properties for previous / next navigation
+    site_id = site.get("_id")
+    prev_site = None
+    next_site = None
+    if site_id:
+        prev_site = site_collection.find_one(
+            {
+                "status": "approved",
+                "is_deleted": {"$ne": True},
+                "_id": {"$gt": site_id}
+            },
+            sort=[("_id", 1)],
+            projection={"site_code": 1, "name": 1, "price": 1, "location": 1}
+        )
+        next_site = site_collection.find_one(
+            {
+                "status": "approved",
+                "is_deleted": {"$ne": True},
+                "_id": {"$lt": site_id}
+            },
+            sort=[("_id", -1)],
+            projection={"site_code": 1, "name": 1, "price": 1, "location": 1}
+        )
 
-    serializer = SiteSerializer(site)
-    return Response(serializer.data)
+    hydrated_site = hydrate_sites(request, [site])[0]
+
+    serializer = SiteSerializer(hydrated_site)
+    data = dict(serializer.data)
+    data["prev_site"] = {
+        "site_code": prev_site.get("site_code"),
+        "name": prev_site.get("name"),
+        "price": prev_site.get("price"),
+        "location": prev_site.get("location")
+    } if prev_site and prev_site.get("site_code") else None
+    data["next_site"] = {
+        "site_code": next_site.get("site_code"),
+        "name": next_site.get("name"),
+        "price": next_site.get("price"),
+        "location": next_site.get("location")
+    } if next_site and next_site.get("site_code") else None
+
+    return Response(data)
 
 def admin_hub_page(request):
     """Main admin dashboard with summary statistics."""

@@ -69,8 +69,8 @@ def hydrate_sites(request, sites):
         s["latitude"] = s.get("latitude", None)
         s["longitude"] = s.get("longitude", None)
         
-        # Hydrate text location from location_id
-        if s.get("location_id") and str(s["location_id"]) in locations:
+        # Hydrate text location from location_id only if missing
+        if not s.get("location") and s.get("location_id") and str(s["location_id"]) in locations:
             s["location"] = locations[str(s["location_id"])]
         
         # Hydrate images

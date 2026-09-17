@@ -103,6 +103,21 @@ class FilterSitesAPITests(TestCase):
         self.assertEqual(match_query['price']['$gte'], 1000)
         self.assertEqual(match_query['price']['$lte'], 5000)
 
+    @patch('api.views.sites.site_collection')
+    def test_filter_by_has_video(self, mock_site_collection):
+        """Verify that has_video=true filters for sites with valid youtube_url."""
+        mock_site_collection.aggregate.return_value = []
+
+        request = self.factory.get('/api/sites/filter/?has_video=true')
+        response = filter_sites_api(request)
+        
+        pipeline = mock_site_collection.aggregate.call_args[0][0]
+        match_query = _get_match_stage(pipeline)
+        
+        self.assertIn('youtube_url', match_query)
+        self.assertTrue(match_query['youtube_url']['$exists'])
+        self.assertEqual(match_query['youtube_url']['$ne'], "")
+
 class CreateSiteAPITests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
@@ -415,3 +430,117 @@ class BoostLocationAPITests(TestCase):
         # Default sort by created_at DESC
         sort_stage = _get_stage(pipeline, "$sort")
         self.assertEqual(sort_stage, {"created_at": -1, "_id": 1})
+
+from listings.mongo import site_collection
+from bson import ObjectId
+
+class MySitesAPITests(TestCase):
+    def setUp(self):
+        site_collection.delete_many({})
+        site_collection.insert_one({'_id': ObjectId(), 'site_code': 'TEST-MYSITES-1', 'name': 'User Site', 'location': 'Bangalore', 'price': 100, 'user_id': 'user@example.com', 'owner': 'Test Owner', 'status': 'approved', 'is_deleted': False})
+        site_collection.insert_one({'_id': ObjectId(), 'site_code': 'TEST-MYSITES-2', 'name': 'Other Site', 'location': 'Mysore', 'price': 200, 'user_id': 'other@example.com', 'owner': 'Other Owner', 'status': 'approved', 'is_deleted': False})
+
+    def test_my_sites_by_email(self):
+        response = self.client.get('/api/sites/my-sites?user_id=user@example.com')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['site_code'], 'TEST-MYSITES-1')
+
+    def test_my_sites_by_owner(self):
+        response = self.client.get('/api/sites/my-sites?owner=Test Owner')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['site_code'], 'TEST-MYSITES-1')
+
+    def test_my_sites_missing_params(self):
+        response = self.client.get('/api/sites/my-sites')
+        self.assertEqual(response.status_code, 400)
+
+
+class PhoneAuthAPITests(TestCase):
+    """Tests for the phone authentication API including dev bypass for testing."""
+
+    def test_dev_bypass_success_with_test_number(self):
+        """Verify that DEV_TEST_TOKEN successfully authenticates the test phone number."""
+        response = self.client.post(
+            '/api/auth/phone/',
+            data=json.dumps({
+                'idToken': 'DEV_TEST_TOKEN',
+                'phone': '+917353565562'
+            }),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('token', data)
+        self.assertIn('user', data)
+        self.assertEqual(data['user']['phone'], '7353565562')
+
+    def test_dev_bypass_rejected_for_non_test_number(self):
+        """Verify that DEV_TEST_TOKEN is rejected for non-test phone numbers."""
+        response = self.client.post(
+            '/api/auth/phone/',
+            data=json.dumps({
+                'idToken': 'DEV_TEST_TOKEN',
+                'phone': '+919876543210'
+            }),
+            content_type='application/json'
+        )
+        # Should attempt normal firebase verification and fail with 401
+        self.assertEqual(response.status_code, 401)
+
+    def test_missing_id_token(self):
+        """Verify that a request missing idToken returns 400."""
+        response = self.client.post(
+            '/api/auth/phone/',
+            data=json.dumps({'phone': '+917353565562'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+
+
+class LandmarksAndTUDATests(TestCase):
+    """Tests for Tumkur Landmarks and TUDA Regulatory Approvals."""
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_get_landmarks_api_seeds_and_returns_tumkur_landmarks(self):
+        """Verify get_landmarks_api returns active Tumkur landmarks."""
+        response = self.client.get('/api/sites/landmarks/')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('landmarks', data)
+        landmark_names = [lm['name'] for lm in data['landmarks']]
+        self.assertTrue(any('Railway' in name for name in landmark_names))
+        self.assertTrue(any('Siddaganga' in name or 'SIT' in name for name in landmark_names))
+
+    def test_create_and_fetch_site_with_tuda_and_landmarks(self):
+        """Verify site creation stores tuda_approved and nearby_landmarks with distance."""
+        nearby = [{"landmark": "Siddaganga Mutt", "distance_km": 4.5}]
+        response = self.client.post('/api/sites/create/', {
+            'name': 'TUDA Prime Plot',
+            'location': 'Kyatsandra, Tumkur',
+            'price': '3500000',
+            'area': '1500',
+            'owner': 'Tumkur Seller',
+            'tuda_approved': 'true',
+            'nearby_landmarks': json.dumps(nearby)
+        })
+        self.assertEqual(response.status_code, 201)
+        created_data = response.json()
+        self.assertIn('site_code', created_data)
+        site_code = created_data['site_code']
+
+        # Fetch detail by code
+        detail_res = self.client.get(f'/api/sites/{site_code}/')
+        self.assertEqual(detail_res.status_code, 200)
+        detail_data = detail_res.json()
+        self.assertTrue(detail_data.get('tuda_approved'))
+        self.assertTrue(detail_data.get('bbmp_approved')) # backward compatibility
+        self.assertEqual(len(detail_data.get('nearby_landmarks', [])), 1)
+        self.assertEqual(detail_data['nearby_landmarks'][0]['landmark'], 'Siddaganga Mutt')
+        self.assertEqual(detail_data['nearby_landmarks'][0]['distance_km'], 4.5)
+
+

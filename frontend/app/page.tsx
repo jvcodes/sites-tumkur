@@ -97,8 +97,6 @@ function HomeContent() {
           
           isRestored.current = true;
           
-          isRestored.current = true;
-          
           // Wait for DOM to render the sites, then scroll
           const targetScroll = parseInt(storedScroll, 10);
           console.log("RESTORE SCROLL: Attempting to restore to", targetScroll);
@@ -192,7 +190,7 @@ function HomeContent() {
       minPrice, maxPrice, minArea, maxArea,
       facing: selectedFacings.join(","),
       sort: sortOption,
-      isLayout: isLayoutFilter
+      isLayout: isLayoutFilter,
     };
   }, [selectedLocations, selectedPrices, selectedAreas, selectedFacings, sortOption, isLayoutFilter]);
 
@@ -248,7 +246,23 @@ function HomeContent() {
         const results: any[] = data.results ?? (Array.isArray(data) ? data : []);
         const tot: number = data.total ?? results.length;
 
-        setSites((prev) => (append ? [...prev, ...results] : results));
+        setSites((prev) => {
+          // Deduplicate the incoming results first
+          const seen = new Set();
+          const dedupedResults = results.filter(s => {
+            const key = s.id || s.site_code;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          if (!append) return dedupedResults;
+
+          // Deduplicate against previously loaded sites
+          const existingIds = new Set(prev.map((s) => s.id || s.site_code));
+          const uniqueNewResults = dedupedResults.filter((s) => !existingIds.has(s.id || s.site_code));
+          return [...prev, ...uniqueNewResults];
+        });
         setTotal(tot);
         setHasMore(pageNum * LIMIT < tot);
       } catch (err) {
@@ -314,10 +328,10 @@ function HomeContent() {
       </div>
 
       {/* Property Type */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         <label className="flex items-center gap-3 cursor-pointer group bg-blue-50 p-3 rounded-lg border border-blue-100 transition-colors hover:bg-blue-100">
           <input type="checkbox" checked={isLayoutFilter} onChange={(e) => setIsLayoutFilter(e.target.checked)} className="w-5 h-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer" />
-          <span className="text-blue-800 font-bold text-sm">Layout / Gated Community</span>
+          <span className="text-blue-800 font-bold text-sm">🏡 Layout / Gated Community</span>
         </label>
       </div>
 
@@ -470,7 +484,7 @@ function HomeContent() {
         <div className="flex-1 min-w-0 px-4 md:px-0">
           
           {/* Header & Sort */}
-          <div className="hidden md:flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+          <div className="hidden md:flex justify-between items-center mb-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
             <div>
               <h1 className="text-xl font-bold text-gray-900">Plots for Sale in Tumkur</h1>
               {!loading && <p className="text-gray-500 text-sm mt-1">{total} properties found</p>}
@@ -491,9 +505,72 @@ function HomeContent() {
             </div>
           </div>
 
-          <div className="md:hidden mb-4">
+          <div className="md:hidden mb-2">
              <h1 className="text-lg font-bold text-gray-900">Plots in Tumkur</h1>
              {!loading && <p className="text-gray-500 text-xs">{total} properties found</p>}
+          </div>
+
+          {/* ── 1-TAP QUICK FILTER PILLS (E-COMMERCE & TIKTOK/REELS HYBRID) ── */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-3 pt-1 mb-4 no-scrollbar scroll-smooth">
+            {/* All Properties */}
+            <button
+              onClick={() => clearAllFilters()}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                activeFilterCount === 0
+                  ? "bg-gray-900 text-white shadow-md"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
+              }`}
+            >
+              ✨ All
+            </button>
+
+            {/* Gated Layouts */}
+            <button
+              onClick={() => setIsLayoutFilter((prev) => !prev)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                isLayoutFilter
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                  : "bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
+              }`}
+            >
+              🏡 Layouts
+            </button>
+
+            {/* Under 20 Lakhs */}
+            <button
+              onClick={() => toggleSelection(setSelectedPrices, "0-2000000")}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                selectedPrices.includes("0-2000000")
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-200"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
+              }`}
+            >
+              💰 Under 20L
+            </button>
+
+            {/* 20L - 50L */}
+            <button
+              onClick={() => toggleSelection(setSelectedPrices, "2000000-5000000")}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                selectedPrices.includes("2000000-5000000")
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-200"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
+              }`}
+            >
+              💰 20L - 50L
+            </button>
+
+            {/* East Facing */}
+            <button
+              onClick={() => toggleSelection(setSelectedFacings, "East")}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                selectedFacings.includes("East")
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
+              }`}
+            >
+              🧭 East Facing
+            </button>
           </div>
 
           {/* Loading state */}
@@ -521,7 +598,10 @@ function HomeContent() {
           {!loading && sites.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {sites.map((site) => (
-                <SiteCard key={site.id || site.site_code} site={site} />
+                <SiteCard
+                  key={site.id || site.site_code}
+                  site={site}
+                />
               ))}
             </div>
           )}
@@ -609,7 +689,7 @@ function HomeContent() {
                 <div className="space-y-3">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" checked={isLayoutFilter} onChange={(e) => setIsLayoutFilter(e.target.checked)} className="w-5 h-5 rounded border-gray-300 text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
-                    <span className="text-sm text-gray-700 font-bold">Layout / Gated Community</span>
+                    <span className="text-sm text-gray-700 font-bold">🏡 Layout / Gated Community</span>
                   </label>
                 </div>
               )}

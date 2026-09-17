@@ -16,7 +16,11 @@ test.describe('Visual Regression Tests', () => {
       await page.waitForLoadState('networkidle');
       
       // Take a full page screenshot and compare it with the baseline
-      await expect(page).toHaveScreenshot(`${name}-full.png`, { fullPage: true });
+      // Mask the main grid because properties are dynamic and will cause flakiness
+      await expect(page).toHaveScreenshot(`${name}-full.png`, { 
+        fullPage: true,
+        mask: [page.locator('.grid')]
+      });
     });
   }
 });

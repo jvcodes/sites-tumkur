@@ -16,7 +16,7 @@ interface AuthContextType {
     user: User | null;
     token: string | null;
     login: (email: string, name: string) => Promise<void>;
-    loginWithPhone: (idToken: string) => Promise<void>;
+    loginWithPhone: (idToken: string, phone?: string) => Promise<void>;
     updateUser: (updates: Partial<User>) => void;
     logout: () => void;
     loading: boolean;
@@ -69,12 +69,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const loginWithPhone = async (idToken: string) => {
+    const loginWithPhone = async (idToken: string, phone?: string) => {
         try {
             const res = await fetch("/api/auth/phone/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ idToken }),
+                body: JSON.stringify({ idToken, phone }),
             });
 
             if (!res.ok) throw new Error("Phone Login failed");

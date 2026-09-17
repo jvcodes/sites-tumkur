@@ -40,6 +40,7 @@ class SiteSerializer(serializers.Serializer):
     loan_facility = serializers.BooleanField(default=False)
     
     bbmp_approved = serializers.BooleanField(default=False)
+    tuda_approved = serializers.BooleanField(default=False, required=False)
     a_khata = serializers.BooleanField(default=False)
     clear_title = serializers.BooleanField(default=False)
     bank_loan_approved = serializers.BooleanField(default=False)
@@ -62,8 +63,25 @@ class SiteSerializer(serializers.Serializer):
         allow_null=True
     )
 
+    nearby_landmarks = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_null=True
+    )
+
     status = serializers.CharField(read_only=True)
     
     # Optional visit tracking fields
     visit_date = serializers.DateTimeField(required=False, allow_null=True)
     visit_status = serializers.CharField(required=False, allow_null=True)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        # Bidirectional fallback between tuda_approved and bbmp_approved
+        tuda_val = instance.get("tuda_approved") if isinstance(instance, dict) else getattr(instance, "tuda_approved", None)
+        bbmp_val = instance.get("bbmp_approved") if isinstance(instance, dict) else getattr(instance, "bbmp_approved", None)
+        
+        effective_approved = bool(tuda_val if tuda_val is not None else bbmp_val)
+        ret["tuda_approved"] = effective_approved
+        ret["bbmp_approved"] = effective_approved
+        return ret

@@ -1,0 +1,106 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Tumkur Landmarks — SiteHub Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin:0; font-family:'Inter',sans-serif; background:#f1f5f9; }
+    .layout { display:flex; min-height:100vh; }
+    .main { flex:1; padding:32px; overflow-y:auto; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  {% include "partials/admin_nav.html" %}
+
+  <main class="main">
+    <div style="margin-bottom:28px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h1 style="font-size:24px; font-weight:800; color:#0f172a; margin:0;">Manage Key Landmarks</h1>
+        <p style="color:#64748b; margin:4px 0 0;">Define key Tumkur landmarks available for sellers to specify distances when uploading properties.</p>
+      </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% if message %}
+    <div style="background:#dcfce7; border:1px solid #86efac; color:#166534; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:14px; font-weight:500;">
+      ✅ {{ message }}
+    </div>
+    {% endif %}
+
+    <div style="display:grid; grid-template-columns:1fr 360px; gap:24px; align-items:start;">
+      <!-- Landmarks Table -->
+      <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); overflow:hidden;">
+        <div style="padding:16px 20px; border-bottom:1px solid #f1f5f9; font-size:14px; font-weight:700; color:#0f172a;">
+          Configured Landmarks ({{ total_landmarks }})
+        </div>
+        <table style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f8fafc;">
+              <th style="text-align:left; padding:10px 16px; font-size:11px; color:#64748b; text-transform:uppercase;">Landmark Name</th>
+              <th style="text-align:left; padding:10px 16px; font-size:11px; color:#64748b; text-transform:uppercase;">Category</th>
+              <th style="text-align:right; padding:10px 16px; font-size:11px; color:#64748b; text-transform:uppercase;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for lm in landmarks %}
+            <tr style="border-top:1px solid #f1f5f9;">
+              <td style="padding:12px 16px; font-size:14px; font-weight:600; color:#0f172a;">📍 {{ lm.name }}</td>
+              <td style="padding:12px 16px; font-size:13px; color:#475569;">
+                <span style="background:#eff6ff; color:#1e40af; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px;">{{ lm.category }}</span>
+              </td>
+              <td style="padding:12px 16px; text-align:right;">
+                <form method="POST" action="/admin/landmarks/delete/" style="display:inline;" onsubmit="return confirm('Remove landmark {{ lm.name }}?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="landmark_id" value="{{ lm.id }}">
+                  <input type="hidden" name="name" value="{{ lm.name }}">
+                  <button type="submit" style="background:#fee2e2; color:#b91c1c; border:none; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="3" style="padding:24px; text-align:center; color:#94a3b8; font-size:14px;">No landmarks configured yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Add Landmark Form -->
+      <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); padding:24px;">
+        <h2 style="font-size:16px; font-weight:700; color:#0f172a; margin:0 0 16px;">Add New Landmark</h2>
+        <form method="POST" action="/admin/landmarks/add/">
+          {% csrf_token %}
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:4px;">Landmark Name</label>
+            <input type="text" name="name" placeholder="e.g. Siddaganga Mutt, SIT Campus" required
+              style="width:100%; border:1px solid #d1d5db; border-radius:8px; padding:8px 12px; font-size:14px; box-sizing:border-box;">
+          </div>
+          <div style="margin-bottom:20px;">
+            <label style="display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:4px;">Category</label>
+            <select name="category" style="width:100%; border:1px solid #d1d5db; border-radius:8px; padding:8px 12px; font-size:14px; box-sizing:border-box;">
+              <option value="Transport">Transport (Bus Stand, Railway)</option>
+              <option value="Education">Education (College, School, University)</option>
+              <option value="Healthcare">Healthcare (Hospital, Clinic)</option>
+              <option value="Commercial">Commercial / Shopping / Market</option>
+              <option value="Heritage">Heritage / Temple / Tourist</option>
+              <option value="Connectivity">Connectivity (Highway, Ring Road)</option>
+              <option value="Industrial">Industrial / Tech Park</option>
+              <option value="Government">Government / Public Office</option>
+              <option value="General" selected>General</option>
+            </select>
+          </div>
+          <button type="submit"
+            style="width:100%; background:#2563eb; color:#fff; border:none; border-radius:8px; padding:10px; font-size:14px; font-weight:600; cursor:pointer;">
+            + Add Landmark
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

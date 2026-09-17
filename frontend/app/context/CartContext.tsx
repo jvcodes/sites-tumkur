@@ -80,7 +80,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const formattedDbCart: CartItem[] = dbCart.map((site: any) => ({
             site_code: site.site_code,
             name: site.name,
-            location: site.location?.name || "Unknown Location",
+            location: site.location?.name || site.location || "Unknown Location",
             price: Number(site.price),
             image: site.images?.[0] || "/no-image.svg",
             images: site.images,
@@ -91,8 +91,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             facing: site.facing,
           }));
 
-          // 3. Merge local and DB cart
-          const merged = deduplicate([...formattedDbCart, ...localCart]);
+          // 3. Merge local and DB cart (DB overrides local to fix stale data)
+          const merged = deduplicate([...localCart, ...formattedDbCart]);
           
           // 4. Update React state and local storage
           saveCartLocally(merged);

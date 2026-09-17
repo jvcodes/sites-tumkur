@@ -32,3 +32,8 @@ frontend/.env.local
 
 secrets.txt
 scratch/
+
+# Mobile builds & native projects
+*.apk
+frontend/android/
+frontend/ios/

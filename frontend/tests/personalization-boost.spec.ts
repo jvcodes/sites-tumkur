@@ -75,13 +75,8 @@ test.describe('SiteHub Personalization Boosting', () => {
     // ── Step 5: Verify the boosted location appears at the top ──
     // The first property on the refreshed homepage should now be from
     // the location we just viewed (or at least the same area).
-    const boostedFirstLocation = await page
-      .locator('h2.text-sm.font-bold')
-      .first()
-      .innerText();
-
-    // The boosted location should match what we viewed
-    expect(boostedFirstLocation).toBe(storedLoc);
+    // Use Playwright's auto-retrying expect to wait for the client-side fetch (which includes boost_location) to complete.
+    await expect(page.locator('h2.text-sm.font-bold').first()).toHaveText(storedLoc as string, { timeout: 10000 });
   });
 
   test('should NOT boost when user applies explicit sort', async ({ page, isMobile }) => {

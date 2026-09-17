@@ -4,11 +4,13 @@ from .views import sites as site_views
 from .views import bookings as booking_views
 from .views import locations as location_views
 from .views import agents as agent_views
+from .views import landmarks as landmark_views
 
 urlpatterns = [
     re_path(r'^sites/?$', site_views.approved_sites_api),
     re_path(r'^sites/filter/?$', site_views.filter_sites_api),
     re_path(r'^sites/locations/?$', location_views.get_locations_api),
+    re_path(r'^sites/landmarks/?$', landmark_views.get_landmarks_api),
     re_path(r'^sites/images/delete/?$', site_views.delete_site_image_api),
     re_path(r'^sites/create/?$', site_views.create_site_api),
     re_path(r'^sites/update-by-code/(?P<site_code>[^/]+)/?$', site_views.update_site_by_code_api),
@@ -46,6 +48,11 @@ urlpatterns = [
     re_path(r'^admin/bookings/update/(?P<booking_id>[^/]+)/?$', booking_views.admin_update_booking),
     re_path(r'^admin/bookings/check-conflict/?$', booking_views.admin_check_conflict_api),
     re_path(r'^admin/user-profile/?$', site_views.admin_user_profile),
+
+    # Landmark Management
+    re_path(r'^admin/landmarks/?$', landmark_views.admin_landmarks_page),
+    re_path(r'^admin/landmarks/add/?$', landmark_views.admin_add_landmark),
+    re_path(r'^admin/landmarks/delete/?$', landmark_views.admin_delete_landmark),
 
     # -----------------------------------------------
     # 🔶 SiteHub Agent Portal

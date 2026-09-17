@@ -1,4 +1,4 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000');
 
 export class ApiError extends Error {
   status: number;
@@ -25,9 +25,14 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
   if (!response.ok) {
     let errorData;
     try {
-      errorData = await response.json();
+      const text = await response.text();
+      try {
+        errorData = JSON.parse(text);
+      } catch {
+        errorData = text;
+      }
     } catch {
-      errorData = await response.text();
+      errorData = "Unknown error";
     }
     
     throw new ApiError(

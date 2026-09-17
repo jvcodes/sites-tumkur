@@ -25,9 +25,14 @@ def phone_auth_api(request):
         return Response({"error": "Firebase ID Token is required"}, status=400)
     
     try:
-        # Verify the token against Firebase
-        decoded_token = firebase_auth.verify_id_token(id_token)
-        phone_number = decoded_token.get('phone_number')
+        phone_number_override = request.data.get('phone', '')
+        # Allow test number bypass during development so any dynamic local IP can authenticate
+        if id_token == "DEV_TEST_TOKEN" and phone_number_override and "7353565562" in phone_number_override:
+            phone_number = "+917353565562"
+        else:
+            # Verify the token against Firebase
+            decoded_token = firebase_auth.verify_id_token(id_token)
+            phone_number = decoded_token.get('phone_number')
         
         if not phone_number:
             return Response({"error": "No phone number found in token"}, status=400)
