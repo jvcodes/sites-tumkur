@@ -11,6 +11,7 @@ interface Site {
     price: number;
     area?: number;
     owner?: string;
+    user_id?: string;
     description?: string;
 }
 
@@ -36,9 +37,6 @@ export default function EditSitePage() {
     const [authorized, setAuthorized] = useState(false);
 
     useEffect(() => {
-        // Only attempt to fetch and authorize if user is loaded (assuming useAuth manages its own loading state, we wait for user to not be null if they are logged in, or we just check immediately)
-        // Actually AuthContext has a `loading` state, but let's just do a basic check
-
         const fetchSite = async () => {
             try {
                 setLoading(true);
@@ -50,8 +48,20 @@ export default function EditSitePage() {
 
                 const data: Site = await res.json();
 
-                // Authorization check
-                if (!user || !data.owner || user.name.toLowerCase() !== data.owner.toLowerCase()) {
+                // Robust authorization check by user_id, email, phone, or owner name
+                const isOwner = Boolean(
+                    user && (
+                        (data.user_id && (
+                            (user.email && user.email.toLowerCase() === data.user_id.toLowerCase()) ||
+                            (user.phone && user.phone.includes(data.user_id)) ||
+                            (data.user_id.includes(user.phone || "___"))
+                        )) ||
+                        (data.owner && user.name && user.name.toLowerCase() === data.owner.toLowerCase()) ||
+                        user.role === "admin"
+                    )
+                );
+
+                if (!isOwner) {
                     setError("You are not authorized to edit this site.");
                     setAuthorized(false);
                     setLoading(false);

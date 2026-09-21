@@ -1,11 +1,77 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import toast from "react-hot-toast";
+import ShareModal from "../../components/ShareModal";
+
+/**
+ * Reconstructs the filter API query string using state preserved in sessionStorage.
+ * This guarantees auto-prefetch adheres to the user's exact active search and filter constraints.
+ */
+function buildFilterUrl(parsedState: any, nextPage: number) {
+  const LIMIT = 12;
+  let minPrice = "";
+  let maxPrice = "";
+  let minArea = "";
+  let maxArea = "";
+
+  const selectedPrices: string[] = parsedState.selectedPrices || [];
+  if (selectedPrices.length > 0) {
+    const mins = selectedPrices.map((v: string) => parseInt(v.split("-")[0], 10)).filter((n) => !isNaN(n));
+    const maxs = selectedPrices.map((v: string) => parseInt(v.split("-")[1], 10)).filter((n) => !isNaN(n));
+    if (mins.length) minPrice = Math.min(...mins).toString();
+    if (maxs.length) maxPrice = Math.max(...maxs).toString();
+  }
+
+  const selectedAreas: string[] = parsedState.selectedAreas || [];
+  if (selectedAreas.length > 0) {
+    const mins = selectedAreas.map((v: string) => parseInt(v.split("-")[0], 10)).filter((n) => !isNaN(n));
+    const maxs = selectedAreas.map((v: string) => parseInt(v.split("-")[1], 10)).filter((n) => !isNaN(n));
+    if (mins.length) minArea = Math.min(...mins).toString();
+    if (maxs.length) maxArea = Math.max(...maxs).toString();
+  }
+
+  let url = `/api/sites/filter?page=${nextPage}&limit=${LIMIT}`;
+  if (parsedState.appliedSearch) url += `&search=${encodeURIComponent(parsedState.appliedSearch)}`;
+  if (parsedState.selectedLocations && parsedState.selectedLocations.length > 0) {
+    url += `&location=${encodeURIComponent(parsedState.selectedLocations.join(","))}`;
+  }
+  if (minPrice) url += `&min_price=${minPrice}`;
+  if (maxPrice) url += `&max_price=${maxPrice}`;
+  if (minArea) url += `&min_area=${minArea}`;
+  if (maxArea) url += `&max_area=${maxArea}`;
+  if (parsedState.selectedFacings && parsedState.selectedFacings.length > 0) {
+    url += `&facing=${encodeURIComponent(parsedState.selectedFacings.join(","))}`;
+  }
+  if (parsedState.sortOption) url += `&sort=${encodeURIComponent(parsedState.sortOption)}`;
+  if (parsedState.isLayoutFilter) url += `&is_layout=true`;
+
+  const hasActiveFilters =
+    parsedState.appliedSearch ||
+    (parsedState.selectedLocations && parsedState.selectedLocations.length > 0) ||
+    minPrice ||
+    maxPrice ||
+    minArea ||
+    maxArea ||
+    (parsedState.selectedFacings && parsedState.selectedFacings.length > 0) ||
+    parsedState.isLayoutFilter ||
+    parsedState.sortOption;
+
+  if (!hasActiveFilters && typeof window !== "undefined") {
+    try {
+      const preferredLoc = localStorage.getItem("sitehub_preferred_loc");
+      if (preferredLoc) {
+        url += `&boost_location=${encodeURIComponent(preferredLoc)}`;
+      }
+    } catch {}
+  }
+
+  return url;
+}
 
 interface AdjacentSite {
   site_code: string;
@@ -28,6 +94,7 @@ interface Site {
   description?: string;
   image?: string;
   images?: string[];
+  is_test?: boolean;
   youtube_url?: string;
   latitude?: number;
   longitude?: number;
@@ -81,6 +148,7 @@ export default function SiteDetails() {
   const { addToCart, isInCart } = useCart();
   const inVisitList = isInCart(siteCode);
   const [inWishlist, setInWishlist] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -133,55 +201,197 @@ export default function SiteDetails() {
   }, [siteCode, user]);
 
   // ----------------------------------
-  // DETERMINE PREVIOUS & NEXT PROPERTIES
-  // Priority: 1. User's active home feed sequence from sessionStorage
+  // DETERMINE PREVIOUS & NEXT PROPERTIES & AUTO-PREFETCH
+  // Priority: 1. User's active home feed sequence from sessionStorage (with auto-prefetching)
   //           2. Backend adjacent properties from MongoDB
   // ----------------------------------
-  const { effectivePrevSite, effectiveNextSite } = useMemo(() => {
-    let prev: AdjacentSite | null = site?.prev_site || null;
-    let next: AdjacentSite | null = site?.next_site || null;
-
+  const [feedSites, setFeedSites] = useState<any[]>(() => {
     if (typeof window !== "undefined") {
       try {
         const storedHome = sessionStorage.getItem("homeState");
         if (storedHome) {
           const parsed = JSON.parse(storedHome);
-          const feed: any[] = parsed.sites || [];
-          const idx = feed.findIndex(
-            (s) => (s.site_code || s.id_str || s._id) === siteCode
-          );
-          if (idx !== -1) {
-            if (idx > 0) {
-              const p = feed[idx - 1];
-              prev = {
-                site_code: p.site_code || p.id_str || p._id,
-                name: p.name,
-                price: p.price,
-                location: p.location,
-              };
-            } else {
-              prev = null;
-            }
-            if (idx < feed.length - 1) {
-              const n = feed[idx + 1];
-              next = {
-                site_code: n.site_code || n.id_str || n._id,
-                name: n.name,
-                price: n.price,
-                location: n.location,
-              };
-            } else {
-              next = null;
-            }
+          return parsed.sites || [];
+        }
+      } catch {}
+    }
+    return [];
+  });
+
+  const [feedHasMore, setFeedHasMore] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedHome = sessionStorage.getItem("homeState");
+        if (storedHome) {
+          const parsed = JSON.parse(storedHome);
+          return !!parsed.hasMore;
+        }
+      } catch {}
+    }
+    return false;
+  });
+
+  const [isPrefetchingFeed, setIsPrefetchingFeed] = useState(false);
+  const [isNavigatingNext, setIsNavigatingNext] = useState(false);
+  const prefetchPromiseRef = useRef<Promise<AdjacentSite | null> | null>(null);
+
+  // Sync state from sessionStorage when navigating to a new siteCode
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedHome = sessionStorage.getItem("homeState");
+        if (storedHome) {
+          const parsed = JSON.parse(storedHome);
+          if (Array.isArray(parsed.sites) && parsed.sites.length > 0) {
+            setFeedSites(parsed.sites);
+            setFeedHasMore(!!parsed.hasMore);
           }
         }
-      } catch (err) {
-        // Fallback to backend prev/next if sessionStorage parsing fails
+      } catch {}
+    }
+  }, [siteCode]);
+
+  const prefetchNextBatch = useCallback(async (): Promise<AdjacentSite | null> => {
+    if (typeof window === "undefined") return null;
+    const storedHome = sessionStorage.getItem("homeState");
+    if (!storedHome) return null;
+
+    try {
+      const parsed = JSON.parse(storedHome);
+      if (!parsed.hasMore) {
+        setFeedHasMore(false);
+        return null;
+      }
+
+      setIsPrefetchingFeed(true);
+      const currentPage = parsed.page || Math.ceil((parsed.sites?.length || 12) / 12);
+      const nextPage = currentPage + 1;
+      const url = buildFilterUrl(parsed, nextPage);
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      const results: any[] = data.results ?? (Array.isArray(data) ? data : []);
+      const tot: number = data.total ?? (parsed.total || 0);
+
+      const existingSites: any[] = parsed.sites || [];
+      const seen = new Set(
+        existingSites.map((s: any) => s.site_code || s.id_str || s._id || s.id)
+      );
+      const newSites = results.filter((s: any) => {
+        const code = s.site_code || s.id_str || s._id || s.id;
+        return code && !seen.has(code);
+      });
+
+      const updatedSites = [...existingSites, ...newSites];
+      const stillHasMore = nextPage * 12 < tot && newSites.length > 0;
+
+      const updatedState = {
+        ...parsed,
+        sites: updatedSites,
+        page: nextPage,
+        total: tot,
+        hasMore: stillHasMore,
+      };
+
+      sessionStorage.setItem("homeState", JSON.stringify(updatedState));
+      setFeedSites(updatedSites);
+      setFeedHasMore(stillHasMore);
+
+      if (newSites.length > 0) {
+        const firstNew = newSites[0];
+        return {
+          site_code: firstNew.site_code || firstNew.id_str || firstNew._id || firstNew.id,
+          name: firstNew.name,
+          price: firstNew.price,
+          location: firstNew.location,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error("Failed to prefetch next batch of properties:", err);
+      return null;
+    } finally {
+      setIsPrefetchingFeed(false);
+    }
+  }, []);
+
+  const triggerPrefetch = useCallback(() => {
+    if (prefetchPromiseRef.current) {
+      return prefetchPromiseRef.current;
+    }
+    const promise = prefetchNextBatch().finally(() => {
+      prefetchPromiseRef.current = null;
+    });
+    prefetchPromiseRef.current = promise;
+    return promise;
+  }, [prefetchNextBatch]);
+
+  // Auto-prefetch when within the last 3 properties of the loaded batch
+  useEffect(() => {
+    if (!feedSites.length || !feedHasMore) return;
+    const idx = feedSites.findIndex(
+      (s) => (s.site_code || s.id_str || s._id || s.id) === siteCode
+    );
+    if (idx !== -1 && idx >= feedSites.length - 3) {
+      triggerPrefetch();
+    }
+  }, [siteCode, feedSites, feedHasMore, triggerPrefetch]);
+
+  const handleNextWhenPending = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (isNavigatingNext) return;
+    setIsNavigatingNext(true);
+    try {
+      const nextSite = await triggerPrefetch();
+      if (nextSite && nextSite.site_code) {
+        router.push(`/site/${nextSite.site_code}`);
+      }
+    } catch (err) {
+      console.error("Error navigating to next site:", err);
+    } finally {
+      setIsNavigatingNext(false);
+    }
+  };
+
+  const { effectivePrevSite, effectiveNextSite } = useMemo(() => {
+    let prev: AdjacentSite | null = site?.prev_site || null;
+    let next: AdjacentSite | null = site?.next_site || null;
+
+    if (feedSites.length > 0) {
+      const idx = feedSites.findIndex(
+        (s) => (s.site_code || s.id_str || s._id || s.id) === siteCode
+      );
+      if (idx !== -1) {
+        if (idx > 0) {
+          const p = feedSites[idx - 1];
+          prev = {
+            site_code: p.site_code || p.id_str || p._id || p.id,
+            name: p.name,
+            price: p.price,
+            location: p.location,
+          };
+        } else {
+          prev = null;
+        }
+
+        if (idx < feedSites.length - 1) {
+          const n = feedSites[idx + 1];
+          next = {
+            site_code: n.site_code || n.id_str || n._id || n.id,
+            name: n.name,
+            price: n.price,
+            location: n.location,
+          };
+        } else {
+          next = null;
+        }
       }
     }
 
     return { effectivePrevSite: prev, effectiveNextSite: next };
-  }, [site, siteCode]);
+  }, [site, siteCode, feedSites]);
 
   // ----------------------------------
   // BULLETPROOF BACK TO PROPERTIES HANDLER
@@ -303,12 +513,12 @@ export default function SiteDetails() {
     <div className="bg-gray-50 min-h-screen pb-16">
       {/* 🔹 STICKY NAVIGATION BAR (Compact & Small) */}
       <div className="sticky top-[57px] md:top-[65px] z-40 bg-white/95 backdrop-blur-md shadow-2xs border-b border-gray-200 px-3 md:px-6 py-1.5 mb-6 transition-all">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 min-w-0">
           <Link
             href="/"
             onClick={handleBackToProperties}
             data-testid="back-to-properties-top"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-gray-700 hover:text-blue-700 hover:bg-gray-100 transition-colors group"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-gray-700 hover:text-blue-700 hover:bg-gray-100 transition-colors group shrink-0"
           >
             <span data-testid="back-top-arrow-highlight" className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shadow-2xs group-hover:scale-105 transition-transform">
               ←
@@ -317,7 +527,7 @@ export default function SiteDetails() {
           </Link>
 
           {/* Quick Prev / Next Adjacent Property Switcher (Small Buttons) */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {effectivePrevSite ? (
               <Link
                 href={`/site/${effectivePrevSite.site_code}`}
@@ -351,6 +561,19 @@ export default function SiteDetails() {
                   →
                 </span>
               </Link>
+            ) : feedHasMore ? (
+              <button
+                onClick={handleNextWhenPending}
+                disabled={isNavigatingNext}
+                data-testid="next-property-top"
+                className="px-2.5 py-1 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 text-xs font-medium text-blue-700 transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                title="Loading next properties..."
+              >
+                <span>Next</span>
+                <span data-testid="next-arrow-highlight" className="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center animate-pulse">
+                  →
+                </span>
+              </button>
             ) : (
               <span className="px-2.5 py-1 rounded-md border border-gray-100 bg-gray-50 text-xs font-normal text-gray-300 cursor-not-allowed flex items-center gap-1">
                 <span>Next</span>
@@ -359,6 +582,18 @@ export default function SiteDetails() {
                 </span>
               </span>
             )}
+
+            {/* Share Property Button (Compact) */}
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              data-testid="share-property-top-btn"
+              aria-label="Share property"
+              className="px-2.5 py-1 rounded-md border border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 text-xs font-semibold text-gray-700 hover:text-emerald-700 transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs ml-1"
+              title="Share property on WhatsApp or copy link"
+            >
+              <span className="text-emerald-600 font-bold">↗️</span>
+              <span className="hidden sm:inline">Share</span>
+            </button>
           </div>
         </div>
       </div>
@@ -367,14 +602,14 @@ export default function SiteDetails() {
         {/* LEFT COLUMN: Main content */}
         <div className="space-y-8">
           {/* IDENTIFICATION & HEADER */}
-          <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 min-w-0">
             <span className="inline-block bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full font-bold mb-3 border border-red-200 uppercase tracking-widest">
               ID: {site.site_code}
             </span>
-            <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2 break-words">
               {site.name || "Real Estate Plot"}
             </h1>
-            <p className="text-gray-600 text-lg flex items-center">
+            <p className="text-gray-600 text-base sm:text-lg flex flex-wrap items-center break-words">
               📍 {site.location}{" "}
               {site.landmark
                 ? site.landmark.toLowerCase().startsWith("near")
@@ -626,6 +861,15 @@ export default function SiteDetails() {
               >
                 {inWishlist ? "❤️ Saved to Wishlist" : "❤️ Add to Wishlist"}
               </button>
+
+              <button
+                onClick={() => setIsShareModalOpen(true)}
+                data-testid="share-property-sidebar-btn"
+                className="w-full py-3 rounded-lg font-bold border-2 border-emerald-500 text-emerald-700 hover:bg-emerald-50 flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-2xs"
+              >
+                <span className="text-base">↗️</span>
+                <span>Share via WhatsApp / Link</span>
+              </button>
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-100">
@@ -689,6 +933,19 @@ export default function SiteDetails() {
                 →
               </span>
             </Link>
+          ) : feedHasMore ? (
+            <button
+              onClick={handleNextWhenPending}
+              disabled={isNavigatingNext}
+              data-testid="next-property-bottom"
+              className="px-2.5 md:px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-xs font-semibold text-blue-700 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer group"
+              title="Loading next properties..."
+            >
+              <span>Next</span>
+              <span data-testid="next-bottom-arrow-highlight" className="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center animate-pulse">
+                →
+              </span>
+            </button>
           ) : (
             <span className="px-2.5 md:px-3 py-1.5 rounded-lg border border-gray-100 bg-gray-50 text-xs font-normal text-gray-300 cursor-not-allowed flex items-center gap-1.5">
               <span>Next</span>
@@ -697,8 +954,36 @@ export default function SiteDetails() {
               </span>
             </span>
           )}
+
+          {/* Share Button (Small) */}
+          <button
+            onClick={() => setIsShareModalOpen(true)}
+            data-testid="share-property-bottom-btn"
+            className="px-2.5 md:px-3 py-1.5 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 text-xs font-semibold text-gray-700 hover:text-emerald-700 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 ml-1"
+            title="Share property on WhatsApp or copy link"
+          >
+            <span className="text-emerald-600 font-bold">↗️</span>
+            <span className="hidden sm:inline">Share</span>
+          </button>
         </div>
       </div>
+
+      {/* 🔹 CROSS-PLATFORM WHATSAPP & COPY LINK SHARE MODAL */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        site={{
+          site_code: site.site_code,
+          name: site.name,
+          location: site.location,
+          price: site.price,
+          area: site.area,
+          dimension: site.dimension,
+          image: siteImages[0] || "/no-image.svg",
+          images: site.images,
+          tuda_approved: site.tuda_approved,
+        }}
+      />
     </div>
   );
 }

@@ -33,10 +33,13 @@ export default function ProfilePage() {
     
     const [profileSaving, setProfileSaving] = useState(false);
     const [profileMsg, setProfileMsg] = useState("");
+    const [stats, setStats] = useState({ visits: 0, bookings: 0, sites: 0 });
 
     useEffect(() => {
         if (user?.email || user?.phone) {
             const queryParam = user?.email ? `email=${encodeURIComponent(user.email)}` : `phone=${encodeURIComponent(user.phone || "")}`;
+            const identParam = `user_id=${encodeURIComponent(user.email || user.phone || "")}`;
+
             fetch(`/api/auth/profile/me?${queryParam}`)
                 .then(res => res.json())
                 .then(data => {
@@ -49,11 +52,25 @@ export default function ProfilePage() {
                     setLoading(false);
                 })
                 .catch(() => setLoading(false));
+
+            // Fetch activity counts in parallel
+            Promise.all([
+                fetch(`/api/sites/visits/me?${identParam}`).then(r => r.json()).catch(() => []),
+                fetch(`/api/bookings/me?${identParam}`).then(r => r.json()).catch(() => []),
+                fetch(`/api/sites/my-sites?${identParam}${user.name ? `&owner=${encodeURIComponent(user.name)}` : ''}`).then(r => r.json()).catch(() => [])
+            ]).then(([visitsData, bookingsData, sitesData]) => {
+                setStats({
+                    visits: Array.isArray(visitsData) ? visitsData.length : 0,
+                    bookings: Array.isArray(bookingsData) ? bookingsData.length : 0,
+                    sites: Array.isArray(sitesData) ? sitesData.length : 0,
+                });
+            });
         }
     }, [user]);
 
     const savePhone = async () => {
-        if (!user?.email) return;
+        const identifier = user?.email || user?.phone;
+        if (!identifier) return;
         const digitsOnly = newPhone.replace(/\D/g, "");
         const clean = digitsOnly.slice(-10);
         if (!/^[6-9]\d{9}$/.test(clean) || digitsOnly.length < 10) {
@@ -66,13 +83,15 @@ export default function ProfilePage() {
             const res = await fetch("/api/auth/update-phone", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: user.email, phone: clean }),
+                body: JSON.stringify({ identifier, phone: clean }),
             });
             const data = await res.json();
             if (res.ok) {
                 setProfile(prev => prev ? { ...prev, phone: clean } : prev);
+                updateUser({ phone: clean });
                 setEditingPhone(false);
                 setPhoneMsg("✅ Mobile number saved!");
+                setTimeout(() => setPhoneMsg(""), 3000);
             } else {
                 setPhoneMsg(`❌ ${data.error || "Failed to save. Try again."}`);
             }
@@ -127,40 +146,63 @@ export default function ProfilePage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-gray-500">Loading your profile...</div>;
-    if (!profile) return <div className="p-8 text-red-500">Could not load profile. Please try again.</div>;
+    if (loading) {
+        return (
+            <div className="space-y-6 animate-pulse">
+                <div className="h-20 bg-gray-100 rounded-xl"></div>
+                <div className="h-8 bg-gray-100 w-1/3 rounded"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="h-16 bg-gray-100 rounded"></div>
+                    <div className="h-16 bg-gray-100 rounded"></div>
+                </div>
+            </div>
+        );
+    }
+    if (!profile) return <div className="p-8 text-red-500 font-semibold">Could not load profile. Please try again.</div>;
 
     return (
         <div className="space-y-8">
-            {/* Mobile Navigation Hub - Visible to all, but especially crucial for mobile since they don't have the hover dropdown */}
-            <div className="md:hidden">
-                <h1 className="text-2xl font-bold text-gray-800 border-b pb-4 mb-4">My Account</h1>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
-                    <Link href="/profile/visits" className="flex items-center gap-3 bg-white p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
-                        <span className="text-2xl">👁️</span>
-                        <div className="flex-1">
-                            <p className="font-bold text-gray-800">My Visits</p>
-                            <p className="text-xs text-gray-500">Recently viewed properties</p>
+            {/* Quick Activity Summary Strip */}
+            <div>
+                <h1 className="text-2xl font-bold text-gray-800 pb-3">My Dashboard</h1>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Link
+                        href="/profile/visits"
+                        className="bg-blue-50/70 border border-blue-200/70 hover:border-blue-400 rounded-xl p-4 transition-all hover:shadow-sm flex items-center gap-4 group min-w-0"
+                    >
+                        <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform shrink-0">
+                            👁️
                         </div>
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
-                    </Link>
-                    
-                    <Link href="/profile/booked" className="flex items-center gap-3 bg-white p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
-                        <span className="text-2xl">📅</span>
-                        <div className="flex-1">
-                            <p className="font-bold text-gray-800">Booked for Visit</p>
-                            <p className="text-xs text-gray-500">Your scheduled site visits</p>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-2xl font-black text-gray-900 truncate">{stats.visits}</p>
+                            <p className="text-xs font-semibold text-gray-600 truncate">Properties Viewed</p>
                         </div>
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
                     </Link>
 
-                    <Link href="/profile/my-sites" className="flex items-center gap-3 bg-white p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
-                        <span className="text-2xl">🏠</span>
-                        <div className="flex-1">
-                            <p className="font-bold text-gray-800">My Uploaded Sites</p>
-                            <p className="text-xs text-gray-500">Manage your properties</p>
+                    <Link
+                        href="/profile/booked"
+                        className="bg-emerald-50/70 border border-emerald-200/70 hover:border-emerald-400 rounded-xl p-4 transition-all hover:shadow-sm flex items-center gap-4 group min-w-0"
+                    >
+                        <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform shrink-0">
+                            📅
                         </div>
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-2xl font-black text-gray-900 truncate">{stats.bookings}</p>
+                            <p className="text-xs font-semibold text-gray-600 truncate">Visits Scheduled</p>
+                        </div>
+                    </Link>
+
+                    <Link
+                        href="/profile/my-sites"
+                        className="bg-purple-50/70 border border-purple-200/70 hover:border-purple-400 rounded-xl p-4 transition-all hover:shadow-sm flex items-center gap-4 group min-w-0"
+                    >
+                        <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform shrink-0">
+                            🏠
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-2xl font-black text-gray-900 truncate">{stats.sites}</p>
+                            <p className="text-xs font-semibold text-gray-600 truncate">Uploaded Properties</p>
+                        </div>
                     </Link>
                 </div>
             </div>
@@ -180,37 +222,39 @@ export default function ProfilePage() {
                 <div>
                     <label className="block text-xs uppercase tracking-wider text-gray-500 font-semibold mb-1">Full Name</label>
                     {editingName ? (
-                        <div className="flex gap-2 items-center">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                             <input
                                 type="text"
                                 placeholder="Enter your full name"
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
-                                className="flex-1 border rounded px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                                className="flex-1 min-w-0 border rounded px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
                                 autoFocus
                             />
-                            <button
-                                onClick={() => saveProfile("name")}
-                                disabled={profileSaving}
-                                className="bg-blue-600 text-white px-4 py-2.5 rounded font-bold text-sm hover:bg-blue-700 disabled:opacity-60"
-                            >
-                                {profileSaving ? "..." : "Save"}
-                            </button>
-                            <button
-                                onClick={() => { setEditingName(false); setNewName(profile.name || ""); }}
-                                className="px-4 py-2.5 rounded border text-sm text-gray-600 hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
+                            <div className="flex gap-2 shrink-0">
+                                <button
+                                    onClick={() => saveProfile("name")}
+                                    disabled={profileSaving}
+                                    className="bg-blue-600 text-white px-4 py-2.5 rounded font-bold text-sm hover:bg-blue-700 disabled:opacity-60 transition"
+                                >
+                                    {profileSaving ? "..." : "Save"}
+                                </button>
+                                <button
+                                    onClick={() => { setEditingName(false); setNewName(profile.name || ""); }}
+                                    className="px-4 py-2.5 rounded border text-sm text-gray-600 hover:bg-gray-50 transition"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     ) : (
-                        <div className="flex gap-2 items-center border rounded px-3 py-2.5 bg-gray-50">
-                            <span className="flex-1 text-gray-800 font-medium">
+                        <div className="flex gap-2 items-center border rounded px-3 py-2.5 bg-gray-50 min-w-0">
+                            <span className="flex-1 text-gray-800 font-medium truncate min-w-0" title={profile.name}>
                                 {profile.name || <span className="text-gray-400 italic">Not set</span>}
                             </span>
                             <button
                                 onClick={() => setEditingName(true)}
-                                className="text-blue-600 text-sm font-bold hover:underline"
+                                className="text-blue-600 text-sm font-bold hover:underline shrink-0"
                             >
                                 Edit
                             </button>
@@ -222,37 +266,39 @@ export default function ProfilePage() {
                 <div>
                     <label className="block text-xs uppercase tracking-wider text-gray-500 font-semibold mb-1">Email Address</label>
                     {editingEmail ? (
-                        <div className="flex gap-2 items-center">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                             <input
                                 type="email"
                                 placeholder="Enter your email"
                                 value={newEmail}
                                 onChange={(e) => setNewEmail(e.target.value)}
-                                className="flex-1 border rounded px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                                className="flex-1 min-w-0 border rounded px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
                                 autoFocus
                             />
-                            <button
-                                onClick={() => saveProfile("email")}
-                                disabled={profileSaving}
-                                className="bg-blue-600 text-white px-4 py-2.5 rounded font-bold text-sm hover:bg-blue-700 disabled:opacity-60"
-                            >
-                                {profileSaving ? "..." : "Save"}
-                            </button>
-                            <button
-                                onClick={() => { setEditingEmail(false); setNewEmail(profile.email || ""); }}
-                                className="px-4 py-2.5 rounded border text-sm text-gray-600 hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
+                            <div className="flex gap-2 shrink-0">
+                                <button
+                                    onClick={() => saveProfile("email")}
+                                    disabled={profileSaving}
+                                    className="bg-blue-600 text-white px-4 py-2.5 rounded font-bold text-sm hover:bg-blue-700 disabled:opacity-60 transition"
+                                >
+                                    {profileSaving ? "..." : "Save"}
+                                </button>
+                                <button
+                                    onClick={() => { setEditingEmail(false); setNewEmail(profile.email || ""); }}
+                                    className="px-4 py-2.5 rounded border text-sm text-gray-600 hover:bg-gray-50 transition"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     ) : (
-                        <div className="flex gap-2 items-center border rounded px-3 py-2.5 bg-gray-50">
-                            <span className="flex-1 text-gray-800 font-medium">
+                        <div className="flex gap-2 items-center border rounded px-3 py-2.5 bg-gray-50 min-w-0">
+                            <span className="flex-1 text-gray-800 font-medium truncate min-w-0 break-all" title={profile.email}>
                                 {profile.email || <span className="text-gray-400 italic">Not added yet</span>}
                             </span>
                             <button
                                 onClick={() => setEditingEmail(true)}
-                                className="text-blue-600 text-sm font-bold hover:underline"
+                                className="text-blue-600 text-sm font-bold hover:underline shrink-0"
                             >
                                 {profile.email ? "Edit" : "+ Add"}
                             </button>
@@ -266,45 +312,47 @@ export default function ProfilePage() {
                         Mobile Number
                     </label>
                     {editingPhone ? (
-                        <div className="flex gap-2 items-center">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                             <input
                                 type="tel"
                                 maxLength={10}
                                 placeholder="10-digit mobile number"
                                 value={newPhone}
                                 onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                                className="flex-1 border rounded px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                                className="flex-1 min-w-0 border rounded px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
                                 autoFocus
                             />
-                            <button
-                                onClick={savePhone}
-                                disabled={phoneSaving}
-                                className="bg-blue-600 text-white px-4 py-2.5 rounded font-bold text-sm hover:bg-blue-700 disabled:opacity-60"
-                            >
-                                {phoneSaving ? "Saving..." : "Save"}
-                            </button>
-                            <button
-                                onClick={() => { setEditingPhone(false); setPhoneMsg(""); setNewPhone(profile.phone || ""); }}
-                                className="px-4 py-2.5 rounded border text-sm text-gray-600 hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
+                            <div className="flex gap-2 shrink-0">
+                                <button
+                                    onClick={savePhone}
+                                    disabled={phoneSaving}
+                                    className="bg-blue-600 text-white px-4 py-2.5 rounded font-bold text-sm hover:bg-blue-700 disabled:opacity-60 transition"
+                                >
+                                    {phoneSaving ? "Saving..." : "Save"}
+                                </button>
+                                <button
+                                    onClick={() => { setEditingPhone(false); setPhoneMsg(""); setNewPhone(profile.phone || ""); }}
+                                    className="px-4 py-2.5 rounded border text-sm text-gray-600 hover:bg-gray-50 transition"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     ) : (
-                        <div className="flex gap-2 items-center border rounded px-3 py-2.5 bg-gray-50">
-                            <span className="flex-1 text-gray-800 font-medium">
+                        <div className="flex gap-2 items-center border rounded px-3 py-2.5 bg-gray-50 min-w-0">
+                            <span className="flex-1 text-gray-800 font-medium truncate min-w-0" title={profile.phone}>
                                 {profile.phone || <span className="text-gray-400 italic">Not added yet</span>}
                             </span>
                             <button
                                 onClick={() => setEditingPhone(true)}
-                                className="text-blue-600 text-sm font-bold hover:underline"
+                                className="text-blue-600 text-sm font-bold hover:underline shrink-0"
                             >
                                 {profile.phone ? "Edit" : "+ Add"}
                             </button>
                         </div>
                     )}
                     {phoneMsg && (
-                        <p className="text-sm mt-1.5 font-medium text-gray-700">{phoneMsg}</p>
+                        <p className="text-sm mt-1.5 font-medium text-gray-700 break-words">{phoneMsg}</p>
                     )}
                     <p className="text-xs text-gray-400 mt-1">
                         Your mobile number is used to confirm site visit bookings.
@@ -314,9 +362,9 @@ export default function ProfilePage() {
                 {/* Role */}
                 <div>
                     <label className="block text-xs uppercase tracking-wider text-gray-500 font-semibold mb-1">Account Type</label>
-                    <div className="p-3 bg-gray-50 border rounded text-gray-800 font-medium flex gap-2 items-center">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                        {profile.role}
+                    <div className="p-3 bg-gray-50 border rounded text-gray-800 font-medium flex gap-2 items-center min-w-0">
+                        <span className="w-2 h-2 rounded-full bg-green-500 shrink-0"></span>
+                        <span className="truncate">{profile.role}</span>
                     </div>
                 </div>
             </div>

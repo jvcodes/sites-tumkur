@@ -190,12 +190,13 @@ def my_profile_api(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def update_phone_api(request):
-    """Update phone number for a user profile. Payload: { email, phone }"""
+    """Update phone number for a user profile. Payload: { email, phone } or { identifier, phone }"""
     email = request.data.get('email', '').strip()
+    identifier = request.data.get('identifier', '').strip() or email
     phone = request.data.get('phone', '').strip()
 
-    if not email or not phone:
-        return Response({"error": "Email and phone are required"}, status=400)
+    if not identifier or not phone:
+        return Response({"error": "Identifier and phone are required"}, status=400)
 
     # Validate Indian phone: 10 digits starting with 6-9
     import re
@@ -207,8 +208,16 @@ def update_phone_api(request):
     phone = clean_phone
 
     from listings.mongo import user_profiles_collection
+
+    if "@" in identifier:
+        query = {"email": identifier}
+    else:
+        ident_digits = re.sub(r'\D', '', identifier)
+        clean_ident = ident_digits[-10:] if len(ident_digits) >= 10 else ident_digits
+        query = {"phone": clean_ident}
+
     result = user_profiles_collection.update_one(
-        {"email": email},
+        query,
         {"$set": {"phone": phone}},
         upsert=False
     )
@@ -222,21 +231,28 @@ def update_phone_api(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def update_profile_api(request):
-    """Update profile details for a user. Payload: { identifier, name, email }
+    """Update profile details for a user. Payload: { identifier, name, email, phone }
        identifier can be the current email or phone.
     """
     identifier = request.data.get('identifier', '').strip()
     name = request.data.get('name', '').strip()
     new_email = request.data.get('email', '').strip()
+    new_phone = request.data.get('phone', '').strip()
 
     if not identifier:
         return Response({"error": "Identifier is required"}, status=400)
 
+    import re
     update_fields = {}
     if name:
         update_fields["name"] = name
     if new_email:
         update_fields["email"] = new_email
+    if new_phone:
+        digits_only = re.sub(r'\D', '', new_phone)
+        clean_phone = digits_only[-10:] if len(digits_only) >= 10 else digits_only
+        if re.match(r'^[6-9]\d{9}$', clean_phone) and len(digits_only) >= 10:
+            update_fields["phone"] = clean_phone
 
     if not update_fields:
         return Response({"error": "No fields to update"}, status=400)
@@ -244,7 +260,6 @@ def update_profile_api(request):
     from listings.mongo import user_profiles_collection
     
     # Clean identifier if it's a phone number
-    import re
     if "@" not in identifier:
         digits = re.sub(r'\D', '', identifier)
         identifier = digits[-10:] if len(digits) >= 10 else digits

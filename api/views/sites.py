@@ -1,3 +1,4 @@
+import os
 import re
 from datetime import datetime
 from rest_framework import status
@@ -63,6 +64,16 @@ def filter_sites_api(request):
     # ── Base filter: only show approved, non-deleted sites ──
     query = {"status": "approved", "is_deleted": {"$ne": True}}
 
+    # ── Test vs Real Data Isolation (Controlled via backend settings / env) ──
+    from django.conf import settings
+    show_test_data = getattr(settings, 'SHOW_TEST_DATA', True)
+    is_prod = os.environ.get("ENVIRONMENT", "").lower() == "production"
+    real_only = request.GET.get("real_only", "").lower() in ["true", "1"]
+
+    if not show_test_data or is_prod or real_only:
+        # Strictly serve ONLY authentic real properties (hide mock/seed data)
+        query["is_test"] = {"$ne": True}
+
     # ── Extract all filter parameters from the request ──
     location = request.GET.get("location")
     search = request.GET.get("search")
@@ -79,14 +90,15 @@ def filter_sites_api(request):
     page = int(request.GET.get("page", 1))
 
     # ── CACHING: Default Homepage ──
-    has_filters = any([location, search, min_price, max_price, min_area, max_area, facing, site_code, is_layout, has_video])
+    has_filters = any([location, search, min_price, max_price, min_area, max_area, facing, site_code, is_layout, has_video, real_only])
     has_sort = bool(sort)
     has_boost = bool(boost_location)
     is_default_query = not has_filters and not has_sort and not has_boost and page == 1
 
     if is_default_query:
         from django.core.cache import cache
-        cached_response = cache.get("default_homepage_sites")
+        cache_key = "default_homepage_sites_real" if (is_prod or real_only or not show_test_data) else "default_homepage_sites_all"
+        cached_response = cache.get(cache_key)
         if cached_response:
             return Response(cached_response)
 
@@ -305,6 +317,7 @@ def create_site_api(request):
             "dimension": dimension,
             "facing": facing,
             "status": request.POST.get("status", "pending"),  # Usually pending initial upload
+            "is_test": get_bool("is_test"),  # Defaults to False for authentic properties
             "youtube_url": youtube_url,
             "user_id": user_id,
             "created_at": datetime.utcnow(),
@@ -496,16 +509,43 @@ def update_site_by_code_api(request, site_code):
 
 @api_view(['DELETE'])
 def delete_site_by_code_api(request, site_code):
-    result = site_collection.update_one(
-        {"site_code": site_code},
-        {"$set": {"is_deleted": True}}
-    )
+    site = site_collection.find_one({
+        "site_code": site_code,
+        "is_deleted": {"$ne": True}
+    })
 
-    if result.matched_count == 0:
+    if not site:
         return Response(
             {"error": "Site not found"},
             status=404
         )
+
+    # Ownership verification: if site has user_id or owner, check authorization
+    requester_id = (request.data.get("user_id") if hasattr(request, "data") and isinstance(request.data, dict) else None) or request.GET.get("user_id")
+    if not requester_id and hasattr(request, "user") and request.user.is_authenticated:
+        requester_id = request.user.email or request.user.username
+
+    site_user_id = site.get("user_id")
+    site_owner = site.get("owner")
+    is_staff = hasattr(request, "user") and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
+
+    # If site is tied to a user, enforce ownership unless admin/staff
+    if (site_user_id or site_owner) and not is_staff:
+        if not requester_id:
+            return Response({"error": "Unauthorized: user_id is required to delete this site"}, status=403)
+        req_clean = str(requester_id).strip().lower()
+        allowed = []
+        if site_user_id:
+            allowed.append(str(site_user_id).strip().lower())
+        if site_owner:
+            allowed.append(str(site_owner).strip().lower())
+        if req_clean not in allowed:
+            return Response({"error": "Unauthorized: You cannot delete a site uploaded by another user"}, status=403)
+
+    result = site_collection.update_one(
+        {"site_code": site_code},
+        {"$set": {"is_deleted": True}}
+    )
 
     return Response(
         {"message": "Site deleted successfully"},
@@ -572,6 +612,8 @@ def admin_hub_page(request):
     """Main admin dashboard with summary statistics."""
     pending_visits = booking_collection.count_documents({"status": "pending"})
     pending_sites = site_collection.count_documents({"status": "pending", "is_deleted": {"$ne": True}})
+    real_sites_count = site_collection.count_documents({"is_test": {"$ne": True}, "is_deleted": {"$ne": True}})
+    test_sites_count = site_collection.count_documents({"is_test": True, "is_deleted": {"$ne": True}})
     active_agents = agents_collection.count_documents({"is_active": {"$ne": False}})
     total_bookings = booking_collection.count_documents({})
 
@@ -585,6 +627,8 @@ def admin_hub_page(request):
     return render(request, "admin_hub.html", {
         "pending_visits": pending_visits,
         "pending_sites": pending_sites,
+        "real_sites_count": real_sites_count,
+        "test_sites_count": test_sites_count,
         "active_agents": active_agents,
         "total_bookings": total_bookings,
         "recent_bookings": recent_bookings,

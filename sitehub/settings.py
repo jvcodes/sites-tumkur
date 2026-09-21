@@ -175,3 +175,8 @@ CACHES = {
     }
 }
 
+# Test vs Real Data Configuration
+# Set SHOW_TEST_DATA=0 in .env to hide all dummy/seed listings and serve ONLY real listings.
+# In production (ENVIRONMENT=production), dummy data is automatically blocked.
+SHOW_TEST_DATA = os.environ.get("SHOW_TEST_DATA", "1" if DEBUG else "0").lower() in ["1", "true", "yes"]
+

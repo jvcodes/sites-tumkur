@@ -25,14 +25,24 @@
     </div>
 
     <!-- Stats Row -->
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-bottom:32px;">
+      <div class="stat-card">
+        <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Real Sites</div>
+        <div style="font-size:36px; font-weight:800; color:#059669; margin-top:8px;">{{ real_sites_count }}</div>
+        <span style="font-size:12px; color:#10b981; font-weight:600; display:inline-block; margin-top:8px;">Production Verified</span>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Test Mockups</div>
+        <div style="font-size:36px; font-weight:800; color:#8b5cf6; margin-top:8px;">{{ test_sites_count }}</div>
+        <span style="font-size:12px; color:#6b7280; display:inline-block; margin-top:8px;">Dev / Seed Data</span>
+      </div>
       <div class="stat-card">
         <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Pending Visits</div>
         <div style="font-size:36px; font-weight:800; color:#f59e0b; margin-top:8px;">{{ pending_visits }}</div>
         <a href="/api/admin/bookings/" style="font-size:12px; color:#2563eb; text-decoration:none; margin-top:8px; display:inline-block;">Review →</a>
       </div>
       <div class="stat-card">
-        <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Pending Sites</div>
+        <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Pending Review</div>
         <div style="font-size:36px; font-weight:800; color:#ef4444; margin-top:8px;">{{ pending_sites }}</div>
         <a href="/admin/sites/pending/" style="font-size:12px; color:#2563eb; text-decoration:none; margin-top:8px; display:inline-block;">Review →</a>
       </div>

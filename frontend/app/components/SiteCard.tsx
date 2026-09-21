@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { useState, useRef, memo } from 'react';
 import toast from 'react-hot-toast';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
+import ShareModal from './ShareModal';
 
 interface SiteCardProps {
   site: {
@@ -28,6 +29,7 @@ interface SiteCardProps {
     layout_name?: string;
     tuda_approved?: boolean;
     bbmp_approved?: boolean;
+    is_test?: boolean;
   };
 }
 
@@ -38,6 +40,7 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
   const displayId = site.site_code || site.id_str || site._id || '';
   const isLiked = isInWishlist(displayId);
   const inVisitList = isInCart(displayId);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const { ref: cardRef, isVisible } = useScrollReveal({ threshold: 0.1 });
 
@@ -226,37 +229,16 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
             </svg>
           </button>
           
-          {/* Share (Native Web Share) */}
+          {/* Share (WhatsApp + Copy Link Modal) */}
           <button 
             aria-label="Share property"
+            data-testid="share-property-btn"
             onClick={(e) => {
               e.preventDefault();
-              const url = `${window.location.origin}/site/${siteId}`;
-              if (navigator.share) {
-                navigator.share({
-                  title: site.name || 'SiteHub Listing',
-                  text: `Check out this site in ${site.location} for ${shortPrice(site.price)}!`,
-                  url: url,
-                }).catch(err => console.error("Error sharing", err));
-              } else if (navigator.clipboard) {
-                navigator.clipboard.writeText(url);
-                toast.success("Link copied to clipboard!");
-              } else {
-                // Insecure HTTP context fallback (e.g. mobile dev server)
-                const textArea = document.createElement("textarea");
-                textArea.value = url;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try {
-                  document.execCommand('copy');
-                  toast.success("Link copied to clipboard!");
-                } catch (err) {
-                  console.error('Oops, unable to copy', err);
-                }
-                document.body.removeChild(textArea);
-              }
+              e.stopPropagation();
+              setIsShareModalOpen(true);
             }}
-            className="text-gray-800 transition-transform active:scale-75"
+            className="text-gray-800 hover:text-emerald-600 transition-all active:scale-75"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
@@ -320,6 +302,23 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
           <span className="font-bold text-sm group-hover/btn:translate-x-1 transition-transform">→</span>
         </Link>
       </div>
+
+      {/* Cross-Platform WhatsApp & Copy Link Share Modal */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        site={{
+          site_code: displayId,
+          name: site.name,
+          location: site.location,
+          price: site.price,
+          area: site.area,
+          dimension: site.dimension,
+          image: media[0] || '/no-image.svg',
+          images: site.images,
+          tuda_approved: site.tuda_approved,
+        }}
+      />
     </div>
   );
 });

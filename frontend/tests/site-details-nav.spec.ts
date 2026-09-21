@@ -300,4 +300,127 @@ test.describe('Site Details Navigation & Sticky Controls', () => {
     await expect(landmarksList).toContainText('Tumkur Railway Station');
     await expect(landmarksList).toContainText('2.5 km');
   });
+
+  test('should automatically prefetch next batch and allow continuous Next navigation past initial loaded batch', async ({ page }) => {
+    // 1. Mock site detail API for our test sequence
+    await page.route('**/api/sites/PREFETCH-*', async (route) => {
+      const url = route.request().url();
+      const codeMatch = url.match(/PREFETCH-\d+/);
+      const code = codeMatch ? codeMatch[0] : 'PREFETCH-1';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          site_code: code,
+          name: `Prefetch Test Property ${code}`,
+          location: 'Batawadi',
+          price: 2500000,
+          area: 1200,
+          dimension: '30x40',
+          facing: 'East',
+          tuda_approved: true,
+          images: [],
+        }),
+      });
+    });
+
+    // 2. Mock page 2 filter API response
+    let prefetchCalled = false;
+    await page.route('**/api/sites/filter?*page=2*', async (route) => {
+      prefetchCalled = true;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          results: [
+            {
+              site_code: 'PREFETCH-4',
+              name: 'Prefetch Test Property PREFETCH-4',
+              price: 2800000,
+              location: 'Batawadi',
+            },
+            {
+              site_code: 'PREFETCH-5',
+              name: 'Prefetch Test Property PREFETCH-5',
+              price: 3200000,
+              location: 'Batawadi',
+            },
+          ],
+          total: 5,
+        }),
+      });
+    });
+
+    // 3. Visit homepage first to initialize browser context
+    await page.goto('http://localhost:3000/');
+    await page.waitForLoadState('networkidle');
+
+    // 4. Inject initial homeState with 3 sites (total 5, hasMore: true)
+    await page.evaluate(() => {
+      const initialFeed = {
+        sites: [
+          { site_code: 'PREFETCH-1', name: 'Prefetch Test Property PREFETCH-1', price: 2500000, location: 'Batawadi' },
+          { site_code: 'PREFETCH-2', name: 'Prefetch Test Property PREFETCH-2', price: 2600000, location: 'Batawadi' },
+          { site_code: 'PREFETCH-3', name: 'Prefetch Test Property PREFETCH-3', price: 2700000, location: 'Batawadi' },
+        ],
+        total: 5,
+        page: 1,
+        hasMore: true,
+        selectedLocations: ['Batawadi'],
+        selectedPrices: [],
+        selectedAreas: [],
+        selectedFacings: [],
+        sortOption: '',
+        appliedSearch: '',
+        inputValue: '',
+        isLayoutFilter: false,
+      };
+      sessionStorage.setItem('homeState', JSON.stringify(initialFeed));
+      sessionStorage.setItem('homeScrollPos', '200');
+    });
+
+    // 5. Navigate to the last site of initial batch (PREFETCH-3)
+    await page.goto('http://localhost:3000/site/PREFETCH-3');
+    await page.waitForLoadState('networkidle');
+
+    // 6. Verify prefetch is automatically triggered because idx (2) >= length (3) - 3 (0)
+    await expect.poll(() => prefetchCalled, { timeout: 10000 }).toBe(true);
+
+    // 7. Verify Next button is active and links to PREFETCH-4 (the prefetched property)
+    const nextBtnTop = page.locator('a[data-testid="next-property-top"]');
+    await expect(nextBtnTop).toBeVisible({ timeout: 5000 });
+    await expect(nextBtnTop).toHaveAttribute('href', '/site/PREFETCH-4');
+
+    // 8. Click Next -> arrives at PREFETCH-4
+    await nextBtnTop.click();
+    await expect(page).toHaveURL(/.*\/site\/PREFETCH-4/);
+    await page.waitForLoadState('networkidle');
+
+    // 9. Click Next again -> arrives at PREFETCH-5 (the final property)
+    const nextBtnTop4 = page.locator('a[data-testid="next-property-top"]');
+    await expect(nextBtnTop4).toHaveAttribute('href', '/site/PREFETCH-5');
+    await nextBtnTop4.click();
+    await expect(page).toHaveURL(/.*\/site\/PREFETCH-5/);
+    await page.waitForLoadState('networkidle');
+
+    // 10. On PREFETCH-5 (last property of total 5), Next button link should no longer exist
+    await expect(page.locator('a[data-testid="next-property-top"]')).toHaveCount(0);
+    const disabledNextSpan = page.locator('span[class*="cursor-not-allowed"]:has-text("Next")').first();
+    await expect(disabledNextSpan).toBeVisible();
+
+    // 11. Click Back to Properties and verify homeState was updated with all 5 properties
+    const topBackBtn = page.locator('[data-testid="back-to-properties-top"]');
+    await topBackBtn.click();
+    await expect(page).toHaveURL('http://localhost:3000/');
+
+    const finalHomeState = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('homeState');
+      return raw ? JSON.parse(raw) : null;
+    });
+    expect(finalHomeState).not.toBeNull();
+    expect(finalHomeState.sites.length).toBe(5);
+    expect(finalHomeState.sites.map((s: any) => s.site_code)).toContain('PREFETCH-4');
+    expect(finalHomeState.sites.map((s: any) => s.site_code)).toContain('PREFETCH-5');
+  });
 });
+

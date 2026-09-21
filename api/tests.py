@@ -118,6 +118,20 @@ class FilterSitesAPITests(TestCase):
         self.assertTrue(match_query['youtube_url']['$exists'])
         self.assertEqual(match_query['youtube_url']['$ne'], "")
 
+    @patch('api.views.sites.site_collection')
+    def test_filter_real_only_excludes_test_sites(self, mock_site_collection):
+        """Verify that real_only=true filters out test/dummy listings."""
+        mock_site_collection.aggregate.return_value = []
+
+        request = self.factory.get('/api/sites/filter/?real_only=true')
+        response = filter_sites_api(request)
+        
+        pipeline = mock_site_collection.aggregate.call_args[0][0]
+        match_query = _get_match_stage(pipeline)
+        
+        self.assertIn('is_test', match_query)
+        self.assertEqual(match_query['is_test'], {'$ne': True})
+
 class CreateSiteAPITests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
@@ -149,6 +163,7 @@ class CreateSiteAPITests(TestCase):
         self.assertEqual(insert_args['name'], "GPS Plot")
         self.assertEqual(insert_args['latitude'], 13.33)
         self.assertEqual(insert_args['longitude'], 77.10)
+        self.assertFalse(insert_args['is_test'])  # Must default to False for real properties
 
     @patch('api.views.sites.site_collection')
     @patch('listings.mongo.locations_collection')
@@ -542,5 +557,99 @@ class LandmarksAndTUDATests(TestCase):
         self.assertEqual(len(detail_data.get('nearby_landmarks', [])), 1)
         self.assertEqual(detail_data['nearby_landmarks'][0]['landmark'], 'Siddaganga Mutt')
         self.assertEqual(detail_data['nearby_landmarks'][0]['distance_km'], 4.5)
+
+
+class ProfileAuthAndSecurityTests(TestCase):
+    """Tests for Profile updates and Site Deletion Authorization."""
+    def setUp(self):
+        from listings.mongo import user_profiles_collection, site_collection
+        self.profiles = user_profiles_collection
+        self.sites = site_collection
+
+    def test_update_phone_with_phone_identifier(self):
+        """Phone-auth user (without email) can update their phone number."""
+        self.profiles.delete_many({"phone": {"$in": ["9876543210", "9123456789"]}})
+        self.profiles.insert_one({
+            "phone": "9876543210",
+            "name": "Phone User",
+            "role": "Buyer"
+        })
+
+        response = self.client.post(
+            '/api/auth/update-phone/',
+            data=json.dumps({
+                'identifier': '9876543210',
+                'phone': '9123456789'
+            }),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        updated = self.profiles.find_one({"phone": "9123456789"})
+        self.assertIsNotNone(updated)
+
+    def test_update_profile_phone_field(self):
+        """Profile update can update phone along with name."""
+        self.profiles.delete_many({"email": "testupdate@example.com"})
+        self.profiles.insert_one({
+            "email": "testupdate@example.com",
+            "name": "Original Name",
+            "phone": "9876543210",
+            "role": "Buyer"
+        })
+
+        response = self.client.post(
+            '/api/auth/update-profile/',
+            data=json.dumps({
+                'identifier': 'testupdate@example.com',
+                'name': 'Updated Name',
+                'phone': '9988776655'
+            }),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        updated = self.profiles.find_one({"email": "testupdate@example.com"})
+        self.assertEqual(updated['name'], 'Updated Name')
+        self.assertEqual(updated['phone'], '9988776655')
+
+    def test_delete_site_authorization_denied_for_different_user(self):
+        """User cannot delete a site uploaded by someone else."""
+        self.sites.delete_many({"site_code": "SEC-DEL-01"})
+        self.sites.insert_one({
+            "site_code": "SEC-DEL-01",
+            "name": "Protected Site",
+            "user_id": "owner@example.com",
+            "owner": "Owner User",
+            "is_deleted": False
+        })
+
+        response = self.client.delete(
+            '/api/sites/delete-by-code/SEC-DEL-01/',
+            data=json.dumps({'user_id': 'attacker@example.com'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 403)
+        site = self.sites.find_one({"site_code": "SEC-DEL-01"})
+        self.assertFalse(site.get("is_deleted"))
+
+    def test_delete_site_authorization_allowed_for_owner(self):
+        """Owner can successfully soft-delete their own site."""
+        self.sites.delete_many({"site_code": "SEC-DEL-02"})
+        self.sites.insert_one({
+            "site_code": "SEC-DEL-02",
+            "name": "Owner Site",
+            "user_id": "myemail@example.com",
+            "owner": "Owner User",
+            "is_deleted": False
+        })
+
+        response = self.client.delete(
+            '/api/sites/delete-by-code/SEC-DEL-02/',
+            data=json.dumps({'user_id': 'myemail@example.com'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        site = self.sites.find_one({"site_code": "SEC-DEL-02"})
+        self.assertTrue(site.get("is_deleted"))
+
 
 

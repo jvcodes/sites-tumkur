@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
 
     if (!user) {
         return (
@@ -21,7 +21,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                         href="/login"
                         className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md"
                     >
-                        Login with Google
+                        Log In / Register
                     </a>
                 </div>
             </div>
@@ -37,24 +37,53 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     ];
 
     return (
-        <div className="bg-gray-100 min-h-screen py-8">
-            <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
+        <div className="bg-gray-100 min-h-screen py-8 pb-24 md:pb-8">
+            <div className="max-w-7xl mx-auto px-3.5 sm:px-6 grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
 
                 {/* SIDEBAR FOR PROFILE */}
-                <div className="space-y-6">
-                    {/* User Brief */}
-                    <div className="bg-white p-5 rounded-lg shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl font-bold">
-                            {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                <div className="space-y-4 md:space-y-6">
+                    {/* User Brief with text truncation and shrink protection */}
+                    <div className="bg-white p-3.5 sm:p-5 rounded-lg shadow-sm flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-lg sm:text-xl font-bold shrink-0">
+                                {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[11px] sm:text-xs text-gray-500 font-medium">Hello,</p>
+                                <h2 className="text-sm sm:text-lg font-bold text-gray-800 truncate" title={user.name}>{user.name}</h2>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-xs text-gray-500 font-medium">Hello,</p>
-                            <h2 className="text-lg font-bold text-gray-800">{user.name}</h2>
-                        </div>
+                        <button
+                            onClick={() => logout()}
+                            className="md:hidden flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg shrink-0 transition"
+                        >
+                            Log Out
+                        </button>
                     </div>
 
-                    {/* Navigation Menu */}
-                    <div className="bg-white rounded-lg shadow-sm overflow-hidden text-sm flex flex-col justify-between h-full">
+                    {/* Mobile Navigation Pill Strip (< md) */}
+                    <div className="md:hidden bg-white rounded-lg shadow-sm p-1.5 flex gap-1.5 overflow-x-auto no-scrollbar border border-gray-100">
+                        {menuItems.map((item) => {
+                            const isActive = pathname === item.path;
+                            return (
+                                <Link
+                                    key={item.path}
+                                    href={item.path}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                                        isActive
+                                            ? "bg-blue-600 text-white shadow-xs"
+                                            : "text-gray-700 hover:bg-gray-100"
+                                    }`}
+                                >
+                                    <span>{item.icon}</span>
+                                    <span>{item.name}</span>
+                                </Link>
+                            );
+                        })}
+                    </div>
+
+                    {/* Desktop Navigation Menu (md and up) */}
+                    <div className="hidden md:flex bg-white rounded-lg shadow-sm overflow-hidden text-sm flex-col justify-between h-full">
                         <ul className="divide-y divide-gray-100">
                             {menuItems.map((item) => {
                                 const isActive = pathname === item.path;
@@ -72,20 +101,14 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                             <span className="text-gray-300">❯</span>
                                         </Link>
                                     </li>
-                                )
+                                );
                             })}
                         </ul>
                         
                         <div className="p-4 border-t border-gray-100 mt-4">
                              <button
                                  onClick={() => {
-                                     import('../../firebaseConfig').then(({ auth }) => {
-                                         import('firebase/auth').then(({ signOut }) => {
-                                             signOut(auth).then(() => {
-                                                 window.location.href = '/login';
-                                             });
-                                         });
-                                     });
+                                     logout();
                                  }}
                                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 font-semibold bg-red-50 hover:bg-red-100 rounded-lg transition"
                              >
@@ -99,7 +122,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                 </div>
 
                 {/* MAIN CONTENT AREA */}
-                <div className="bg-white rounded-lg shadow-sm p-6 overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 overflow-hidden min-w-0 max-w-full">
                     {children}
                 </div>
             </div>

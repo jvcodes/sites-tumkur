@@ -69,6 +69,7 @@ class SiteSerializer(serializers.Serializer):
         allow_null=True
     )
 
+    is_test = serializers.BooleanField(default=False, required=False)
     status = serializers.CharField(read_only=True)
     
     # Optional visit tracking fields
