@@ -14,6 +14,8 @@ test.describe('Accessibility Tests', () => {
       
       // Wait for content to load
       await page.waitForLoadState('networkidle');
+      await page.evaluate(() => document.fonts.ready);
+      await page.waitForTimeout(300);
 
       try {
         const accessibilityScanResults = await new AxeBuilder({ page }).analyze();

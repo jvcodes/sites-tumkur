@@ -29,6 +29,7 @@ interface SiteCardProps {
     layout_name?: string;
     tuda_approved?: boolean;
     bbmp_approved?: boolean;
+    corner_site?: boolean;
     is_test?: boolean;
   };
 }
@@ -131,11 +132,19 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
             📍
           </div>
           <div className="flex flex-col">
-            <h2 className="text-sm font-bold text-gray-900 leading-tight">
-              {site.location}
+            <h2 className="text-sm font-bold text-gray-900 leading-tight capitalize">
+              {site.location || "Tumkur"}
             </h2>
-            <p className="text-[11px] text-gray-500">
-              ID: {displayId} • {site.status ? site.status.toUpperCase() : 'AVAILABLE'}
+            <p className="text-[11px] text-gray-500 flex items-center gap-1">
+              {site.status?.toLowerCase() === "sold" ? (
+                <span className="font-semibold text-red-600">Sold Out</span>
+              ) : (
+                <span className="font-medium text-emerald-700 flex items-center gap-0.5">
+                  <span className="text-[10px]">✓</span> Verified Plot
+                </span>
+              )}
+              <span>•</span>
+              <span>ID: {displayId}</span>
             </p>
           </div>
         </div>
@@ -193,12 +202,18 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
           </>
         )}
 
-        {(site.tuda_approved || site.bbmp_approved) && (
-          <div className="absolute top-3 left-3 bg-emerald-700/90 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 z-10 pointer-events-none">
-            <span>✓</span>
-            <span>TUDA Approved</span>
+        {/* ── CONSISTENT PLOT DIMENSION PILL (Always visible on photo) ── */}
+        {site.dimension ? (
+          <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-xs text-white text-[11px] font-bold px-2.5 py-0.5 rounded-md shadow flex items-center gap-1 z-10 pointer-events-none tracking-wide">
+            <span>📏</span>
+            <span>{site.dimension.replace(/\s*x\s*/i, ' × ')}</span>
           </div>
-        )}
+        ) : site.area ? (
+          <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-xs text-white text-[11px] font-bold px-2.5 py-0.5 rounded-md shadow flex items-center gap-1 z-10 pointer-events-none">
+            <span>📏</span>
+            <span>{site.area} sq.ft</span>
+          </div>
+        ) : null}
 
         {site.status?.toLowerCase() === 'sold' && (
           <div className="absolute top-3 right-3 bg-red-600 text-white text-xs font-black px-2 py-1 rounded shadow-lg uppercase z-10">
@@ -256,33 +271,52 @@ const SiteCard = memo(function SiteCard({ site }: SiteCardProps) {
         </button>
       </div>
 
-      {/* ── DETAILS (Price, Specs, Desc) ── */}
+      {/* ── DETAILS (Price, Rate/Sq.ft, Specs, Desc) ── */}
       <div className="px-4 pb-4 flex flex-col">
         <Link 
           href={`/site/${siteId}`}
           onClick={() => sessionStorage.setItem('homeScrollPos', window.scrollY.toString())}
           className="group/title block"
         >
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-[16px] font-extrabold text-gray-900 group-hover/title:text-red-600 transition-colors">
-              {formatPrice(site.price)}
-            </span>
-            <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
-              {shortPrice(site.price)}
-            </span>
+          {/* Unified Pricing Row: Total Budget + Rate per Sq.Ft */}
+          <div className="flex items-baseline justify-between gap-2 mb-1">
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-[17px] font-extrabold text-gray-900 group-hover/title:text-red-600 transition-colors tracking-tight">
+                {formatPrice(site.price)}
+              </span>
+              {site.price >= 100000 && (
+                <span className="text-[11px] font-bold text-gray-500">
+                  ({shortPrice(site.price)})
+                </span>
+              )}
+            </div>
+            {site.area && site.area > 0 && site.price > 0 && (
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-md shrink-0">
+                ₹{Math.round(site.price / site.area).toLocaleString("en-IN")}/sq.ft
+              </span>
+            )}
           </div>
           
           <p className="text-sm font-semibold text-gray-800 line-clamp-1 mb-1 group-hover/title:text-red-600 transition-colors">
-            {site.name}
+            {!site.name || site.name.toLowerCase() === "no name" || site.name.toLowerCase() === "yes"
+              ? `${site.dimension ? site.dimension.replace(/\s*x\s*/i, " × ") + " " : ""}Plot in ${site.location || "Tumkur"}`
+              : site.name}
           </p>
         </Link>
 
-        <p className="text-xs text-gray-500 mb-2 flex flex-wrap gap-1 items-center">
+        {/* High-Signal Specs Row with Location, Area, Facing & Corner Badge */}
+        <p className="text-xs text-gray-500 mb-2 flex flex-wrap gap-1.5 items-center">
+          {site.location && <span className="font-semibold text-gray-700">{site.location}</span>}
+          {site.location && (site.area || site.facing || site.corner_site) && <span>•</span>}
           {site.area && <span>{site.area} Sq.ft</span>}
-          {site.area && site.dimension && <span>•</span>}
-          {site.dimension && <span>{site.dimension}</span>}
-          {(site.area || site.dimension) && site.facing && <span>•</span>}
+          {site.area && (site.facing || site.corner_site) && <span>•</span>}
           {site.facing && <span>{site.facing} Facing</span>}
+          {site.facing && site.corner_site && <span>•</span>}
+          {site.corner_site && (
+            <span className="inline-flex items-center gap-0.5 font-bold text-amber-900 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded text-[11px]">
+              <span>📐</span> Corner Plot
+            </span>
+          )}
         </p>
 
         {site.is_layout && site.layout_name && (
