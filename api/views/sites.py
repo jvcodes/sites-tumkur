@@ -234,7 +234,7 @@ def filter_sites_api(request):
 
     if is_default_query:
         from django.core.cache import cache
-        cache.set("default_homepage_sites", response_data, 300) # 5 minutes cache
+        cache.set(cache_key, response_data, 300) # 5 minutes cache
 
     return Response(response_data)
 

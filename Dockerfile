@@ -23,5 +23,5 @@ RUN python manage.py collectstatic --noinput
 # Expose the port Cloud Run expects
 EXPOSE $PORT
 
-# Command to run the application (run migrations first, then start server)
-CMD python manage.py migrate && gunicorn --bind 0.0.0.0:$PORT sitehub.wsgi:application
+# Command to run the application (run migrations first, then start multi-threaded Gunicorn)
+CMD python manage.py migrate && gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 8 --timeout 60 --max-requests 1000 --max-requests-jitter 100 sitehub.wsgi:application

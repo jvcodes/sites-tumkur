@@ -8,7 +8,7 @@ cd /d "%~dp0"
 
 :: We don't need to specify the secrets here because Google Cloud Run 
 :: automatically remembers the secrets from your previous deployment!
-gcloud run deploy sitehub-backend --source . --region us-central1 --allow-unauthenticated
+gcloud run deploy sitehub-backend --source . --region us-central1 --allow-unauthenticated --cpu 1 --memory 1Gi --concurrency 80 --min-instances 0 --max-instances 10
 
 echo.
 echo Backend Deployment Finished!
