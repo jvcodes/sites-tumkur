@@ -15,8 +15,8 @@ interface User {
 interface AuthContextType {
     user: User | null;
     token: string | null;
-    login: (email: string, name: string) => Promise<void>;
-    loginWithPhone: (idToken: string, phone?: string) => Promise<void>;
+    login: (email: string, name: string, redirectUrl?: string) => Promise<void>;
+    loginWithPhone: (idToken: string, phone?: string, redirectUrl?: string) => Promise<void>;
     updateUser: (updates: Partial<User>) => void;
     logout: () => void;
     loading: boolean;
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
     }, []);
 
-    const login = async (email: string, name: string) => {
+    const login = async (email: string, name: string, redirectUrl?: string) => {
         try {
             const res = await fetch("/api/auth/google", {
                 method: "POST",
@@ -62,14 +62,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem("token", data.token);
             localStorage.setItem("user", JSON.stringify(data.user));
 
-            router.push("/");
+            if (redirectUrl) {
+                router.push(redirectUrl);
+            } else if (redirectUrl === undefined) {
+                router.push("/");
+            }
         } catch (error) {
             console.error("Login Error:", error);
             toast.error("Login Failed");
         }
     };
 
-    const loginWithPhone = async (idToken: string, phone?: string) => {
+    const loginWithPhone = async (idToken: string, phone?: string, redirectUrl?: string) => {
         try {
             const res = await fetch("/api/auth/phone/", {
                 method: "POST",
@@ -89,7 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem("token", data.token);
             localStorage.setItem("user", JSON.stringify(data.user));
 
-            router.push("/");
+            if (redirectUrl) {
+                router.push(redirectUrl);
+            } else if (redirectUrl === undefined) {
+                router.push("/");
+            }
         } catch (error) {
             console.error("Phone Login Error:", error);
             toast.error("Phone Login Failed");

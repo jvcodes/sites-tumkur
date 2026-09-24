@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
@@ -14,18 +14,36 @@ export default function CartPage() {
   const { user, loading } = useAuth();
   const { cart, removeFromCart, clearCart } = useCart();
   const router = useRouter();
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  
+  // Hydrate initial date, time, and name from sessionStorage if present
+  const [customerName, setCustomerName] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("cart_name") || "";
+    }
+    return "";
+  });
+  const [date, setDate] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("cart_date") || "";
+    }
+    return "";
+  });
+  const [time, setTime] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("cart_time") || "";
+    }
+    return "";
+  });
   const [message, setMessage] = useState("");
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
+  const [namePromptMessage, setNamePromptMessage] = useState("");
   const [profile, setProfile] = useState<{name?: string, phone?: string} | null>(null);
+  const autoSubmitAttemptedRef = useRef(false);
   
   const [bookingReceipt, setBookingReceipt] = useState<{
     name: string; phone: string; date: string; time: string;
     sites: CartItem[]; ref: string;
   } | null>(null);
-
-  // Cart loads automatically via context
 
   // ----------------------------------
   // LOAD PROFILE DATA
@@ -42,94 +60,184 @@ export default function CartPage() {
   useEffect(() => {
     if (profileData) {
       setProfile(profileData);
-      setProfileLoading(false);
-
-      // Auto-submit check after profile is loaded
-      if (sessionStorage.getItem("cart_pending_submit") === "true") {
-        sessionStorage.removeItem("cart_pending_submit");
-        const savedDate = sessionStorage.getItem("cart_date");
-        const savedTime = sessionStorage.getItem("cart_time");
-        if (savedDate) setDate(savedDate);
-        if (savedTime) setTime(savedTime);
-
-        setTimeout(() => {
-          document.getElementById("submit-booking-btn")?.click();
-        }, 500);
+      if (profileData.name && !customerName && profileData.name !== "New User") {
+        setCustomerName(profileData.name);
       }
     }
-  }, [profileData]);
+  }, [profileData, customerName]);
 
   useEffect(() => {
-    if (profileLoadingData) {
-      setProfileLoading(true);
+    if (user?.name && !customerName && user.name !== "User" && user.name !== "New User") {
+      setCustomerName(user.name);
     }
-  }, [profileLoadingData]);
+  }, [user, customerName]);
+
+  // Handle changes and persist in sessionStorage
+  const handleDateChange = (newDate: string) => {
+    setDate(newDate);
+    if (typeof window !== "undefined") sessionStorage.setItem("cart_date", newDate);
+  };
+
+  const handleTimeChange = (newTime: string) => {
+    setTime(newTime);
+    if (typeof window !== "undefined") sessionStorage.setItem("cart_time", newTime);
+  };
+
+  const handleNameChange = (newName: string) => {
+    setCustomerName(newName);
+    if (typeof window !== "undefined") sessionStorage.setItem("cart_name", newName);
+    if (newName.trim()) setNamePromptMessage("");
+  };
 
   // ----------------------------------
-  // REMOVE FROM CART is handled by context
+  // DIRECT BOOKING EXECUTION
   // ----------------------------------
+  const executeBooking = async (params: {
+    name: string;
+    phone: string;
+    date: string;
+    time: string;
+    email?: string;
+    sites: CartItem[];
+  }) => {
+    if (isSubmittingBooking) return;
+    setIsSubmittingBooking(true);
+    setNamePromptMessage("");
+
+    try {
+      const res = await fetch("/api/bookings/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: params.name,
+          phone: params.phone,
+          date: params.date,
+          time: params.time,
+          email: params.email || "",
+          sites: params.sites,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Booking failed");
+      }
+
+      const receiptData = {
+        name: params.name,
+        phone: params.phone,
+        date: params.date,
+        time: params.time,
+        sites: [...params.sites],
+        ref: `BK${Date.now().toString().slice(-8)}`,
+      };
+
+      // Clean up sessionStorage
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("cart_pending_submit");
+        sessionStorage.removeItem("cart_date");
+        sessionStorage.removeItem("cart_time");
+        sessionStorage.removeItem("cart_name");
+      }
+
+      clearCart();
+      setBookingReceipt(receiptData);
+      toast.success("Visit booking requested successfully!");
+      setMessage("✅ Booking request submitted! Our team will call you within 24 hours to confirm your site visit.");
+    } catch (err: any) {
+      console.error("Booking error:", err);
+      toast.error(err.message || "Booking failed. Please check your connection and try again.");
+    } finally {
+      setIsSubmittingBooking(false);
+    }
+  };
 
   // ----------------------------------
-  // SUBMIT BOOKING
+  // AUTO-SUBMIT HOOK WHEN RETURNING FROM LOGIN
+  // ----------------------------------
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isPending = sessionStorage.getItem("cart_pending_submit") === "true";
+    if (!isPending) return;
+    if (loading) return;
+    if (!user) return;
+    if (cart.length === 0) return;
+
+    const savedDate = date || sessionStorage.getItem("cart_date") || "";
+    const savedTime = time || sessionStorage.getItem("cart_time") || "";
+    const savedPhone = user.phone || profile?.phone || "";
+    const savedName = customerName || profile?.name || (user.name && user.name !== "User" && user.name !== "New User" ? user.name : "") || sessionStorage.getItem("cart_name") || "";
+
+    if (!savedDate || !savedTime) {
+      sessionStorage.removeItem("cart_pending_submit");
+      return;
+    }
+
+    if (!savedPhone) return;
+
+    if (savedName.trim()) {
+      if (autoSubmitAttemptedRef.current) return;
+      autoSubmitAttemptedRef.current = true;
+      executeBooking({
+        name: savedName.trim(),
+        phone: savedPhone,
+        date: savedDate,
+        time: savedTime,
+        email: user.email || "",
+        sites: cart,
+      });
+    } else {
+      // User is logged in but needs to confirm name; do NOT kick them to /profile!
+      sessionStorage.removeItem("cart_pending_submit");
+      setNamePromptMessage("Welcome! Please enter your name below and click Confirm Booking to schedule your visit.");
+    }
+  }, [user, loading, cart, date, time, customerName, profile]);
+
+  // ----------------------------------
+  // MANUAL SUBMIT BOOKING
   // ----------------------------------
   const submitBooking = async () => {
-    if (!date || !time) {
+    const effectiveDate = date || (typeof window !== "undefined" ? sessionStorage.getItem("cart_date") || "" : "");
+    const effectiveTime = time || (typeof window !== "undefined" ? sessionStorage.getItem("cart_time") || "" : "");
+
+    if (!effectiveDate || !effectiveTime) {
       toast.error("Please select a date and time for your visit.");
       return;
     }
     
     // Gate: must be logged in
     if (!user) {
-      sessionStorage.setItem("cart_date", date);
-      sessionStorage.setItem("cart_time", time);
-      sessionStorage.setItem("cart_pending_submit", "true");
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("cart_date", effectiveDate);
+        sessionStorage.setItem("cart_time", effectiveTime);
+        if (customerName) sessionStorage.setItem("cart_name", customerName);
+        sessionStorage.setItem("cart_pending_submit", "true");
+      }
       router.push(`/login?redirect=/cart`);
       return;
     }
 
-    // Gate: Profile must have name and phone
-    const hasName = profile?.name || user.name;
-    const hasPhone = profile?.phone || user.phone;
-    
-    if (!hasName || !hasPhone) {
-      toast.error("Please update your profile with your Name and Phone Number to continue.");
-      sessionStorage.setItem("cart_date", date);
-      sessionStorage.setItem("cart_time", time);
-      sessionStorage.setItem("cart_pending_submit", "true");
-      router.push('/profile');
+    const effectivePhone = user.phone || profile?.phone;
+    if (!effectivePhone) {
+      toast.error("Phone number is required. Please check your login status.");
       return;
     }
 
-    const bookingData = {
-      name: hasName,
-      phone: hasPhone,
-      date,
-      time,
-      email: user.email,
-      sites: cart,
-    };
-
-    try {
-      const res = await fetch("/api/bookings/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bookingData),
-      });
-      if (!res.ok) throw new Error("Booking failed");
-      const receiptData = {
-        name: hasName as string,
-        phone: hasPhone as string,
-        date,
-        time,
-        sites: [...cart],
-        ref: `BK${Date.now().toString().slice(-8)}`,
-      };
-      clearCart();
-      setBookingReceipt(receiptData);
-      setMessage("✅ Booking request submitted! Our team will call you within 24 hours to confirm your site visit.");
-    } catch {
-      toast.error("Booking failed. Please check your internet and try again.");
+    const effectiveName = customerName.trim() || profile?.name || (user.name && user.name !== "User" && user.name !== "New User" ? user.name : "");
+    if (!effectiveName) {
+      setNamePromptMessage("Please enter your name below to complete your visit booking.");
+      toast.error("Please enter your name to complete your visit booking.");
+      return;
     }
+
+    await executeBooking({
+      name: effectiveName,
+      phone: effectivePhone,
+      date: effectiveDate,
+      time: effectiveTime,
+      email: user.email || "",
+      sites: cart,
+    });
   };
 
   // ----------------------------------
@@ -412,34 +520,63 @@ export default function CartPage() {
               </div>
             </div>
 
-            {/* Show logged-in user info */}
+            {namePromptMessage && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-xl text-xs font-semibold flex items-start gap-2 shadow-sm">
+                <span className="text-base leading-none">👋</span>
+                <span className="flex-1 leading-snug">{namePromptMessage}</span>
+              </div>
+            )}
+
+            {/* Show logged-in user info / identity inputs */}
             {user ? (
               <div className="mb-6 space-y-4">
                 <div>
-                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5 ml-1">Your Name</label>
-                  <div className="flex gap-2 items-center border border-gray-200 rounded-xl px-4 py-3 bg-gray-50/50">
-                    <span className="flex-1 text-gray-900 font-medium">{profile?.name || user.name || <span className="text-red-500 text-xs font-bold bg-red-50 px-2 py-1 rounded">Update in Profile required</span>}</span>
-                  </div>
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5 ml-1">
+                    Your Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    placeholder="Enter your full name"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow text-gray-800 font-medium"
+                    required
+                  />
                 </div>
 
                 <div>
                   <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5 ml-1">Phone Number</label>
-                  <div className="flex gap-2 items-center border border-gray-200 rounded-xl px-4 py-3 bg-gray-50/50">
-                    <span className="flex-1 text-gray-900 font-medium">
-                      {profileLoading ? (
-                        <span className="animate-pulse bg-gray-200 h-4 w-24 block rounded"></span>
-                      ) : (profile?.phone || user.phone || <span className="text-red-500 text-xs font-bold bg-red-50 px-2 py-1 rounded">Update in Profile required</span>)}
+                  <div className="flex justify-between items-center border border-gray-200 rounded-xl px-4 py-3 bg-gray-50/70">
+                    <span className="text-gray-900 font-medium">
+                      {user.phone || profile?.phone || "No phone linked"}
                     </span>
+                    {(user.phone || profile?.phone) && (
+                      <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        ✓ Verified
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="mb-6">
-                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-4 rounded-xl flex gap-3 shadow-sm">
+              <div className="mb-6 space-y-4">
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3.5 rounded-xl flex gap-3 shadow-sm">
                   <span className="text-xl">🔐</span>
-                  <p>
-                    <strong>Sign in to continue.</strong> Your details will be loaded automatically to confirm the booking.
+                  <p className="text-xs leading-relaxed">
+                    <strong>Sign in to continue.</strong> Pick your date and time below — we'll save your choices and return you here automatically.
                   </p>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5 ml-1">
+                    Your Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    placeholder="Enter your full name"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow text-gray-800 font-medium text-sm"
+                  />
                 </div>
               </div>
             )}
@@ -451,7 +588,7 @@ export default function CartPage() {
                 <input
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => handleDateChange(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow text-gray-800 font-medium"
                   min={new Date().toISOString().split("T")[0]}
                   required
@@ -462,7 +599,7 @@ export default function CartPage() {
                 <input
                   type="time"
                   value={time}
-                  onChange={(e) => setTime(e.target.value)}
+                  onChange={(e) => handleTimeChange(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow text-gray-800 font-medium"
                   required
                 />
@@ -479,10 +616,19 @@ export default function CartPage() {
             <button
               id="submit-booking-btn"
               onClick={submitBooking}
-              disabled={profileLoading}
-              className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white py-4 rounded-xl hover:from-red-700 hover:to-rose-700 font-extrabold text-lg shadow-lg hover:shadow-red-600/25 transition-all disabled:opacity-50 disabled:hover:shadow-none"
+              disabled={isSubmittingBooking}
+              className="w-full bg-gradient-to-r from-red-600 to-rose-600 text-white py-4 rounded-xl hover:from-red-700 hover:to-rose-700 font-extrabold text-lg shadow-lg hover:shadow-red-600/25 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              {user ? "Confirm Booking Request" : "Sign in to Schedule"}
+              {isSubmittingBooking ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Confirming Visit Request...</span>
+                </>
+              ) : user ? (
+                "Confirm Booking Request"
+              ) : (
+                "Sign in to Schedule"
+              )}
             </button>
 
             {message && (

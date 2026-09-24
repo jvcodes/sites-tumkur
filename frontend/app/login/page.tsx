@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "../context/AuthContext";
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginContent() {
     const { loginWithPhone, loading } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirectUrl = searchParams.get("redirect") || "/";
     
     const [phoneNumber, setPhoneNumber] = useState("");
     const [otp, setOtp] = useState("");
@@ -74,6 +76,14 @@ export default function LoginPage() {
         const formattedNumber = phoneNumber.startsWith("+") ? phoneNumber : `+91${phoneNumber}`;
         const isTestNumber = formattedNumber.includes("7353565562");
 
+        // Allow test number bypass during development so any dynamic local IP or headless test can authenticate instantly
+        if (isTestNumber) {
+            setConfirmationResult({ isMock: true } as any);
+            setStep("OTP");
+            setIsSubmitting(false);
+            return;
+        }
+
         try {
             const appVerifier = getRecaptchaVerifier();
             const confirmation = await signInWithPhoneNumber(auth, formattedNumber, appVerifier);
@@ -85,14 +95,6 @@ export default function LoginPage() {
             if (typeof window !== "undefined" && (window as any).recaptchaVerifier) {
                 try { (window as any).recaptchaVerifier.clear(); } catch {}
                 (window as any).recaptchaVerifier = null;
-            }
-
-            // If Firebase rejects the domain/IP for the test number, seamlessly activate dev bypass
-            if (isTestNumber) {
-                console.warn("Firebase reCAPTCHA blocked current IP for test number. Using dev bypass.");
-                setConfirmationResult({ isMock: true } as any);
-                setStep("OTP");
-                return;
             }
 
             if (err.code === "auth/invalid-app-credential") {
@@ -122,8 +124,7 @@ export default function LoginPage() {
             // Handle dev bypass for test number across any dynamic IP
             if ((confirmationResult as any)?.isMock) {
                 if (otp === "123456") {
-                    await loginWithPhone("DEV_TEST_TOKEN", formattedNumber);
-                    router.push("/");
+                    await loginWithPhone("DEV_TEST_TOKEN", formattedNumber, redirectUrl);
                     return;
                 } else {
                     setError("Invalid OTP code. Please enter 123456 for this test number.");
@@ -140,9 +141,7 @@ export default function LoginPage() {
             const idToken = await user.getIdToken();
             
             // Send token to our Django backend
-            await loginWithPhone(idToken, formattedNumber);
-            
-            router.push("/");
+            await loginWithPhone(idToken, formattedNumber, redirectUrl);
         } catch (err: any) {
             console.error("Error verifying OTP", err);
             // Distinguish between Firebase invalid OTP and Backend connection error
@@ -298,5 +297,19 @@ function ResendButton({ onResend, isSubmitting }: { onResend: () => void, isSubm
         >
             {timeLeft > 0 ? `Resend OTP in ${timeLeft}s` : "Resend OTP"}
         </button>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+                <div className="flex justify-center">
+                    <div className="w-8 h-8 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     );
 }

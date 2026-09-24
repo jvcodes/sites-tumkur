@@ -34,6 +34,13 @@ export default function ProfilePage() {
     const [profileSaving, setProfileSaving] = useState(false);
     const [profileMsg, setProfileMsg] = useState("");
     const [stats, setStats] = useState({ visits: 0, bookings: 0, sites: 0 });
+    const [hasPendingCart, setHasPendingCart] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            setHasPendingCart(sessionStorage.getItem("cart_pending_submit") === "true");
+        }
+    }, []);
 
     useEffect(() => {
         if (user?.email || user?.phone) {
@@ -92,6 +99,9 @@ export default function ProfilePage() {
                 setEditingPhone(false);
                 setPhoneMsg("✅ Mobile number saved!");
                 setTimeout(() => setPhoneMsg(""), 3000);
+                if (typeof window !== "undefined" && sessionStorage.getItem("cart_pending_submit") === "true") {
+                    setTimeout(() => router.push("/cart"), 500);
+                }
             } else {
                 setPhoneMsg(`❌ ${data.error || "Failed to save. Try again."}`);
             }
@@ -136,6 +146,9 @@ export default function ProfilePage() {
                 
                 setProfileMsg(`✅ ${field === "name" ? "Name" : "Email"} saved!`);
                 setTimeout(() => setProfileMsg(""), 3000);
+                if (typeof window !== "undefined" && sessionStorage.getItem("cart_pending_submit") === "true") {
+                    setTimeout(() => router.push("/cart"), 500);
+                }
             } else {
                 setProfileMsg(`❌ ${data.error || "Failed to save. Try again."}`);
             }
@@ -162,6 +175,19 @@ export default function ProfilePage() {
 
     return (
         <div className="space-y-8">
+            {/* Pending Cart Notification Banner */}
+            {hasPendingCart && (
+                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
+                    <div>
+                        <h3 className="font-bold text-amber-900 text-sm">Return to Visit Booking</h3>
+                        <p className="text-xs text-amber-800">You have properties selected in your visit list waiting to be confirmed.</p>
+                    </div>
+                    <Link href="/cart" className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors shrink-0">
+                        Complete Booking in Cart →
+                    </Link>
+                </div>
+            )}
+
             {/* Quick Activity Summary Strip */}
             <div>
                 <h1 className="text-2xl font-bold text-gray-800 pb-3">My Dashboard</h1>
