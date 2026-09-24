@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
-from listings.mongo import booking_collection
+from listings.mongo import booking_collection, agents_collection, user_profiles_collection
 from api.views.utils import normalize_image, hydrate_sites
 
 @csrf_exempt

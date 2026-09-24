@@ -3,7 +3,7 @@ URL configuration for sitehub project.
 """
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views import sites as site_views
@@ -19,8 +19,8 @@ urlpatterns = [
     # -----------------------------------------------
     # Short-form Admin Hub URLs (without /api/ prefix)
     # -----------------------------------------------
-    path('admin/', site_views.admin_hub_page),
-    path('admin/hub/', site_views.admin_hub_page),
+    re_path(r'^admin/?$', site_views.admin_hub_page),
+    re_path(r'^admin/hub/?$', site_views.admin_hub_page),
     path('admin/agents/', agent_views.admin_agents_page),
     path('admin/agents/add/', agent_views.admin_add_agent),
     path('admin/agents/toggle/', agent_views.admin_toggle_agent),

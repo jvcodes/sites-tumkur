@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/admin',
-        destination: `${backendUrl}/admin`,
+        destination: `${backendUrl}/admin/`,
       },
       {
         source: '/admin/:path*',

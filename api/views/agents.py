@@ -1,9 +1,11 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import render
+from django.http import HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
-from listings.mongo import agents_collection
+from bson import ObjectId
+from listings.mongo import agents_collection, booking_collection, site_collection
 from api.views.utils import normalize_image, hydrate_sites
 
 def admin_agents_page(request):

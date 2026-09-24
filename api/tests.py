@@ -771,13 +771,25 @@ class ComprehensiveFieldEditingAndLoopholeTests(TestCase):
     """
 
     def setUp(self):
-        from listings.mongo import site_collection, site_images_collection, landmarks_collection
+        from listings.mongo import (
+            site_collection,
+            site_images_collection,
+            landmarks_collection,
+            agents_collection,
+            booking_collection,
+        )
         self.sites = site_collection
         self.site_images = site_images_collection
         self.landmarks = landmarks_collection
+        self.agents = agents_collection
+        self.bookings = booking_collection
         self.test_code = "FULL-EDIT-TEST"
+        self.test_agent_phone = "9888877777"
+        self.test_booking_phone = "9999911111"
         self.sites.delete_many({"site_code": self.test_code})
         self.site_images.delete_many({"site_code": self.test_code})
+        self.agents.delete_many({"phone": self.test_agent_phone})
+        self.bookings.delete_many({"phone": self.test_booking_phone})
 
         self.sites.insert_one({
             "site_code": self.test_code,
@@ -792,6 +804,8 @@ class ComprehensiveFieldEditingAndLoopholeTests(TestCase):
     def tearDown(self):
         self.sites.delete_many({"site_code": self.test_code})
         self.site_images.delete_many({"site_code": self.test_code})
+        self.agents.delete_many({"phone": self.test_agent_phone})
+        self.bookings.delete_many({"phone": self.test_booking_phone})
 
     def test_update_site_by_code_all_displayed_fields(self):
         """Verify EVERY single field displayed on the web page can be edited via update API and is serialized."""
@@ -967,17 +981,80 @@ class ComprehensiveFieldEditingAndLoopholeTests(TestCase):
         self.assertEqual(doc.get("image"), "")
 
     def test_admin_hub_page_renders_successfully(self):
-        """Admin hub dashboard renders cleanly without NameError or missing collections."""
+        """Admin hub dashboard renders cleanly with active agents and booking collections."""
+        # 1. Base dashboard render
         res = self.client.get('/admin/hub/')
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, 'Admin Dashboard')
         self.assertContains(res, 'Real Sites')
         self.assertContains(res, 'Active Agents')
 
-        # Also test /admin/ alias
+        # 2. Insert active agent to verify agents_collection integration and count
+        self.agents.insert_one({
+            "name": "Test Agent Tumkur",
+            "phone": self.test_agent_phone,
+            "is_active": True,
+            "created_at": datetime.now()
+        })
+        res_agent = self.client.get('/admin/hub/')
+        self.assertEqual(res_agent.status_code, 200)
+        self.assertEqual(res_agent.context['active_agents'], 1)
+
+        # 3. Insert pending booking to verify booking_collection integration and recent bookings table
+        self.bookings.insert_one({
+            "name": "Pending Booking User",
+            "phone": self.test_booking_phone,
+            "date": "2026-10-01",
+            "time": "11:00 AM",
+            "status": "pending",
+            "created_at": datetime.now()
+        })
+        res_booking = self.client.get('/admin/hub/')
+        self.assertEqual(res_booking.status_code, 200)
+        self.assertEqual(res_booking.context['pending_visits'], 1)
+        self.assertContains(res_booking, 'Pending Booking User')
+        self.assertContains(res_booking, self.test_booking_phone)
+
+        # 4. Verify /admin/ root alias renders cleanly
         res_alias = self.client.get('/admin/')
         self.assertEqual(res_alias.status_code, 200)
         self.assertContains(res_alias, 'Admin Dashboard')
+
+    def test_all_admin_subpages_render_without_error(self):
+        """Every admin management page must render cleanly with 200 OK without NameError or template crashes."""
+        admin_pages = [
+            '/admin/sites/pending/',
+            '/admin/sites/upload/',
+            '/admin/agents/',
+            '/admin/bookings/',
+            '/admin/landmarks/',
+            '/agent/portal/',
+        ]
+        for url in admin_pages:
+            res = self.client.get(url)
+            self.assertEqual(res.status_code, 200, f"Page {url} failed with status {res.status_code}")
+
+        # Unauthenticated access to agent pages redirects to portal (302)
+        for url in ['/agent/visits/', '/agent/sites/']:
+            res = self.client.get(url)
+            self.assertEqual(res.status_code, 302, f"Unauthenticated {url} should redirect")
+
+        # Authenticated access to agent pages renders 200 OK
+        self.agents.insert_one({
+            "name": "Auth Agent",
+            "phone": "9777766666",
+            "is_active": True
+        })
+        session = self.client.session
+        session['agent_phone'] = "9777766666"
+        session['agent_name'] = "Auth Agent"
+        session.save()
+
+        for url in ['/agent/visits/', '/agent/sites/']:
+            res = self.client.get(url)
+            self.assertEqual(res.status_code, 200, f"Authenticated {url} should render 200")
+        self.agents.delete_many({"phone": "9777766666"})
+
 
 
 
