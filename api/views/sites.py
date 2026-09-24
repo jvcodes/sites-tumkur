@@ -461,7 +461,7 @@ def update_site_by_code_api(request, site_code):
         "tuda_approved", "bbmp_approved", "a_khata", "clear_title", "bank_loan_approved", "layout_approved",
         "borewell_water", "electricity_nearby", "drainage_connection", "asphalt_road_access",
         "nearby_landmarks", "youtube_url", "latitude", "longitude", "uploaded_phone",
-        "ownership_type", "availability", "zoning_type", "category"
+        "ownership_type", "availability", "zoning_type", "category", "distance_to_main_road"
     ]
 
     for field in allowed_fields:

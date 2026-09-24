@@ -80,6 +80,7 @@ class SiteSerializer(serializers.Serializer):
     availability = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     zoning_type = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     category = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    distance_to_main_road = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     # Optional visit tracking fields
     visit_date = serializers.DateTimeField(required=False, allow_null=True)

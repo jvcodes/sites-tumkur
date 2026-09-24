@@ -115,8 +115,15 @@ interface Site {
   bank_loan_approved?: boolean;
   layout_approved?: boolean;
 
+  distance_to_main_road?: string | number | null;
+
   // Nearby landmarks with distance
-  nearby_landmarks?: Array<{ landmark: string; distance_km?: number | null }>;
+  nearby_landmarks?: Array<{
+    landmark?: string;
+    name?: string;
+    distance_km?: number | string | null;
+    distance?: number | string | null;
+  }>;
 
   // Utilities
   borewell_water?: boolean;
@@ -523,6 +530,52 @@ export default function SiteDetails() {
     )
   );
 
+  // Compute all effective landmarks with normalized distances (prevents missing or hidden landmarks)
+  const effectiveLandmarks: Array<{ landmark: string; distance: string }> = [];
+
+  if (Array.isArray(site.nearby_landmarks) && site.nearby_landmarks.length > 0) {
+    site.nearby_landmarks.forEach((lm: any) => {
+      const name = (lm?.landmark || lm?.name || "").trim();
+      if (name) {
+        const rawDist = lm?.distance_km ?? lm?.distance;
+        let distFormatted = "Nearby";
+        if (rawDist !== null && rawDist !== undefined && String(rawDist).trim() !== "") {
+          const dStr = String(rawDist).trim();
+          distFormatted = dStr.toLowerCase().endsWith("km") || dStr.toLowerCase().endsWith("m")
+            ? dStr
+            : `${dStr} km`;
+        }
+        effectiveLandmarks.push({
+          landmark: name,
+          distance: distFormatted,
+        });
+      }
+    });
+  }
+
+  // Include primary landmark if defined and not already in the list
+  if (site.landmark && site.landmark.trim()) {
+    const primaryClean = site.landmark.trim().replace(/^near\s+/i, "").trim();
+    const alreadyPresent = effectiveLandmarks.some(
+      (item) =>
+        item.landmark.toLowerCase() === primaryClean.toLowerCase() ||
+        item.landmark.toLowerCase() === site.landmark?.trim().toLowerCase()
+    );
+    if (!alreadyPresent) {
+      let dist = "Nearby";
+      if (site.distance_to_main_road && String(site.distance_to_main_road).trim()) {
+        const raw = String(site.distance_to_main_road).trim();
+        dist = raw.toLowerCase().endsWith("m") || raw.toLowerCase().endsWith("km")
+          ? raw
+          : `${raw} m`;
+      }
+      effectiveLandmarks.unshift({
+        landmark: site.landmark.trim(),
+        distance: dist,
+      });
+    }
+  }
+
   return (
     <div className="bg-gray-50 min-h-screen pb-16">
       {/* 🔹 STICKY NAVIGATION BAR (Compact & Small) */}
@@ -647,13 +700,19 @@ export default function SiteDetails() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2 break-words">
               {site.name || "Real Estate Plot"}
             </h1>
-            <p className="text-gray-600 text-base sm:text-lg flex flex-wrap items-center break-words">
-              📍 {site.location}{" "}
-              {site.landmark
-                ? site.landmark.toLowerCase().startsWith("near")
-                  ? `(${site.landmark})`
-                  : `(Near ${site.landmark})`
-                : ""}
+            <p className="text-gray-600 text-base sm:text-lg flex flex-wrap items-center gap-1.5 break-words">
+              <span>📍 {site.location}</span>
+              {site.landmark ? (
+                <span className="text-gray-700 font-medium">
+                  {site.landmark.toLowerCase().startsWith("near")
+                    ? `(${site.landmark})`
+                    : `(Near ${site.landmark})`}
+                </span>
+              ) : effectiveLandmarks.length > 0 ? (
+                <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md text-xs sm:text-sm font-semibold border border-blue-200">
+                  Near {effectiveLandmarks[0].landmark} ({effectiveLandmarks[0].distance})
+                </span>
+              ) : null}
             </p>
           </div>
 
@@ -747,34 +806,56 @@ export default function SiteDetails() {
                   {site.boundary_marked ? "✅ Yes" : "❌ No"}
                 </p>
               </div>
-              <div className="col-span-2">
+              <div>
                 <p className="text-gray-500 text-sm font-medium">Levelled Land</p>
                 <p className="text-gray-900 font-semibold">
                   {site.levelled_land ? "✅ Yes" : "❌ No"}
                 </p>
               </div>
+              {site.distance_to_main_road && (
+                <div className="col-span-2 sm:col-span-1">
+                  <p className="text-gray-500 text-sm font-medium">Distance to Main Road</p>
+                  <p className="text-gray-900 font-semibold">
+                    {String(site.distance_to_main_road).toLowerCase().includes("m")
+                      ? site.distance_to_main_road
+                      : `${site.distance_to_main_road} meters`}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* 📍 NEARBY KEY LANDMARKS & DISTANCES */}
-          {site.nearby_landmarks && site.nearby_landmarks.length > 0 && (
-            <div data-testid="nearby-landmarks-section" className="bg-white rounded-xl shadow-sm border p-6">
-              <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-4 flex items-center gap-2">
-                📍 Key Landmarks & Distances
-              </h2>
+          {effectiveLandmarks.length > 0 && (
+            <div data-testid="nearby-landmarks-section" className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+              <div className="border-b pb-3 mb-4 flex items-center justify-between gap-2 flex-wrap">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span>📍</span>
+                  <span>Key Landmarks & Distances</span>
+                </h2>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                  {effectiveLandmarks.length} {effectiveLandmarks.length === 1 ? "Landmark" : "Landmarks"} Nearby
+                </span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {site.nearby_landmarks.map((lm, idx) => (
-                  <div key={idx} data-testid="landmark-item" className="flex items-center justify-between p-3.5 rounded-xl bg-blue-50/40 border border-blue-100 hover:border-blue-200 transition-colors">
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                      <span className="w-8 h-8 rounded-full bg-white text-blue-600 shadow-xs border border-blue-100 flex items-center justify-center text-sm flex-shrink-0">
+                {effectiveLandmarks.map((lm, idx) => (
+                  <div
+                    key={idx}
+                    data-testid="landmark-item"
+                    className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-gradient-to-r from-blue-50/50 to-indigo-50/30 border border-blue-100 hover:border-blue-300 transition-all shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span className="w-8 h-8 rounded-full bg-white text-blue-600 shadow-xs border border-blue-100 flex items-center justify-center text-sm shrink-0">
                         📍
                       </span>
-                      <span className="text-sm font-bold text-gray-900 truncate">
-                        {lm.landmark}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm font-bold text-gray-900 leading-snug break-words block">
+                          {lm.landmark}
+                        </span>
+                      </div>
                     </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-600 text-white shadow-xs flex-shrink-0">
-                      {lm.distance_km != null ? `${lm.distance_km} km` : "Nearby"}
+                    <span className="px-2.5 py-1 rounded-full text-xs font-black bg-blue-600 text-white shadow-xs shrink-0 whitespace-nowrap tracking-wide">
+                      {lm.distance}
                     </span>
                   </div>
                 ))}

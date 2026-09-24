@@ -422,5 +422,52 @@ test.describe('Site Details Navigation & Sticky Controls', () => {
     expect(finalHomeState.sites.map((s: any) => s.site_code)).toContain('PREFETCH-4');
     expect(finalHomeState.sites.map((s: any) => s.site_code)).toContain('PREFETCH-5');
   });
+
+  test('should render landmarks and distances fully visible without truncation', async ({ page }) => {
+    await page.route('**/api/sites/LANDMARK-TEST', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          site_code: 'LANDMARK-TEST',
+          name: 'Scenic Villa Plot with Long Landmark Names',
+          location: 'Kyatsandra, Tumkur',
+          price: 3500000,
+          area: 1500,
+          landmark: 'Siddaganga Mutt Main Arch',
+          distance_to_main_road: '300m',
+          nearby_landmarks: [
+            { landmark: 'Siddaganga Institute of Technology (SIT Campus)', distance_km: 1.8 },
+            { landmark: 'Tumkur District Government Multi-Speciality Hospital', distance_km: 4.2 }
+          ]
+        }),
+      });
+    });
+
+    await page.goto('http://localhost:3000/site/LANDMARK-TEST');
+    await page.waitForLoadState('domcontentloaded');
+
+    // 1. Verify Nearby Landmarks section is visible
+    const section = page.locator('[data-testid="nearby-landmarks-section"]');
+    await expect(section).toBeVisible();
+
+    // 2. Verify all landmarks are present
+    const items = section.locator('[data-testid="landmark-item"]');
+    await expect(items).toHaveCount(3); // 2 from array + 1 primary landmark
+
+    // 3. Verify long landmark names and distances are rendered in full
+    const sitItem = items.filter({ hasText: 'Siddaganga Institute of Technology (SIT Campus)' });
+    await expect(sitItem).toBeVisible();
+    await expect(sitItem.locator('text=1.8 km')).toBeVisible();
+
+    const hospItem = items.filter({ hasText: 'Tumkur District Government Multi-Speciality Hospital' });
+    await expect(hospItem).toBeVisible();
+    await expect(hospItem.locator('text=4.2 km')).toBeVisible();
+
+    // 4. Verify distance to main road in specifications
+    await expect(page.locator('text=Distance to Main Road')).toBeVisible();
+    await expect(page.locator('p', { hasText: '300m' })).toBeVisible();
+  });
 });
+
 

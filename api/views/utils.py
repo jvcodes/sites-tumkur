@@ -73,6 +73,9 @@ def hydrate_sites(request, sites):
         s["availability"] = s.get("availability", "")
         s["zoning_type"] = s.get("zoning_type", "")
         s["category"] = s.get("category", "")
+        s["distance_to_main_road"] = s.get("distance_to_main_road", "")
+        if "nearby_landmarks" in s:
+            s["nearby_landmarks"] = s.get("nearby_landmarks") or []
         
         # Hydrate text location from location_id only if missing
         if not s.get("location") and s.get("location_id") and str(s["location_id"]) in locations:
