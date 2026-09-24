@@ -19,6 +19,7 @@ urlpatterns = [
     # -----------------------------------------------
     # Short-form Admin Hub URLs (without /api/ prefix)
     # -----------------------------------------------
+    path('admin/', site_views.admin_hub_page),
     path('admin/hub/', site_views.admin_hub_page),
     path('admin/agents/', agent_views.admin_agents_page),
     path('admin/agents/add/', agent_views.admin_add_agent),

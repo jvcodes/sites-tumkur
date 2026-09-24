@@ -966,6 +966,20 @@ class ComprehensiveFieldEditingAndLoopholeTests(TestCase):
         self.assertNotIn("/media/sites/sample_plot.jpg", doc.get("images", []))
         self.assertEqual(doc.get("image"), "")
 
+    def test_admin_hub_page_renders_successfully(self):
+        """Admin hub dashboard renders cleanly without NameError or missing collections."""
+        res = self.client.get('/admin/hub/')
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'Admin Dashboard')
+        self.assertContains(res, 'Real Sites')
+        self.assertContains(res, 'Active Agents')
+
+        # Also test /admin/ alias
+        res_alias = self.client.get('/admin/')
+        self.assertEqual(res_alias.status_code, 200)
+        self.assertContains(res_alias, 'Admin Dashboard')
+
+
 
 
 

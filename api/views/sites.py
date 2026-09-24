@@ -9,7 +9,14 @@ from django.http import HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 from bson import ObjectId
-from listings.mongo import site_collection, booking_collection, site_images_collection, drafts_collection
+from listings.mongo import (
+    site_collection,
+    booking_collection,
+    site_images_collection,
+    drafts_collection,
+    agents_collection,
+    landmarks_collection,
+)
 from listings.utils import generate_site_code
 from api.views.utils import normalize_image, hydrate_sites
 from api.serializers import SiteSerializer
