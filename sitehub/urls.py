@@ -9,6 +9,7 @@ from django.conf.urls.static import static
 from api.views import sites as site_views
 from api.views import agents as agent_views
 from api.views import bookings as booking_views
+from api.views import landmarks as landmark_views
 
 urlpatterns = [
     path('api/', include('api.urls')),
@@ -29,7 +30,11 @@ urlpatterns = [
     path('admin/sites/edit/', site_views.admin_edit_site),
     path('admin/bookings/', booking_views.admin_bookings_page),
     path('admin/bookings/update/<str:booking_id>/', booking_views.admin_update_booking),
+    path('admin/bookings/check-conflict/', booking_views.admin_check_conflict_api),
     path('admin/user-profile/', site_views.admin_user_profile),
+    path('admin/landmarks/', landmark_views.admin_landmarks_page),
+    path('admin/landmarks/add/', landmark_views.admin_add_landmark),
+    path('admin/landmarks/delete/', landmark_views.admin_delete_landmark),
     path('bookings/update/<str:booking_id>/', booking_views.update_booking_status_api),
 
     # -----------------------------------------------
@@ -41,6 +46,7 @@ urlpatterns = [
     path('agent/visits/', agent_views.agent_visits_page),
     path('agent/visits/complete/', agent_views.agent_complete_visit),
     path('agent/sites/', agent_views.agent_sites_page),
+    path('agent/sites/review/', agent_views.agent_review_site),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

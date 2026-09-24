@@ -453,12 +453,36 @@ def update_site_by_code_api(request, site_code):
         "negotiable", "loan_facility", 
         "tuda_approved", "bbmp_approved", "a_khata", "clear_title", "bank_loan_approved", "layout_approved",
         "borewell_water", "electricity_nearby", "drainage_connection", "asphalt_road_access",
-        "nearby_landmarks"
+        "nearby_landmarks", "youtube_url", "latitude", "longitude", "uploaded_phone",
+        "ownership_type", "availability", "zoning_type", "category"
     ]
 
     for field in allowed_fields:
         if field in data:
             update_data[field] = data[field]
+
+    # Safe float conversions
+    for float_field in ("price", "area", "latitude", "longitude"):
+        if float_field in update_data:
+            val = update_data[float_field]
+            if val is not None and str(val).strip() != "":
+                try:
+                    update_data[float_field] = float(val)
+                except (ValueError, TypeError):
+                    pass
+            else:
+                update_data[float_field] = None
+
+    # Safe boolean conversions
+    boolean_fields = [
+        "corner_site", "boundary_marked", "levelled_land",
+        "negotiable", "loan_facility",
+        "a_khata", "clear_title", "bank_loan_approved", "layout_approved",
+        "borewell_water", "electricity_nearby", "drainage_connection", "asphalt_road_access"
+    ]
+    for b_field in boolean_fields:
+        if b_field in update_data:
+            update_data[b_field] = bool(update_data[b_field])
 
     if "tuda_approved" in data:
         update_data["tuda_approved"] = bool(data["tuda_approved"])
@@ -694,12 +718,14 @@ def admin_sites_pending_page(request):
         "all":       site_collection.count_documents(base_query),
         "pending":   site_collection.count_documents({**base_query, "status": "pending"}),
         "approved":  site_collection.count_documents({**base_query, "status": "approved"}),
+        "sold":      site_collection.count_documents({**base_query, "status": "sold"}),
         "rejected":  site_collection.count_documents({**base_query, "status": "rejected"}),
     }
 
     tab_list = [
         ("pending",  "Pending",  "⏳"),
         ("approved", "Approved", "✅"),
+        ("sold",     "Sold",     "🏷️"),
         ("rejected", "Rejected", "❌"),
         ("all",      "All",      "📋"),
     ]
@@ -730,15 +756,32 @@ def admin_site_review_page(request, site_code):
     site["id"] = str(site["_id"])
     del site["_id"]
 
-    from listings.mongo import site_images_collection
+    from listings.mongo import site_images_collection, landmarks_collection
     site_images = list(site_images_collection.find({"site_code": site_code}))
     
-    # Retain the full image object for deleting, but add the full URL for rendering
-    for img in site_images:
-        img["full_url"] = f"/media/{img['image_url']}" if not img['image_url'].startswith('http') else img['image_url']
+    # Retain the full image object for deleting, with fallback to legacy images
+    if not site_images:
+        legacy_imgs = site.get("images") or ([site.get("image")] if site.get("image") else [])
+        for l_img in legacy_imgs:
+            if l_img:
+                clean_img = str(l_img).strip()
+                full_url = f"/media/{clean_img}" if not clean_img.startswith("http") and not clean_img.startswith("/") else clean_img
+                site_images.append({
+                    "site_code": site_code,
+                    "image_url": clean_img,
+                    "full_url": full_url
+                })
+    else:
+        for img in site_images:
+            img["full_url"] = f"/media/{img['image_url']}" if not img['image_url'].startswith('http') else img['image_url']
         
     site["images_raw"] = site_images
     site["images"] = [img["full_url"] for img in site_images]
+
+    # Available landmarks for autocomplete / quick-pick
+    available_landmarks = list(landmarks_collection.find({"is_active": {"$ne": False}}, {"name": 1, "category": 1}))
+    for al in available_landmarks:
+        al["id"] = str(al["_id"])
 
     # Calculate Next and Prev site codes for easy navigation
     status = site.get("status", "pending")
@@ -760,6 +803,7 @@ def admin_site_review_page(request, site_code):
         "prev_site": prev_site,
         "next_site": next_site,
         "features": SITE_FEATURES,
+        "available_landmarks": available_landmarks,
         "message": message,
     })
 
@@ -846,6 +890,63 @@ def admin_upload_site_page(request):
         "error": error,
     })
 
+def parse_nearby_landmarks_input(request):
+    """
+    Parses landmark entries from form POST inputs:
+    - Array format: landmark_name[] and landmark_distance[]
+    - Raw multiline or JSON format from nearby_landmarks
+    """
+    names = request.POST.getlist("landmark_name")
+    distances = request.POST.getlist("landmark_distance")
+    if names:
+        landmarks = []
+        for idx, name in enumerate(names):
+            clean_name = str(name).strip()
+            if not clean_name:
+                continue
+            dist = None
+            if idx < len(distances) and str(distances[idx]).strip():
+                try:
+                    dist = float(distances[idx])
+                except (ValueError, TypeError):
+                    dist = None
+            landmarks.append({"landmark": clean_name, "distance_km": dist})
+        return landmarks
+
+    raw = request.POST.get("nearby_landmarks")
+    if raw:
+        if isinstance(raw, str):
+            try:
+                import json
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    return [
+                        {
+                            "landmark": str(item.get("landmark", "")).strip(),
+                            "distance_km": float(item.get("distance_km", 0)) if item.get("distance_km") not in (None, "") else None
+                        }
+                        for item in parsed
+                        if item.get("landmark")
+                    ]
+            except Exception:
+                pass
+            # Parse line by line "Landmark Name, 2.5"
+            lines = [l.strip() for l in raw.strip().split("\n") if l.strip()]
+            landmarks = []
+            for line in lines:
+                parts = line.split(",")
+                lm_name = parts[0].strip()
+                dist = None
+                if len(parts) > 1:
+                    try:
+                        dist = float(parts[1].replace("km", "").replace("KM", "").strip())
+                    except (ValueError, TypeError):
+                        dist = None
+                if lm_name:
+                    landmarks.append({"landmark": lm_name, "distance_km": dist})
+            return landmarks
+    return None
+
 def admin_edit_site(request):
     """POST: Edit a site's details, upload photos, and update status."""
     if request.method != "POST":
@@ -898,12 +999,16 @@ def admin_edit_site(request):
     }
     if price:
         try:
-            update_data["price"] = float(price)
+            val = float(price)
+            if val >= 0:
+                update_data["price"] = val
         except (ValueError, TypeError):
             pass
     if area:
         try:
-            update_data["area"] = float(area)
+            val = float(area)
+            if val >= 0:
+                update_data["area"] = val
         except (ValueError, TypeError):
             pass
 
@@ -930,6 +1035,14 @@ def admin_edit_site(request):
     # Dynamically extract all features configured in SITE_FEATURES
     for feature in SITE_FEATURES:
         update_data[feature["key"]] = get_bool(feature["key"])
+
+    if "tuda_approved" in update_data:
+        update_data["bbmp_approved"] = update_data["tuda_approved"]
+
+    # Nearby Landmarks
+    lm_data = parse_nearby_landmarks_input(request)
+    if lm_data is not None:
+        update_data["nearby_landmarks"] = lm_data
 
     # Determine status transition
     if action in ("save_approve", "approved"):
@@ -1018,7 +1131,7 @@ def delete_site_image_api(request):
     Remove one image from site_images_collection and from the site's legacy images array.
     Payload: { site_code, image_url }
     """
-    from listings.mongo import site_images_collection
+    from listings.mongo import site_images_collection, site_collection
 
     site_code = request.data.get("site_code", "").strip()
     image_url = request.data.get("image_url", "").strip()
@@ -1026,14 +1139,23 @@ def delete_site_image_api(request):
     if not site_code or not image_url:
         return Response({"error": "site_code and image_url are required"}, status=400)
 
+    raw_rel = image_url.replace("/media/", "") if image_url.startswith("/media/") else image_url
+
     # Delete from normalised images collection
-    site_images_collection.delete_many({"site_code": site_code, "image_url": image_url})
+    site_images_collection.delete_many({
+        "site_code": site_code,
+        "$or": [{"image_url": image_url}, {"image_url": raw_rel}]
+    })
 
     # Also remove from legacy images[] array on site doc
-    from listings.mongo import site_collection
     site_collection.update_one(
         {"site_code": site_code},
-        {"$pull": {"images": image_url}}
+        {"$pull": {"images": {"$in": [image_url, raw_rel]}}}
+    )
+    # And clear single image field if it matched
+    site_collection.update_one(
+        {"site_code": site_code, "image": {"$in": [image_url, raw_rel]}},
+        {"$set": {"image": ""}}
     )
 
     return Response({"message": "Image deleted", "site_code": site_code})

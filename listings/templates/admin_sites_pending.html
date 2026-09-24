@@ -75,6 +75,7 @@
                 {% if tab_status == "all" %}{{ counts.all }}
                 {% elif tab_status == "pending" %}{{ counts.pending }}
                 {% elif tab_status == "approved" %}{{ counts.approved }}
+                {% elif tab_status == "sold" %}{{ counts.sold }}
                 {% else %}{{ counts.rejected }}{% endif %}
             </span>
         </a>
@@ -128,6 +129,7 @@
                         <td class="px-5 py-4 whitespace-nowrap">
                             <span class="px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider
                                 {% if site.status == 'approved' %}badge-approved
+                                {% elif site.status == 'sold' %}badge-sold
                                 {% elif site.status == 'rejected' %}badge-rejected
                                 {% else %}badge-pending{% endif %}">
                                 {{ site.status|default:"Pending" }}
@@ -194,6 +196,15 @@
                                     <input type="hidden" name="action" value="sold">
                                     <button type="submit" class="bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition border border-amber-200" title="Mark as sold out">
                                         🏷️ Mark Sold
+                                    </button>
+                                </form>
+                                {% elif site.status == 'sold' %}
+                                <form method="post" action="/admin/sites/approve/" class="m-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="site_code" value="{{ site.site_code }}">
+                                    <input type="hidden" name="action" value="approved">
+                                    <button type="submit" class="bg-green-50 hover:bg-green-100 text-green-700 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition border border-green-200" title="Re-activate and publish listing">
+                                        ✅ Re-list
                                     </button>
                                 </form>
                                 {% endif %}

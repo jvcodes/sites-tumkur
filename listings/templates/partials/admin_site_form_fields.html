@@ -134,6 +134,49 @@
   {% endfor %}
 </div>
 
+<div class="section-title">📍 Key Nearby Landmarks (Displayed on Public Page)</div>
+<div id="landmarks-container" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+  {% if site.nearby_landmarks %}
+    {% for lm in site.nearby_landmarks %}
+    <div class="landmark-row" style="display:grid; grid-template-columns:1fr 140px 40px; gap:8px; align-items:center;">
+      <input type="text" name="landmark_name" placeholder="Landmark Name (e.g. Tumkur Bus Stand)" value="{{ lm.landmark|default:'' }}">
+      <input type="number" step="0.1" name="landmark_distance" placeholder="Distance (km)" value="{{ lm.distance_km|default:'' }}">
+      <button type="button" onclick="this.closest('.landmark-row').remove()" style="background:#fee2e2; color:#b91c1c; border:none; border-radius:6px; height:34px; font-weight:bold; cursor:pointer;" title="Remove">✕</button>
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<div style="display:flex; gap:10px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
+  <button type="button" onclick="addLandmarkRow('', '')" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:12px; font-weight:600; padding:6px 12px; border-radius:6px; cursor:pointer;">
+    + Add Custom Landmark
+  </button>
+
+  {% if available_landmarks %}
+  <select onchange="if(this.value){ addLandmarkRow(this.value, ''); this.value=''; }" style="width:auto; max-width:260px; font-size:12px; padding:6px 10px; border-radius:6px; background:#fff;">
+    <option value="">+ Pick from Tumkur Landmarks...</option>
+    {% for alm in available_landmarks %}
+    <option value="{{ alm.name }}">{{ alm.name }} ({{ alm.category }})</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+</div>
+
+<script>
+function addLandmarkRow(name, dist) {
+  const container = document.getElementById('landmarks-container');
+  const div = document.createElement('div');
+  div.className = 'landmark-row';
+  div.style.cssText = 'display:grid; grid-template-columns:1fr 140px 40px; gap:8px; align-items:center;';
+  div.innerHTML = `
+    <input type="text" name="landmark_name" placeholder="Landmark Name (e.g. Tumkur Bus Stand)" value="${(name || '').replace(/"/g, '&quot;')}">
+    <input type="number" step="0.1" name="landmark_distance" placeholder="Distance (km)" value="${dist || ''}">
+    <button type="button" onclick="this.closest('.landmark-row').remove()" style="background:#fee2e2; color:#b91c1c; border:none; border-radius:6px; height:34px; font-weight:bold; cursor:pointer;" title="Remove">✕</button>
+  `;
+  container.appendChild(div);
+}
+</script>
+
 <div class="section-title">🔒 Admin Section</div>
 <div class="form-group">
   <label>Admin Internal Notes (Not visible to users)</label>

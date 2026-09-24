@@ -39,18 +39,6 @@
           style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); padding:28px; max-width:800px;">
       {% csrf_token %}
 
-      <div class="section-title">👤 Owner Information (Upload on Behalf Of)</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-        <div class="form-group">
-          <label>Owner Name</label>
-          <input type="text" name="owner" required placeholder="e.g. Ramesh Kumar">
-        </div>
-        <div class="form-group">
-          <label>Owner Phone (Primary ID)</label>
-          <input type="text" name="uploaded_phone" required placeholder="e.g. 9876543210">
-        </div>
-      </div>
-
       {% include "partials/admin_site_form_fields.html" %}
 
       <div class="section-title">📋 Status</div>

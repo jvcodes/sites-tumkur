@@ -68,6 +68,11 @@ def hydrate_sites(request, sites):
         s["youtube_url"] = s.get("youtube_url", "")
         s["latitude"] = s.get("latitude", None)
         s["longitude"] = s.get("longitude", None)
+        s["uploaded_phone"] = s.get("uploaded_phone", "")
+        s["ownership_type"] = s.get("ownership_type", "")
+        s["availability"] = s.get("availability", "")
+        s["zoning_type"] = s.get("zoning_type", "")
+        s["category"] = s.get("category", "")
         
         # Hydrate text location from location_id only if missing
         if not s.get("location") and s.get("location_id") and str(s["location_id"]) in locations:

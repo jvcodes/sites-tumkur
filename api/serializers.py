@@ -72,6 +72,15 @@ class SiteSerializer(serializers.Serializer):
     is_test = serializers.BooleanField(default=False, required=False)
     status = serializers.CharField(read_only=True)
     
+    # Coordinates & Seller Info
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
+    uploaded_phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    ownership_type = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    availability = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    zoning_type = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    category = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
     # Optional visit tracking fields
     visit_date = serializers.DateTimeField(required=False, allow_null=True)
     visit_status = serializers.CharField(required=False, allow_null=True)

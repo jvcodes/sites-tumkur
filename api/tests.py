@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from unittest.mock import patch, MagicMock
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
@@ -761,6 +762,210 @@ class AdminSiteModificationTests(TestCase):
         self.assertContains(detail_res, 'name="longitude"')
         self.assertContains(detail_res, 'name="owner"')
         self.assertContains(detail_res, 'name="uploaded_phone"')
+
+
+class ComprehensiveFieldEditingAndLoopholeTests(TestCase):
+    """
+    Tests ensuring EVERY field displayed on the public site can be edited,
+    serialized, and that all admin routes/loopholes are sealed.
+    """
+
+    def setUp(self):
+        from listings.mongo import site_collection, site_images_collection, landmarks_collection
+        self.sites = site_collection
+        self.site_images = site_images_collection
+        self.landmarks = landmarks_collection
+        self.test_code = "FULL-EDIT-TEST"
+        self.sites.delete_many({"site_code": self.test_code})
+        self.site_images.delete_many({"site_code": self.test_code})
+
+        self.sites.insert_one({
+            "site_code": self.test_code,
+            "name": "Original Name",
+            "location": "Tumkur",
+            "price": 2000000,
+            "area": 1200,
+            "status": "approved",
+            "is_deleted": False,
+        })
+
+    def tearDown(self):
+        self.sites.delete_many({"site_code": self.test_code})
+        self.site_images.delete_many({"site_code": self.test_code})
+
+    def test_update_site_by_code_all_displayed_fields(self):
+        """Verify EVERY single field displayed on the web page can be edited via update API and is serialized."""
+        update_payload = {
+            'name': 'Updated Mega Villa Plot',
+            'location': 'Kuvempu Nagar, Tumkur',
+            'price': 4500000,
+            'area': 2400,
+            'dimension': '40x60',
+            'facing': 'North-East',
+            'road_width': '40 ft',
+            'landmark': 'Near SIT Engineering College',
+            'category': 'Premium Gated Community',
+            'ownership_type': 'Freehold',
+            'availability': 'Immediate',
+            'zoning_type': 'Residential',
+            'owner': 'Suresh Gowda',
+            'uploaded_phone': '9845012345',
+            'latitude': 13.3325,
+            'longitude': 77.1120,
+            'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            'description': 'A-Khata clear title plot with asphalt road, borewell and drainage ready.',
+            # Specifications & Features
+            'corner_site': True,
+            'boundary_marked': True,
+            'levelled_land': True,
+            'negotiable': True,
+            'loan_facility': True,
+            # Legal & Approvals
+            'tuda_approved': True,
+            'a_khata': True,
+            'clear_title': True,
+            'bank_loan_approved': True,
+            'layout_approved': True,
+            # Utilities
+            'borewell_water': True,
+            'electricity_nearby': True,
+            'drainage_connection': True,
+            'asphalt_road_access': True,
+            # Structured Nearby Landmarks
+            'nearby_landmarks': [
+                {'landmark': 'Tumkur Railway Station', 'distance_km': 3.2},
+                {'landmark': 'KSRTC Bus Stand', 'distance_km': 2.5}
+            ]
+        }
+
+        response = self.client.put(
+            f'/api/sites/update-by-code/{self.test_code}/',
+            data=json.dumps(update_payload),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # 1. Verify MongoDB persistence
+        doc = self.sites.find_one({"site_code": self.test_code})
+        self.assertIsNotNone(doc)
+        self.assertEqual(doc['name'], 'Updated Mega Villa Plot')
+        self.assertEqual(doc['road_width'], '40 ft')
+        self.assertEqual(doc['landmark'], 'Near SIT Engineering College')
+        self.assertEqual(doc['uploaded_phone'], '9845012345')
+        self.assertEqual(doc['latitude'], 13.3325)
+        self.assertEqual(doc['longitude'], 77.1120)
+        self.assertEqual(doc['youtube_url'], 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+        self.assertTrue(doc['corner_site'])
+        self.assertTrue(doc['boundary_marked'])
+        self.assertTrue(doc['levelled_land'])
+        self.assertTrue(doc['negotiable'])
+        self.assertTrue(doc['loan_facility'])
+        self.assertTrue(doc['tuda_approved'])
+        self.assertTrue(doc['a_khata'])
+        self.assertTrue(doc['clear_title'])
+        self.assertTrue(doc['bank_loan_approved'])
+        self.assertTrue(doc['layout_approved'])
+        self.assertTrue(doc['borewell_water'])
+        self.assertTrue(doc['electricity_nearby'])
+        self.assertTrue(doc['drainage_connection'])
+        self.assertTrue(doc['asphalt_road_access'])
+        self.assertEqual(len(doc['nearby_landmarks']), 2)
+
+        # 2. Verify SiteSerializer returns all fields through GET endpoint
+        detail_res = self.client.get(f'/api/sites/{self.test_code}/')
+        self.assertEqual(detail_res.status_code, 200)
+        data = detail_res.json()
+        self.assertEqual(data['latitude'], 13.3325)
+        self.assertEqual(data['longitude'], 77.1120)
+        self.assertEqual(data['uploaded_phone'], '9845012345')
+        self.assertEqual(data['youtube_url'], 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+        self.assertEqual(data['road_width'], '40 ft')
+        self.assertTrue(data['tuda_approved'])
+        self.assertTrue(data['corner_site'])
+        self.assertEqual(len(data['nearby_landmarks']), 2)
+
+    def test_admin_edit_site_with_nearby_landmarks(self):
+        """Admin can modify nearby landmarks via structured landmark form inputs."""
+        response = self.client.post('/admin/sites/edit/', {
+            'site_code': self.test_code,
+            'action': 'save',
+            'name': 'Landmarks Site',
+            'location': 'Tumkur',
+            'price': '2500000',
+            'landmark_name': ['District Hospital', 'Gubbi Gate'],
+            'landmark_distance': ['1.8', '3.5'],
+        })
+        self.assertEqual(response.status_code, 302)
+
+        doc = self.sites.find_one({"site_code": self.test_code})
+        self.assertEqual(len(doc.get('nearby_landmarks', [])), 2)
+        self.assertEqual(doc['nearby_landmarks'][0]['landmark'], 'District Hospital')
+        self.assertEqual(doc['nearby_landmarks'][0]['distance_km'], 1.8)
+        self.assertEqual(doc['nearby_landmarks'][1]['landmark'], 'Gubbi Gate')
+        self.assertEqual(doc['nearby_landmarks'][1]['distance_km'], 3.5)
+
+    def test_admin_landmarks_url_routes(self):
+        """Short-form /admin/landmarks/ routes work correctly without 404."""
+        # 1. GET page
+        res = self.client.get('/admin/landmarks/')
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'Manage Key Landmarks')
+
+        # 2. POST add landmark
+        test_lm = "Test Landmark AGY"
+        add_res = self.client.post('/admin/landmarks/add/', {
+            'name': test_lm,
+            'category': 'Transport'
+        })
+        self.assertEqual(add_res.status_code, 302)
+        created = self.landmarks.find_one({"name": test_lm})
+        self.assertIsNotNone(created)
+
+        # 3. POST delete landmark
+        del_res = self.client.post('/admin/landmarks/delete/', {
+            'landmark_id': str(created['_id']),
+            'name': test_lm
+        })
+        self.assertEqual(del_res.status_code, 302)
+        self.landmarks.delete_many({"name": test_lm})
+
+    def test_admin_sites_pending_sold_tab(self):
+        """Admin pending sites page handles sold status filter and tab counts."""
+        self.sites.update_one({"site_code": self.test_code}, {"$set": {"status": "sold"}})
+
+        res = self.client.get('/admin/sites/pending/?status=sold')
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'badge-sold')
+        self.assertContains(res, 'Re-list')
+        self.assertContains(res, self.test_code)
+
+    def test_delete_site_image_api_resilience(self):
+        """Image deletion handles both /media/ prefix and relative paths."""
+        self.site_images.insert_one({
+            "site_code": self.test_code,
+            "image_url": "sites/sample_plot.jpg",
+            "created_at": datetime.now()
+        })
+        self.sites.update_one(
+            {"site_code": self.test_code},
+            {"$set": {"images": ["/media/sites/sample_plot.jpg"], "image": "/media/sites/sample_plot.jpg"}}
+        )
+
+        res = self.client.post('/api/sites/images/delete/', data=json.dumps({
+            "site_code": self.test_code,
+            "image_url": "/media/sites/sample_plot.jpg"
+        }), content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+
+        # Confirm deleted from normalized collection
+        count = self.site_images.count_documents({"site_code": self.test_code})
+        self.assertEqual(count, 0)
+
+        # Confirm deleted from site doc
+        doc = self.sites.find_one({"site_code": self.test_code})
+        self.assertNotIn("/media/sites/sample_plot.jpg", doc.get("images", []))
+        self.assertEqual(doc.get("image"), "")
+
 
 
 
