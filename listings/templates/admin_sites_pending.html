@@ -158,18 +158,24 @@
                         </td>
 
                         <!-- Actions -->
-                        <td class="px-5 py-4">
+                        <td class="px-5 py-4 whitespace-nowrap">
                             <div class="flex items-center gap-2">
-                                <a href="/admin/sites/review/{{ site.site_code }}/" target="_blank"
-                                   class="inline-block bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded text-xs transition border border-gray-200">
-                                    🔍 Full View ↗
-                                </a>>
+                                <a href="/admin/sites/review/{{ site.site_code }}/"
+                                   class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded-lg text-xs transition border border-blue-200 shadow-2xs"
+                                   title="Edit site specifications, prices, photos, and status">
+                                    ✏️ Edit
+                                </a>
+                                <a href="http://localhost:3000/site/{{ site.site_code }}" target="_blank"
+                                   class="inline-flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 font-medium px-2.5 py-1.5 rounded-lg text-xs transition border border-gray-200"
+                                   title="View live listing on SiteHub in new tab">
+                                    🌐 Live ↗
+                                </a>
                                 {% if site.status == 'pending' %}
                                 <form method="post" action="/admin/sites/approve/" class="m-0">
                                     {% csrf_token %}
                                     <input type="hidden" name="site_code" value="{{ site.site_code }}">
                                     <input type="hidden" name="action" value="approved">
-                                    <button type="submit" class="bg-green-100 hover:bg-green-200 text-green-700 font-semibold px-3 py-1.5 rounded text-xs transition border border-green-200">
+                                    <button type="submit" class="bg-green-100 hover:bg-green-200 text-green-700 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition border border-green-200">
                                         ✅ Approve
                                     </button>
                                 </form>
@@ -177,8 +183,17 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="site_code" value="{{ site.site_code }}">
                                     <input type="hidden" name="action" value="rejected">
-                                    <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-3 py-1.5 rounded text-xs transition border border-red-200">
+                                    <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition border border-red-200">
                                         ❌ Reject
+                                    </button>
+                                </form>
+                                {% elif site.status == 'approved' %}
+                                <form method="post" action="/admin/sites/approve/" class="m-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="site_code" value="{{ site.site_code }}">
+                                    <input type="hidden" name="action" value="sold">
+                                    <button type="submit" class="bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition border border-amber-200" title="Mark as sold out">
+                                        🏷️ Mark Sold
                                     </button>
                                 </form>
                                 {% endif %}

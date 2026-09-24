@@ -91,6 +91,7 @@ interface Site {
   facing?: string;
   road_width?: string;
   owner?: string;
+  user_id?: string;
   description?: string;
   image?: string;
   images?: string[];
@@ -509,6 +510,19 @@ export default function SiteDetails() {
   const pricePerSqft =
     site.area && site.area > 0 ? Math.round(site.price / site.area) : 0;
 
+  // Authorization: admin or property owner
+  const canEdit = Boolean(
+    user && (
+      user.role === "admin" ||
+      (site.user_id && (
+        (user.email && user.email.toLowerCase() === site.user_id.toLowerCase()) ||
+        (user.phone && user.phone.includes(site.user_id)) ||
+        (site.user_id.includes(user.phone || "___"))
+      )) ||
+      (site.owner && user.name && user.name.toLowerCase() === site.owner.toLowerCase())
+    )
+  );
+
   return (
     <div className="bg-gray-50 min-h-screen pb-16">
       {/* 🔹 STICKY NAVIGATION BAR (Compact & Small) */}
@@ -594,6 +608,19 @@ export default function SiteDetails() {
               <span className="text-emerald-600 font-bold">↗️</span>
               <span className="hidden sm:inline">Share</span>
             </button>
+
+            {/* Edit Property Button (Visible to Admin & Property Owner) */}
+            {canEdit && (
+              <Link
+                href={`/site/${site.site_code}/edit`}
+                data-testid="edit-property-top-btn"
+                className="px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 text-xs font-semibold text-amber-800 transition-all flex items-center gap-1 active:scale-95 shadow-2xs ml-1"
+                title="Edit this property"
+              >
+                <span>✏️</span>
+                <span className="hidden sm:inline">Edit</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -603,9 +630,20 @@ export default function SiteDetails() {
         <div className="space-y-8">
           {/* IDENTIFICATION & HEADER */}
           <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 min-w-0">
-            <span className="inline-block bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full font-bold mb-3 border border-red-200 uppercase tracking-widest">
-              ID: {site.site_code}
-            </span>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <span className="inline-block bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full font-bold border border-red-200 uppercase tracking-widest">
+                ID: {site.site_code}
+              </span>
+              {canEdit && (
+                <Link
+                  href={`/site/${site.site_code}/edit`}
+                  data-testid="edit-property-badge-btn"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold hover:bg-amber-100 transition shadow-2xs"
+                >
+                  <span>✏️</span> Edit Property
+                </Link>
+              )}
+            </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2 break-words">
               {site.name || "Real Estate Plot"}
             </h1>
@@ -870,6 +908,17 @@ export default function SiteDetails() {
                 <span className="text-base">↗️</span>
                 <span>Share via WhatsApp / Link</span>
               </button>
+
+              {canEdit && (
+                <Link
+                  href={`/site/${site.site_code}/edit`}
+                  data-testid="edit-property-sidebar-btn"
+                  className="w-full py-2.5 rounded-lg font-bold border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 flex items-center justify-center gap-2 transition-all active:scale-[0.99] text-sm shadow-2xs"
+                >
+                  <span>✏️</span>
+                  <span>Edit Property Details</span>
+                </Link>
+              )}
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-100">

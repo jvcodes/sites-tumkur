@@ -29,12 +29,12 @@
       <div class="stat-card">
         <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Real Sites</div>
         <div style="font-size:36px; font-weight:800; color:#059669; margin-top:8px;">{{ real_sites_count }}</div>
-        <span style="font-size:12px; color:#10b981; font-weight:600; display:inline-block; margin-top:8px;">Production Verified</span>
+        <a href="/admin/sites/pending/?status=approved" style="font-size:12px; color:#059669; text-decoration:none; margin-top:8px; display:inline-block; font-weight:600;">View & Edit Approved →</a>
       </div>
       <div class="stat-card">
         <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Test Mockups</div>
         <div style="font-size:36px; font-weight:800; color:#8b5cf6; margin-top:8px;">{{ test_sites_count }}</div>
-        <span style="font-size:12px; color:#6b7280; display:inline-block; margin-top:8px;">Dev / Seed Data</span>
+        <a href="/admin/sites/pending/?status=all" style="font-size:12px; color:#8b5cf6; text-decoration:none; margin-top:8px; display:inline-block; font-weight:600;">View All Properties →</a>
       </div>
       <div class="stat-card">
         <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Pending Visits</div>
@@ -44,7 +44,7 @@
       <div class="stat-card">
         <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Pending Review</div>
         <div style="font-size:36px; font-weight:800; color:#ef4444; margin-top:8px;">{{ pending_sites }}</div>
-        <a href="/admin/sites/pending/" style="font-size:12px; color:#2563eb; text-decoration:none; margin-top:8px; display:inline-block;">Review →</a>
+        <a href="/admin/sites/pending/?status=pending" style="font-size:12px; color:#2563eb; text-decoration:none; margin-top:8px; display:inline-block;">Review & Approve →</a>
       </div>
       <div class="stat-card">
         <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Active Agents</div>
@@ -61,20 +61,20 @@
     <!-- Quick Links -->
     <h2 style="font-size:16px; font-weight:700; color:#0f172a; margin-bottom:14px;">Quick Actions</h2>
     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:32px;">
-      <a href="/admin/agents/" class="quick-link">
-        <span style="font-size:28px; margin-bottom:10px;">👥</span>
-        <strong style="color:#0f172a; font-size:15px;">Add / Manage Agents</strong>
-        <span style="font-size:13px; color:#64748b; margin-top:4px;">Create, activate, or deactivate agents</span>
+      <a href="/admin/sites/pending/?status=all" class="quick-link">
+        <span style="font-size:28px; margin-bottom:10px;">🏢</span>
+        <strong style="color:#0f172a; font-size:15px;">Manage & Edit Properties</strong>
+        <span style="font-size:13px; color:#64748b; margin-top:4px;">Search, edit details, update prices, or modify photos</span>
+      </a>
+      <a href="/admin/sites/pending/?status=pending" class="quick-link">
+        <span style="font-size:28px; margin-bottom:10px;">⏳</span>
+        <strong style="color:#0f172a; font-size:15px;">Approve / Reject Sites</strong>
+        <span style="font-size:13px; color:#64748b; margin-top:4px;">Review pending user submissions</span>
       </a>
       <a href="/admin/sites/upload/" class="quick-link">
         <span style="font-size:28px; margin-bottom:10px;">⬆️</span>
         <strong style="color:#0f172a; font-size:15px;">Upload a Site Listing</strong>
         <span style="font-size:13px; color:#64748b; margin-top:4px;">Post a site on behalf of any user</span>
-      </a>
-      <a href="/admin/sites/pending/" class="quick-link">
-        <span style="font-size:28px; margin-bottom:10px;">⏳</span>
-        <strong style="color:#0f172a; font-size:15px;">Approve / Reject Sites</strong>
-        <span style="font-size:13px; color:#64748b; margin-top:4px;">Review user-uploaded site submissions</span>
       </a>
       <a href="/api/admin/bookings/" class="quick-link">
         <span style="font-size:28px; margin-bottom:10px;">📅</span>

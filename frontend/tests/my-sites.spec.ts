@@ -64,4 +64,46 @@ test.describe('SiteHub My Sites Page', () => {
         await expect(page.locator('text=You haven\'t uploaded any sites yet.')).toBeVisible({ timeout: 10000 });
         await expect(page.locator('button', { hasText: 'Upload a Site' })).toBeVisible();
     });
+
+    test('should show Edit Property buttons when user has admin role', async ({ page }) => {
+        await page.evaluate(() => {
+            localStorage.setItem('user', JSON.stringify({
+                id: 1,
+                username: 'admin',
+                phone: '9999999999',
+                name: 'Admin User',
+                email: 'admin@sitehub.com',
+                role: 'admin'
+            }));
+        });
+
+        await page.route('**/api/sites/SITE-ADMIN-TEST', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    site_code: 'SITE-ADMIN-TEST',
+                    name: 'Admin Test Site',
+                    location: 'Tumkur',
+                    price: 2500000,
+                    area: 1200,
+                    dimension: '30x40',
+                    facing: 'East',
+                    status: 'approved',
+                    user_id: 'other-user@example.com'
+                })
+            });
+        });
+
+        await page.goto('/site/SITE-ADMIN-TEST');
+
+        const topEditBtn = page.locator('[data-testid="edit-property-top-btn"]');
+        await expect(topEditBtn).toBeVisible({ timeout: 10000 });
+
+        const badgeEditBtn = page.locator('[data-testid="edit-property-badge-btn"]');
+        await expect(badgeEditBtn).toBeVisible();
+
+        const sidebarEditBtn = page.locator('[data-testid="edit-property-sidebar-btn"]');
+        await expect(sidebarEditBtn).toBeVisible();
+    });
 });

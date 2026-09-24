@@ -28,8 +28,11 @@
       <span>👥</span> Manage Agents
     </a>
 
-    <div class="nav-section">Sites</div>
-    <a href="/admin/sites/pending/" class="nav-link {% if 'pending' in request.path %}active{% endif %}">
+    <div class="nav-section">Properties</div>
+    <a href="/admin/sites/pending/?status=all" class="nav-link {% if 'status=all' in request.get_full_path or request.path == '/admin/sites/' %}active{% endif %}">
+      <span>🏢</span> All Properties
+    </a>
+    <a href="/admin/sites/pending/?status=pending" class="nav-link {% if 'pending' in request.path and 'status=all' not in request.get_full_path %}active{% endif %}">
       <span>⏳</span> Pending Approvals
     </a>
     <a href="/admin/sites/upload/" class="nav-link {% if 'upload' in request.path %}active{% endif %}">

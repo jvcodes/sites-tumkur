@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import render
+from django.http import HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 from bson import ObjectId
@@ -753,22 +754,24 @@ def admin_site_review_page(request, site_code):
         if idx < len(site_codes) - 1:
             next_site = site_codes[idx + 1]  # Older site
 
+    message = request.GET.get("msg", "")
     return render(request, "admin_site_detail.html", {
         "site": site,
         "prev_site": prev_site,
         "next_site": next_site,
         "features": SITE_FEATURES,
+        "message": message,
     })
 
 def admin_approve_site(request):
-    """POST: Approve or reject a pending site."""
+    """POST: Approve, reject, or mark as sold."""
     if request.method != "POST":
         return HttpResponseRedirect("/admin/sites/pending/")
 
     site_code = request.POST.get("site_code")
-    action = request.POST.get("action")  # 'approved' or 'rejected'
+    action = request.POST.get("action")  # 'approved', 'rejected', or 'sold'
 
-    if not site_code or action not in ("approved", "rejected"):
+    if not site_code or action not in ("approved", "rejected", "sold"):
         return HttpResponseRedirect("/admin/sites/pending/?msg=Invalid+action")
 
     site_collection.update_one(
@@ -844,12 +847,13 @@ def admin_upload_site_page(request):
     })
 
 def admin_edit_site(request):
-    """POST: Edit a pending site's details, optionally approve immediately."""
+    """POST: Edit a site's details, upload photos, and update status."""
     if request.method != "POST":
         return HttpResponseRedirect("/admin/sites/pending/")
 
     site_code   = request.POST.get("site_code", "").strip()
-    action      = request.POST.get("action", "save")  # 'save' or 'save_approve'
+    action      = request.POST.get("action", "save")
+    status_sel  = request.POST.get("status", "").strip().lower()
     name        = request.POST.get("name", "").strip()
     location    = request.POST.get("location", "").strip()
     price       = request.POST.get("price")
@@ -867,6 +871,10 @@ def admin_edit_site(request):
     description = request.POST.get("description", "")
     admin_notes = request.POST.get("admin_notes", "")
     youtube_url = request.POST.get("youtube_url", "")
+    owner       = request.POST.get("owner", "").strip()
+    uploaded_phone = request.POST.get("uploaded_phone", "").strip()
+    latitude    = request.POST.get("latitude")
+    longitude   = request.POST.get("longitude")
 
     if not site_code:
         return HttpResponseRedirect("/admin/sites/pending/?msg=Invalid+site")
@@ -889,9 +897,31 @@ def admin_edit_site(request):
         "youtube_url": youtube_url,
     }
     if price:
-        update_data["price"] = float(price)
+        try:
+            update_data["price"] = float(price)
+        except (ValueError, TypeError):
+            pass
     if area:
-        update_data["area"] = float(area)
+        try:
+            update_data["area"] = float(area)
+        except (ValueError, TypeError):
+            pass
+
+    if owner:
+        update_data["owner"] = owner
+    if uploaded_phone:
+        update_data["uploaded_phone"] = uploaded_phone
+
+    if latitude:
+        try:
+            update_data["latitude"] = float(latitude)
+        except (ValueError, TypeError):
+            pass
+    if longitude:
+        try:
+            update_data["longitude"] = float(longitude)
+        except (ValueError, TypeError):
+            pass
 
     # Helper to parse boolean from checkbox string
     def get_bool(key):
@@ -901,20 +931,42 @@ def admin_edit_site(request):
     for feature in SITE_FEATURES:
         update_data[feature["key"]] = get_bool(feature["key"])
 
-    if action == "save_approve" or action == "approved":
+    # Determine status transition
+    if action in ("save_approve", "approved"):
         update_data["status"] = "approved"
-    elif action == "reject" or action == "rejected":
+    elif action in ("reject", "rejected"):
         update_data["status"] = "rejected"
+    elif action == "sold":
+        update_data["status"] = "sold"
+    elif action == "pending":
+        update_data["status"] = "pending"
+    elif status_sel in ("approved", "pending", "rejected", "sold"):
+        update_data["status"] = status_sel
 
     site_collection.update_one(
         {"site_code": site_code},
         {"$set": update_data}
     )
 
+    # Handle optional new image uploads
+    new_images = request.FILES.getlist("images")
+    if new_images:
+        from django.core.files.storage import default_storage
+        for img in new_images:
+            path = default_storage.save(f"sites/{img.name}", img)
+            site_images_collection.insert_one({
+                "site_code": site_code,
+                "image_url": path,
+                "created_at": datetime.now()
+            })
+
     next_url = request.POST.get("next")
+    msg = f"Site {site_code} updated successfully"
     if next_url:
-        return HttpResponseRedirect(next_url)
-        
+        import urllib.parse
+        delimiter = "&" if "?" in next_url else "?"
+        return HttpResponseRedirect(f"{next_url}{delimiter}msg={urllib.parse.quote_plus(msg)}")
+
     return HttpResponseRedirect(f"/admin/sites/pending/?msg=Site+{site_code}+updated+successfully")
 
 def admin_user_profile(request):

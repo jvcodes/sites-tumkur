@@ -13,6 +13,10 @@ interface Site {
     owner?: string;
     user_id?: string;
     description?: string;
+    dimension?: string;
+    facing?: string;
+    corner_site?: boolean;
+    status?: string;
 }
 
 export default function EditSitePage() {
@@ -26,6 +30,10 @@ export default function EditSitePage() {
         price: "",
         owner: "",
         area: "",
+        dimension: "",
+        facing: "",
+        corner_site: false,
+        status: "approved",
         description: "",
     });
 
@@ -76,6 +84,10 @@ export default function EditSitePage() {
                     price: data.price?.toString() || "",
                     owner: data.owner || "",
                     area: data.area?.toString() || "",
+                    dimension: data.dimension || "",
+                    facing: data.facing || "",
+                    corner_site: Boolean(data.corner_site),
+                    status: data.status || "approved",
                     description: data.description || "",
                 });
             } catch {
@@ -91,7 +103,8 @@ export default function EditSitePage() {
     }, [siteCode, user]);
 
     const handleChange = (e: any) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        setForm({ ...form, [e.target.name]: value });
     };
 
     const handleSubmit = async (e: any) => {
@@ -99,14 +112,20 @@ export default function EditSitePage() {
         setSaving(true);
         setMessage("");
 
-        const updateData = {
+        const updateData: any = {
             name: form.name,
             location: form.location,
             price: Number(form.price),
             owner: form.owner,
             area: form.area ? Number(form.area) : null,
+            dimension: form.dimension || null,
+            facing: form.facing || null,
+            corner_site: Boolean(form.corner_site),
             description: form.description,
         };
+        if (form.status) {
+            updateData.status = form.status;
+        }
 
         try {
             const res = await fetch(
@@ -215,6 +234,68 @@ export default function EditSitePage() {
                             />
                         </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Dimension</label>
+                            <input
+                                name="dimension"
+                                placeholder="e.g. 30x40"
+                                value={form.dimension}
+                                onChange={handleChange}
+                                className="w-full border rounded px-4 py-2"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Facing</label>
+                            <select
+                                name="facing"
+                                value={form.facing}
+                                onChange={handleChange}
+                                className="w-full border rounded px-4 py-2 bg-white"
+                            >
+                                <option value="">— Select Facing —</option>
+                                <option value="East">East</option>
+                                <option value="West">West</option>
+                                <option value="North">North</option>
+                                <option value="South">South</option>
+                                <option value="North-East">North-East</option>
+                                <option value="North-West">North-West</option>
+                                <option value="South-East">South-East</option>
+                                <option value="South-West">South-West</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 py-1">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+                            <input
+                                type="checkbox"
+                                name="corner_site"
+                                checked={form.corner_site}
+                                onChange={handleChange}
+                                className="w-4 h-4 text-red-600 rounded"
+                            />
+                            <span>📐 Corner Plot</span>
+                        </label>
+                    </div>
+
+                    {user?.role === "admin" && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Listing Status (Admin)</label>
+                            <select
+                                name="status"
+                                value={form.status}
+                                onChange={handleChange}
+                                className="w-full border rounded px-4 py-2 bg-white font-medium"
+                            >
+                                <option value="pending">⏳ Pending Review</option>
+                                <option value="approved">✅ Approved & Published</option>
+                                <option value="sold">🏷️ Sold Out</option>
+                                <option value="rejected">❌ Rejected</option>
+                            </select>
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Owner Name</label>

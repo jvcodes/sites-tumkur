@@ -652,4 +652,117 @@ class ProfileAuthAndSecurityTests(TestCase):
         self.assertTrue(site.get("is_deleted"))
 
 
+class AdminSiteModificationTests(TestCase):
+    """Tests for Admin Site Editing, Photo Uploads, and Status Transitions."""
+
+    def setUp(self):
+        from listings.mongo import site_collection, site_images_collection
+        self.sites = site_collection
+        self.site_images = site_images_collection
+        self.test_code = "ADM-EDIT-TEST"
+        self.sites.delete_many({"site_code": self.test_code})
+        self.site_images.delete_many({"site_code": self.test_code})
+
+        self.sites.insert_one({
+            "site_code": self.test_code,
+            "name": "Initial Site",
+            "location": "Tumkur",
+            "price": 2000000,
+            "area": 1200,
+            "status": "pending",
+            "is_deleted": False,
+        })
+
+    def tearDown(self):
+        self.sites.delete_many({"site_code": self.test_code})
+        self.site_images.delete_many({"site_code": self.test_code})
+
+    def test_admin_edit_site_updates_fields_and_status(self):
+        """Admin can modify specifications, pricing, corner plot flag, contact, and status."""
+        response = self.client.post('/admin/sites/edit/', {
+            'site_code': self.test_code,
+            'action': 'save',
+            'name': 'Updated Premium Plot',
+            'location': 'Batawadi',
+            'price': '3500000',
+            'area': '1500',
+            'dimension': '30x50',
+            'facing': 'East',
+            'corner_site': 'true',
+            'status': 'approved',
+            'owner': 'Ramesh Tumkur',
+            'uploaded_phone': '9876543210',
+            'latitude': '13.3400',
+            'longitude': '77.1000',
+        })
+        # Should redirect back to pending or next url with success query
+        self.assertEqual(response.status_code, 302)
+        
+        updated = self.sites.find_one({"site_code": self.test_code})
+        self.assertIsNotNone(updated)
+        self.assertEqual(updated['name'], 'Updated Premium Plot')
+        self.assertEqual(updated['location'], 'Batawadi')
+        self.assertEqual(updated['price'], 3500000.0)
+        self.assertEqual(updated['area'], 1500.0)
+        self.assertEqual(updated['dimension'], '30x50')
+        self.assertEqual(updated['facing'], 'East')
+        self.assertTrue(updated['corner_site'])
+        self.assertEqual(updated['status'], 'approved')
+        self.assertEqual(updated['owner'], 'Ramesh Tumkur')
+        self.assertEqual(updated['uploaded_phone'], '9876543210')
+        self.assertEqual(updated['latitude'], 13.3400)
+        self.assertEqual(updated['longitude'], 77.1000)
+
+    def test_admin_edit_site_photo_upload(self):
+        """Admin can attach new photos while modifying a site."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        test_file = SimpleUploadedFile("new_plot.jpg", b"fake_image_content", content_type="image/jpeg")
+
+        response = self.client.post('/admin/sites/edit/', {
+            'site_code': self.test_code,
+            'action': 'save',
+            'name': 'Photo Site',
+            'images': [test_file]
+        })
+        self.assertEqual(response.status_code, 302)
+
+        images = list(self.site_images.find({"site_code": self.test_code}))
+        self.assertGreaterEqual(len(images), 1)
+
+    def test_admin_approve_site_mark_sold(self):
+        """Admin can mark an approved site as sold directly via action."""
+        response = self.client.post('/admin/sites/approve/', {
+            'site_code': self.test_code,
+            'action': 'sold'
+        })
+        self.assertEqual(response.status_code, 302)
+        updated = self.sites.find_one({"site_code": self.test_code})
+        self.assertEqual(updated['status'], 'sold')
+
+    def test_admin_pages_render_edit_controls(self):
+        """Admin list page and review page render Edit buttons, form fields, and photo upload."""
+        # 1. Check list view has Edit button
+        list_res = self.client.get('/admin/sites/pending/?status=all')
+        self.assertEqual(list_res.status_code, 200)
+        self.assertContains(list_res, f"/admin/sites/review/{self.test_code}/")
+        self.assertContains(list_res, "✏️ Edit")
+        self.assertContains(list_res, "🌐 Live ↗")
+
+        # 2. Check detail review / edit view has full controls
+        detail_res = self.client.get(f'/admin/sites/review/{self.test_code}/')
+        self.assertEqual(detail_res.status_code, 200)
+        self.assertContains(detail_res, 'action="/admin/sites/edit/"')
+        self.assertContains(detail_res, 'enctype="multipart/form-data"')
+        self.assertContains(detail_res, 'name="images"')
+        self.assertContains(detail_res, 'name="dimension"')
+        self.assertContains(detail_res, 'name="facing"')
+        self.assertContains(detail_res, 'name="corner_site"')
+        self.assertContains(detail_res, 'name="latitude"')
+        self.assertContains(detail_res, 'name="longitude"')
+        self.assertContains(detail_res, 'name="owner"')
+        self.assertContains(detail_res, 'name="uploaded_phone"')
+
+
+
+
 
