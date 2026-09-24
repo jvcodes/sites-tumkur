@@ -7,97 +7,98 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { margin:0; font-family:'Inter',sans-serif; background:#f1f5f9; }
-    .layout { display:flex; min-height:100vh; }
-    .main { flex:1; padding:32px; overflow-y:auto; }
   </style>
 </head>
-<body>
-<div class="layout">
+<body class="bg-slate-100 text-slate-800">
+<div class="layout flex flex-col md:flex-row min-h-screen">
   {% include "partials/admin_nav.html" %}
 
-  <main class="main">
-    <div style="margin-bottom:28px; display:flex; justify-content:space-between; align-items:center;">
+  <main class="main flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
       <div>
-        <h1 style="font-size:24px; font-weight:800; color:#0f172a; margin:0;">Manage Agents</h1>
-        <p style="color:#64748b; margin:4px 0 0;">Add, activate, or deactivate field agents for visit assignments.</p>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 m-0">Manage Agents</h1>
+        <p class="text-slate-500 text-xs sm:text-sm mt-1">Add, activate, or deactivate field agents for visit assignments.</p>
       </div>
     </div>
 
     <!-- Flash Messages -->
     {% if message %}
-    <div style="background:#dcfce7; border:1px solid #86efac; color:#166534; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:14px; font-weight:500;">
+    <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 px-4 py-3 rounded-xl mb-5 text-sm font-medium">
       ✅ {{ message }}
     </div>
     {% endif %}
     {% if error %}
-    <div style="background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:14px; font-weight:500;">
+    <div class="bg-rose-50 border border-rose-300 text-rose-800 px-4 py-3 rounded-xl mb-5 text-sm font-medium">
       ❌ {{ error }}
     </div>
     {% endif %}
 
-    <div style="display:grid; grid-template-columns:1fr 360px; gap:24px; align-items:start;">
+    <div class="flex flex-col-reverse lg:grid lg:grid-cols-[1fr_360px] gap-6 items-start">
       <!-- Agent Table -->
-      <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); overflow:hidden;">
-        <div style="padding:16px 20px; border-bottom:1px solid #f1f5f9; font-size:14px; font-weight:700; color:#0f172a;">
-          All Agents ({{ agents|length }})
+      <div class="w-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-4 border-b border-slate-100 text-sm font-bold text-slate-900 flex justify-between items-center">
+          <span>All Agents</span>
+          <span class="bg-slate-100 text-slate-600 text-xs font-semibold px-2 py-0.5 rounded-full">{{ agents|length }} total</span>
         </div>
-        <table style="width:100%; border-collapse:collapse;">
-          <thead>
-            <tr style="background:#f8fafc;">
-              <th style="text-align:left; padding:10px 16px; font-size:11px; color:#64748b; text-transform:uppercase;">Name</th>
-              <th style="text-align:left; padding:10px 16px; font-size:11px; color:#64748b; text-transform:uppercase;">Phone</th>
-              <th style="text-align:left; padding:10px 16px; font-size:11px; color:#64748b; text-transform:uppercase;">Status</th>
-              <th style="text-align:left; padding:10px 16px; font-size:11px; color:#64748b; text-transform:uppercase;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for agent in agents %}
-            <tr style="border-top:1px solid #f1f5f9;">
-              <td style="padding:12px 16px; font-size:14px; font-weight:600; color:#0f172a;">{{ agent.name }}</td>
-              <td style="padding:12px 16px; font-size:14px; color:#475569;">{{ agent.phone }}</td>
-              <td style="padding:12px 16px;">
-                {% if agent.is_active != False %}
-                <span style="background:#dcfce7; color:#166534; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;">Active</span>
-                {% else %}
-                <span style="background:#f3f4f6; color:#6b7280; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;">Inactive</span>
-                {% endif %}
-              </td>
-              <td style="padding:12px 16px;">
-                <form method="post" action="/admin/agents/toggle/" style="display:inline;">
-                  {% csrf_token %}
-                  <input type="hidden" name="agent_id" value="{{ agent.id }}">
-                  <input type="hidden" name="current_status" value="{{ agent.is_active }}">
-                  <button type="submit" style="font-size:12px; padding:5px 12px; border-radius:6px; border:1px solid {% if agent.is_active != False %}#ef4444{% else %}#10b981{% endif %}; background:transparent; cursor:pointer; color:{% if agent.is_active != False %}#ef4444{% else %}#10b981{% endif %}; font-weight:600;">
-                    {% if agent.is_active != False %}Deactivate{% else %}Activate{% endif %}
-                  </button>
-                </form>
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" style="padding:32px; text-align:center; color:#94a3b8;">No agents found. Add one using the form →</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;">
+          <table class="w-full border-collapse text-left min-w-[480px]">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                <th class="p-3 sm:px-4 sm:py-3">Name</th>
+                <th class="p-3 sm:px-4 sm:py-3">Phone</th>
+                <th class="p-3 sm:px-4 sm:py-3">Status</th>
+                <th class="p-3 sm:px-4 sm:py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-sm">
+              {% for agent in agents %}
+              <tr class="hover:bg-slate-50 transition">
+                <td class="p-3 sm:px-4 sm:py-3 font-semibold text-slate-900 whitespace-nowrap">{{ agent.name }}</td>
+                <td class="p-3 sm:px-4 sm:py-3 text-slate-600 whitespace-nowrap">{{ agent.phone }}</td>
+                <td class="p-3 sm:px-4 sm:py-3 whitespace-nowrap">
+                  {% if agent.is_active != False %}
+                  <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full">Active</span>
+                  {% else %}
+                  <span class="bg-slate-100 text-slate-500 text-xs font-bold px-2.5 py-0.5 rounded-full">Inactive</span>
+                  {% endif %}
+                </td>
+                <td class="p-3 sm:px-4 sm:py-3 text-right whitespace-nowrap">
+                  <form method="post" action="/admin/agents/toggle/" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="agent_id" value="{{ agent.id }}">
+                    <input type="hidden" name="current_status" value="{{ agent.is_active }}">
+                    <button type="submit" class="text-xs px-3 py-1.5 rounded-md border font-semibold transition {% if agent.is_active != False %}border-rose-300 text-rose-600 hover:bg-rose-50{% else %}border-emerald-300 text-emerald-600 hover:bg-emerald-50{% endif %}">
+                      {% if agent.is_active != False %}Deactivate{% else %}Activate{% endif %}
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="p-8 text-center text-slate-400">No agents registered yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Add Agent Form -->
-      <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); padding:24px;">
-        <h2 style="font-size:15px; font-weight:700; color:#0f172a; margin:0 0 16px;">Add New Agent</h2>
-        <form method="post" action="/admin/agents/add/">
+      <div class="w-full bg-white rounded-xl shadow-sm border border-slate-200 p-5 sm:p-6">
+        <h2 class="text-base font-bold text-slate-900 mb-4">Add New Agent</h2>
+        <form method="post" action="/admin/agents/add/" class="space-y-4">
           {% csrf_token %}
-          <div style="margin-bottom:14px;">
-            <label style="font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:5px;">Full Name</label>
-            <input type="text" name="name" required placeholder="e.g. Agent Ravi" style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; box-sizing:border-box;">
+          <div>
+            <label class="text-xs font-bold text-slate-700 block mb-1">Full Name *</label>
+            <input type="text" name="name" required placeholder="e.g. Agent Ravi" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
           </div>
-          <div style="margin-bottom:14px;">
-            <label style="font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:5px;">Phone Number (Primary ID)</label>
-            <input type="tel" name="phone" required placeholder="e.g. 9876543210" style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; box-sizing:border-box;">
+          <div>
+            <label class="text-xs font-bold text-slate-700 block mb-1">Phone Number (Primary ID) *</label>
+            <input type="tel" name="phone" required placeholder="e.g. 9876543210" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
           </div>
-          <div style="margin-bottom:20px;">
-            <label style="font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:5px;">Email (Optional)</label>
-            <input type="email" name="email" placeholder="e.g. agent@sitehub.com" style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; box-sizing:border-box;">
+          <div>
+            <label class="text-xs font-bold text-slate-700 block mb-1">Email (Optional)</label>
+            <input type="email" name="email" placeholder="e.g. agent@sitehub.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
           </div>
-          <button type="submit" style="width:100%; background:#2563eb; color:#fff; padding:10px; border-radius:8px; border:none; font-size:14px; font-weight:600; cursor:pointer;">
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition shadow-sm">
             ➕ Add Agent
           </button>
         </form>

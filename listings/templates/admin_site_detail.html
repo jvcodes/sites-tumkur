@@ -21,39 +21,41 @@
 </head>
 <body>
 
-<div class="max-w-4xl mx-auto px-6 py-6 space-y-5">
+<div class="max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5">
 
     <!-- ── HEADER ──────────────────────────────────────────── -->
-    <div class="bg-white rounded-2xl shadow-sm px-6 py-4 flex items-center justify-between flex-wrap gap-4">
-        <div class="flex items-center gap-4">
-            <a href="/admin/sites/pending/?status=all" class="text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition">← Back to Properties</a>
-            
-            <div class="flex items-center gap-2 border-l border-gray-200 pl-4 ml-2">
-                {% if prev_site %}
-                <a href="/admin/sites/review/{{ prev_site }}/" class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition" title="Go to newer site">&larr; Prev Site</a>
-                {% else %}
-                <span class="text-xs font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-lg cursor-not-allowed">&larr; Prev Site</span>
-                {% endif %}
+    <div class="bg-white rounded-2xl shadow-sm px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div class="flex items-center justify-between sm:justify-start gap-2">
+                <a href="/admin/sites/pending/?status=all" class="text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition">← Back</a>
+                
+                <div class="flex items-center gap-2 border-l border-gray-200 pl-3 ml-1 sm:pl-4 sm:ml-2">
+                    {% if prev_site %}
+                    <a href="/admin/sites/review/{{ prev_site }}/" class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-blue-100 transition" title="Go to newer site">&larr; Prev</a>
+                    {% else %}
+                    <span class="text-xs font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-2.5 sm:px-3 py-1.5 rounded-lg cursor-not-allowed">&larr; Prev</span>
+                    {% endif %}
 
-                {% if next_site %}
-                <a href="/admin/sites/review/{{ next_site }}/" class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition" title="Go to older site">Next Site &rarr;</a>
-                {% else %}
-                <span class="text-xs font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-lg cursor-not-allowed">Next Site &rarr;</span>
-                {% endif %}
+                    {% if next_site %}
+                    <a href="/admin/sites/review/{{ next_site }}/" class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-blue-100 transition" title="Go to older site">Next &rarr;</a>
+                    {% else %}
+                    <span class="text-xs font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-2.5 sm:px-3 py-1.5 rounded-lg cursor-not-allowed">Next &rarr;</span>
+                    {% endif %}
+                </div>
             </div>
 
-            <div class="ml-4">
-                <h1 class="text-xl font-bold text-gray-800">
+            <div>
+                <h1 class="text-lg sm:text-xl font-bold text-gray-800">
                     {% if site.status == 'approved' or site.status == 'sold' %}
-                    ✏️ Edit Property: {{ site.site_code }}
+                    ✏️ Edit: {{ site.site_code }}
                     {% else %}
                     Review & Edit: {{ site.site_code }}
                     {% endif %}
                 </h1>
-                <p class="text-gray-400 text-xs mt-0.5">{{ site.name|default:"Property Listing" }} • Modify specifications, pricing, photos, or status</p>
+                <p class="text-gray-400 text-xs mt-0.5">{{ site.name|default:"Property Listing" }} • Modify specs, pricing, photos, or status</p>
             </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3 self-end sm:self-auto">
             <a href="http://localhost:3000/site/{{ site.site_code }}" target="_blank"
                class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition inline-flex items-center gap-1"
                title="Preview how this property looks live on SiteHub">

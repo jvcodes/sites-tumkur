@@ -7,10 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { margin:0; font-family:'Inter',sans-serif; background:#f1f5f9; }
-    .layout { display:flex; min-height:100vh; }
-    .main { flex:1; padding:32px; overflow-y:auto; }
     label { font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:5px; }
-    input[type=text], input[type=number], input[type=email], select, textarea {
+    input[type=text], input[type=number], input[type=email], input[type=tel], input[type=url], select, textarea {
       width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px;
       font-size:14px; box-sizing:border-box; background:#fff;
     }
@@ -18,25 +16,25 @@
     .section-title { font-size:13px; font-weight:700; color:#0f172a; padding:14px 0 10px; border-bottom:1px solid #e2e8f0; margin-bottom:16px; }
   </style>
 </head>
-<body>
-<div class="layout">
+<body class="bg-slate-100 text-slate-800">
+<div class="layout flex flex-col md:flex-row min-h-screen">
   {% include "partials/admin_nav.html" %}
 
-  <main class="main">
-    <div style="margin-bottom:24px;">
-      <h1 style="font-size:24px; font-weight:800; color:#0f172a; margin:0;">Upload a Site Listing</h1>
-      <p style="color:#64748b; margin:4px 0 0;">Create a site on behalf of any user or agent. Uploaded sites go into <strong>pending</strong> status by default.</p>
+  <main class="main flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+    <div class="mb-6">
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 m-0">Upload a Site Listing</h1>
+      <p class="text-slate-500 text-xs sm:text-sm mt-1">Create a site on behalf of any user or agent. Uploaded sites go into <strong>pending</strong> status by default.</p>
     </div>
 
     {% if message %}
-    <div style="background:#dcfce7; border:1px solid #86efac; color:#166534; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:14px;">✅ {{ message }}</div>
+    <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 px-4 py-3 rounded-xl mb-5 text-sm font-medium">✅ {{ message }}</div>
     {% endif %}
     {% if error %}
-    <div style="background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:14px;">❌ {{ error }}</div>
+    <div class="bg-rose-50 border border-rose-300 text-rose-800 px-4 py-3 rounded-xl mb-5 text-sm font-medium">❌ {{ error }}</div>
     {% endif %}
 
     <form method="post" action="/admin/sites/upload/" enctype="multipart/form-data"
-          style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.07); padding:28px; max-width:800px;">
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 sm:p-8 w-full max-w-4xl">
       {% csrf_token %}
 
       {% include "partials/admin_site_form_fields.html" %}
@@ -50,7 +48,7 @@
         </select>
       </div>
 
-      <button type="submit" style="background:#2563eb; color:#fff; padding:12px 28px; border-radius:8px; border:none; font-size:14px; font-weight:700; cursor:pointer; margin-top:8px;">
+      <button type="submit" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition shadow-sm cursor-pointer mt-2">
         ⬆️ Upload Site Listing
       </button>
     </form>
