@@ -19,6 +19,8 @@ urlpatterns = [
     # -----------------------------------------------
     # Short-form Admin Hub URLs (without /api/ prefix)
     # -----------------------------------------------
+    re_path(r'^admin/login/?$', site_views.admin_login_page),
+    re_path(r'^admin/logout/?$', site_views.admin_logout_view),
     re_path(r'^admin/?$', site_views.admin_hub_page),
     re_path(r'^admin/hub/?$', site_views.admin_hub_page),
     path('admin/agents/', agent_views.admin_agents_page),

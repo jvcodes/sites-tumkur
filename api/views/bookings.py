@@ -1,10 +1,12 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import render
+from django.http import HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
+from bson import ObjectId
 from listings.mongo import booking_collection, agents_collection, user_profiles_collection
-from api.views.utils import normalize_image, hydrate_sites
+from api.views.utils import normalize_image, hydrate_sites, admin_login_required
 
 @csrf_exempt
 @api_view(['POST'])
@@ -139,6 +141,7 @@ def admin_bookings_api(request):
 
     return Response(bookings)
 
+@admin_login_required
 def admin_bookings_page(request):
     """Admin: Manage visit bookings with status/date/agent/search filters. Defaults to pending."""
 
@@ -274,6 +277,7 @@ def update_booking_status_api(request, booking_id):
         status=200
     )
 
+@admin_login_required
 def admin_update_booking(request, booking_id):
     """POST: Update booking. Blocks approval if agent already has a conflicting approved booking."""
     if request.method != "POST":

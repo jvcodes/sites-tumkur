@@ -180,3 +180,8 @@ CACHES = {
 # In production (ENVIRONMENT=production), dummy data is automatically blocked.
 SHOW_TEST_DATA = os.environ.get("SHOW_TEST_DATA", "1" if DEBUG else "0").lower() in ["1", "true", "yes"]
 
+# Admin Hub Credentials (override via ADMIN_USERNAME / ADMIN_PASSWORD in .env or Cloud Run)
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "tumkur@2026")
+
+

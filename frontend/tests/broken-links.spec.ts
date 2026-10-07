@@ -5,8 +5,8 @@ test.describe('Broken Links & Images Crawler', () => {
   test('Homepage should not have any broken <a> links or <img> tags', async ({ page }) => {
     // Navigate to the homepage
     await page.goto('/');
-    // Wait for network to be somewhat idle
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('a').first()).toBeVisible({ timeout: 15000 });
 
     // 1. Check all images
     const images = await page.locator('img').all();

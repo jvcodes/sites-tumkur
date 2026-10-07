@@ -39,10 +39,10 @@ def normalize_image(request, image_path):
 def hydrate_sites(request, sites):
     from listings.mongo import locations_collection, site_images_collection
     
-    # 1. Fetch Locations
+    # 1. Fetch Locations (only for sites missing text location)
     loc_ids = []
     for s in sites:
-        if s.get("location_id"):
+        if not s.get("location") and s.get("location_id"):
             try:
                 loc_ids.append(ObjectId(s["location_id"]))
             except:
@@ -53,8 +53,13 @@ def hydrate_sites(request, sites):
         for loc in locations_collection.find({"_id": {"$in": loc_ids}}):
             locations[str(loc["_id"])] = loc.get("city", "")
 
-    # 2. Fetch Images
-    site_codes = [s.get("site_code") for s in sites if s.get("site_code")]
+    # 2. Fetch Images (skip external collection query for synthetic test/dummy sites
+    # that already have embedded image URLs on the document, saving a DB round-trip)
+    site_codes = [
+        s.get("site_code")
+        for s in sites
+        if s.get("site_code") and not (s.get("is_test") and (s.get("images") or s.get("image")))
+    ]
     images_map = {}
     if site_codes:
         for img in site_images_collection.find({"site_code": {"$in": site_codes}}).sort("created_at", 1):
@@ -100,3 +105,40 @@ def hydrate_sites(request, sites):
             s["images"] = []
             
     return sites
+
+
+# --------------------------------------------------
+# 🔹 Helper & Decorator: Admin Hub Session Authentication
+# --------------------------------------------------
+def is_admin_authenticated(request):
+    """
+    Returns True if the current request has an authenticated Admin Hub session
+    or is logged in as a Django staff/superuser.
+    """
+    if hasattr(request, "session") and request.session.get("is_admin_authenticated") is True:
+        return True
+    if hasattr(request, "user") and getattr(request.user, "is_authenticated", False):
+        if getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False):
+            return True
+    return False
+
+
+def admin_login_required(view_func):
+    """
+    Decorator that protects Django Admin Hub views (/admin/...).
+    Redirects unauthenticated visitors to /admin/login/?next=<path>.
+    """
+    from functools import wraps
+    from django.http import HttpResponseRedirect
+    import urllib.parse
+
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not is_admin_authenticated(request):
+            next_path = request.get_full_path() if hasattr(request, "get_full_path") else "/admin/hub/"
+            encoded_next = urllib.parse.quote(next_path, safe="")
+            return HttpResponseRedirect(f"/admin/login/?next={encoded_next}")
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped_view
+

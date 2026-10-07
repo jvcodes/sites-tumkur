@@ -6,8 +6,9 @@ from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 from bson import ObjectId
 from listings.mongo import agents_collection, booking_collection, site_collection
-from api.views.utils import normalize_image, hydrate_sites
+from api.views.utils import normalize_image, hydrate_sites, admin_login_required
 
+@admin_login_required
 def admin_agents_page(request):
     """Manage all agents — list and add new agents."""
     message = request.GET.get("msg", "")
@@ -24,6 +25,7 @@ def admin_agents_page(request):
         "error": error,
     })
 
+@admin_login_required
 def admin_add_agent(request):
     """POST: Create a new agent in the database."""
     if request.method != "POST":
@@ -49,6 +51,7 @@ def admin_add_agent(request):
     })
     return HttpResponseRedirect(f"/admin/agents/?msg=Agent+{name}+added+successfully")
 
+@admin_login_required
 def admin_toggle_agent(request):
     """POST: Toggle an agent's active status."""
     if request.method != "POST":

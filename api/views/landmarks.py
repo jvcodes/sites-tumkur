@@ -1,4 +1,4 @@
-﻿from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
@@ -53,6 +53,9 @@ def get_landmarks_api(request):
 # --------------------------------------------------
 # 🔹 Admin Hub: Landmarks Management Page
 # --------------------------------------------------
+from api.views.utils import admin_login_required
+
+@admin_login_required
 def admin_landmarks_page(request):
     """Renders the admin management interface for Tumkur landmarks."""
     ensure_default_landmarks()
@@ -76,6 +79,7 @@ def admin_landmarks_page(request):
 # 🔹 Admin Action: Add Landmark
 # --------------------------------------------------
 @csrf_exempt
+@admin_login_required
 def admin_add_landmark(request):
     """Admin endpoint to create a new landmark."""
     if request.method == "POST":
@@ -94,6 +98,7 @@ def admin_add_landmark(request):
 # 🔹 Admin Action: Delete Landmark
 # --------------------------------------------------
 @csrf_exempt
+@admin_login_required
 def admin_delete_landmark(request):
     """Admin endpoint to delete or deactivate a landmark."""
     if request.method == "POST":

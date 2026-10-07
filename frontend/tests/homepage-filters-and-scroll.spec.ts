@@ -40,10 +40,11 @@ test.describe('SiteHub Homepage Filters & Scroll Restoration', () => {
     
     // Verify we are on the details page
     await expect(page).toHaveURL(/\/site\/.+/);
-    await expect(page.locator('text=Back to Properties')).toBeVisible();
+    const backBtn = page.locator('[data-testid="back-to-properties-top"]');
+    await expect(backBtn).toBeVisible();
     
-    // 4. Click the dedicated Back Button
-    await page.locator('text=Back to Properties').click();
+    // 4. Click the dedicated Home / Back Button
+    await backBtn.click();
     
     // Verify we are back on the homepage
     await expect(page).toHaveURL('http://localhost:3000/');

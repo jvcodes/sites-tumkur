@@ -53,10 +53,10 @@ test.describe('SiteHub Personalization Boosting', () => {
     // ── Step 3: Verify we're on the detail page ──
     await expect(page).toHaveURL(/\/site\/.+/);
     
-    // Wait for the detail page to fully render (the Back button only shows
+    // Wait for the detail page to fully render (the Home / Back button only shows
     // after the API response has been received and the site data is set,
     // which is the same moment localStorage gets updated).
-    await expect(page.locator('text=Back to Properties')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="back-to-properties-top"]')).toBeVisible({ timeout: 15000 });
 
     // Verify localStorage was set correctly
     const storedLoc = await page.evaluate(() => localStorage.getItem('sitehub_preferred_loc'));

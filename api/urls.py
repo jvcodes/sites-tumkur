@@ -32,6 +32,8 @@ urlpatterns = [
     # -----------------------------------------------
     # 🔷 Admin Hub
     # -----------------------------------------------
+    re_path(r'^admin/login/?$', site_views.admin_login_page),
+    re_path(r'^admin/logout/?$', site_views.admin_logout_view),
     re_path(r'^admin/hub/?$', site_views.admin_hub_page),
 
     # Agent Management

@@ -143,14 +143,43 @@ function shortPrice(price?: number): string {
   return `₹${price.toLocaleString("en-IN")}`;
 }
 
+// Module-level memory cache + in-flight request deduplication + sessionStorage feed lookup for 0ms instant navigation
+const siteDetailMemoryCache = new Map<string, Site>();
+const inFlightSiteRequests = new Map<
+  string,
+  Promise<{ ok: boolean; status: number; data: Site | null } | null>
+>();
+
+function getCachedSiteFromFeed(code: string): Site | null {
+  if (!code) return null;
+  const memCached = siteDetailMemoryCache.get(code);
+  if (memCached) return memCached;
+  if (typeof window === "undefined") return null;
+  try {
+    const storedHome = sessionStorage.getItem("homeState");
+    if (!storedHome) return null;
+    const parsed = JSON.parse(storedHome);
+    const match = (parsed.sites || []).find(
+      (s: any) => (s.site_code || s.id_str || s._id || s.id) === code
+    );
+    if (match) {
+      return {
+        ...match,
+        site_code: match.site_code || match.id_str || match._id || match.id,
+      } as Site;
+    }
+  } catch {}
+  return null;
+}
+
 export default function SiteDetails() {
   const params = useParams();
   const siteCode = params.site_code as string;
   const router = useRouter();
   const { user } = useAuth();
 
-  const [site, setSite] = useState<Site | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [site, setSite] = useState<Site | null>(() => getCachedSiteFromFeed(siteCode));
+  const [loading, setLoading] = useState<boolean>(() => !getCachedSiteFromFeed(siteCode));
   const [error, setError] = useState<string | null>(null);
 
   const { addToCart, isInCart } = useCart();
@@ -160,21 +189,82 @@ export default function SiteDetails() {
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
+  // Helper to retry transient network or 5xx responses without throwing Dev Overlay errors
+  const fetchWithRetry = useCallback(
+    async (url: string, attempts = 2, delayMs = 300): Promise<Response | null> => {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const res = await fetch(url);
+          if (res.ok || res.status < 500 || i === attempts - 1) {
+            return res;
+          }
+        } catch {
+          if (i === attempts - 1) return null;
+        }
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+      return null;
+    },
+    []
+  );
+
   // ----------------------------------
-  // FETCH SITE DETAILS
+  // FETCH SITE DETAILS (INSTANT CACHE + DEDUPLICATED BACKGROUND REVALIDATION)
   // ----------------------------------
   useEffect(() => {
+    let cancelled = false;
+
     const fetchSite = async () => {
-      try {
+      // Instantly render from memory or homeState feed if available (0ms navigation, no spinner)
+      const instantSite = getCachedSiteFromFeed(siteCode);
+      if (instantSite) {
+        setSite(instantSite);
+        setError(null);
+        setLoading(false);
+        if (instantSite.location) {
+          localStorage.setItem("sitehub_preferred_loc", instantSite.location);
+        }
+      } else {
         setLoading(true);
+      }
 
-        const res = await fetch(`/api/sites/${siteCode}`);
-
-        if (!res.ok) {
-          throw new Error("Site not found");
+      try {
+        let reqPromise = inFlightSiteRequests.get(siteCode);
+        if (!reqPromise) {
+          reqPromise = (async () => {
+            const res = await fetchWithRetry(`/api/sites/${siteCode}`, 2, 300);
+            if (!res) return null;
+            if (!res.ok) return { ok: false, status: res.status, data: null };
+            const parsedData: Site = await res.json();
+            return { ok: true, status: res.status, data: parsedData };
+          })().finally(() => {
+            inFlightSiteRequests.delete(siteCode);
+          });
+          inFlightSiteRequests.set(siteCode, reqPromise);
         }
 
-        const data: Site = await res.json();
+        const result = await reqPromise;
+        if (cancelled) return;
+
+        if (!result || !result.ok || !result.data) {
+          if (result && result.status === 404) {
+            setSite(null);
+            setError("Site not found");
+            return;
+          }
+          const fallbackSite = instantSite || getCachedSiteFromFeed(siteCode);
+          if (fallbackSite) {
+            setSite(fallbackSite);
+            setError(null);
+            return;
+          }
+          setSite(null);
+          setError("Site not found");
+          return;
+        }
+
+        const data: Site = result.data;
+        siteDetailMemoryCache.set(siteCode, data);
         setSite(data);
         setError(null);
 
@@ -182,31 +272,46 @@ export default function SiteDetails() {
         if (data.location) {
           localStorage.setItem("sitehub_preferred_loc", data.location);
         }
-
-        // Record Analytics Visit
-        if (user?.email || user?.phone) {
-          fetch("/api/sites/visits", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: user.email || user.phone,
-              site_code: siteCode,
-            }),
-          });
-        }
       } catch (err: any) {
-        setError(err.message || "Failed to load site details");
+        if (cancelled) return;
+        const fallbackSite = instantSite || getCachedSiteFromFeed(siteCode);
+        if (fallbackSite) {
+          setSite(fallbackSite);
+          setError(null);
+        } else {
+          setError(err?.message || "Failed to load site details");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     if (siteCode) {
       fetchSite();
       setActiveImageIndex(0);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo(0, 0);
     }
-  }, [siteCode, user]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [siteCode, fetchWithRetry]);
+
+  // Record Analytics Visit in a separate effect so user hydration does NOT re-trigger fetchSite()
+  const userIdentifier = user?.email || user?.phone || "";
+  useEffect(() => {
+    if (!siteCode || !userIdentifier) return;
+    fetch("/api/sites/visits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: userIdentifier,
+        site_code: siteCode,
+      }),
+    }).catch(() => {});
+  }, [siteCode, userIdentifier]);
 
   // ----------------------------------
   // DETERMINE PREVIOUS & NEXT PROPERTIES & AUTO-PREFETCH
@@ -276,8 +381,10 @@ export default function SiteDetails() {
       const nextPage = currentPage + 1;
       const url = buildFilterUrl(parsed, nextPage);
 
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetchWithRetry(url, 2, 300);
+      if (!res || !res.ok) {
+        return null;
+      }
       const data = await res.json();
 
       const results: any[] = data.results ?? (Array.isArray(data) ? data : []);
@@ -317,13 +424,12 @@ export default function SiteDetails() {
         };
       }
       return null;
-    } catch (err) {
-      console.error("Failed to prefetch next batch of properties:", err);
+    } catch {
       return null;
     } finally {
       setIsPrefetchingFeed(false);
     }
-  }, []);
+  }, [fetchWithRetry]);
 
   const triggerPrefetch = useCallback(() => {
     if (prefetchPromiseRef.current) {
@@ -355,9 +461,19 @@ export default function SiteDetails() {
       const nextSite = await triggerPrefetch();
       if (nextSite && nextSite.site_code) {
         router.push(`/site/${nextSite.site_code}`);
+      } else if (site?.next_site?.site_code) {
+        setFeedHasMore(false);
+        router.push(`/site/${site.next_site.site_code}`);
+      } else {
+        setFeedHasMore(false);
       }
-    } catch (err) {
-      console.error("Error navigating to next site:", err);
+    } catch {
+      if (site?.next_site?.site_code) {
+        setFeedHasMore(false);
+        router.push(`/site/${site.next_site.site_code}`);
+      } else {
+        setFeedHasMore(false);
+      }
     } finally {
       setIsNavigatingNext(false);
     }
@@ -482,9 +598,9 @@ export default function SiteDetails() {
           className="flex items-center text-white bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-3 rounded-xl shadow-md transition-all active:scale-95"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
-          Back to Properties
+          Home
         </Link>
       </div>
     );
@@ -586,11 +702,12 @@ export default function SiteDetails() {
             onClick={handleBackToProperties}
             data-testid="back-to-properties-top"
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-gray-700 hover:text-blue-700 hover:bg-gray-100 transition-colors group shrink-0"
+            title="Return to Home feed"
           >
             <span data-testid="back-top-arrow-highlight" className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shadow-2xs group-hover:scale-105 transition-transform">
-              ←
+              🏠
             </span>
-            <span>Back to Properties</span>
+            <span>Home</span>
           </Link>
 
           {/* Quick Prev / Next Adjacent Property Switcher (Small Buttons) */}
@@ -1037,17 +1154,18 @@ export default function SiteDetails() {
             </span>
           )}
 
-          {/* Back to Properties Button (Small) */}
+          {/* Home Button (Small) */}
           <Link
             href="/"
             onClick={handleBackToProperties}
             data-testid="back-to-properties-bottom"
             className="px-3 md:px-4 py-1.5 rounded-lg bg-gray-900 hover:bg-black text-white text-xs font-semibold shadow-2xs transition-all flex items-center gap-1.5 active:scale-95 group"
+            title="Return to Home feed"
           >
             <span data-testid="back-bottom-arrow-highlight" className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">
-              ←
+              🏠
             </span>
-            <span>Back to All Properties</span>
+            <span>Home</span>
           </Link>
 
           {/* Next Property Button (Small) */}

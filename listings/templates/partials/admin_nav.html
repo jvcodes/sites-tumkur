@@ -76,11 +76,14 @@
     </a>
   </nav>
 
-  <div class="p-4 border-t border-slate-800">
-    <a href="http://localhost:3000" target="_blank" class="flex items-center gap-2 text-slate-300 hover:text-white text-xs font-semibold p-2.5 rounded-lg border border-slate-800 hover:bg-slate-800 transition">
-      <span>🏠</span> Back to SiteHub
+  <div class="p-4 border-t border-slate-800 space-y-2">
+    <a href="http://localhost:3000" onclick="if(window.location.port==='8000'){window.open(window.location.protocol+'//'+window.location.hostname+':3000/','_blank');return false;}" target="_blank" class="flex items-center gap-2 text-slate-300 hover:text-white text-xs font-semibold p-2.5 rounded-lg border border-slate-800 hover:bg-slate-800 transition">
+      <span>🏠</span> Home
     </a>
-    <div class="text-[11px] text-slate-500 mt-2 px-1">Logged in as Administrator</div>
+    <a href="/admin/logout/" data-testid="admin-logout-mobile" class="flex items-center gap-2 text-rose-400 hover:text-rose-300 text-xs font-semibold p-2.5 rounded-lg border border-slate-800 hover:bg-slate-800 transition">
+      <span>🚪</span> Logout Admin
+    </a>
+    <div class="text-[11px] text-slate-500 mt-1 px-1">Logged in as {{ request.session.admin_username|default:"Administrator" }}</div>
   </div>
 </div>
 
@@ -127,11 +130,14 @@
     </a>
   </nav>
 
-  <div class="p-3 border-t border-slate-800">
-    <a href="http://localhost:3000" target="_blank" class="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-medium p-2 rounded-lg border border-slate-800 hover:bg-slate-800 transition">
-      <span>🏠</span> Back to SiteHub
+  <div class="p-3 border-t border-slate-800 space-y-1.5">
+    <a href="http://localhost:3000" onclick="if(window.location.port==='8000'){window.open(window.location.protocol+'//'+window.location.hostname+':3000/','_blank');return false;}" target="_blank" class="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-medium p-2 rounded-lg border border-slate-800 hover:bg-slate-800 transition">
+      <span>🏠</span> Home
     </a>
-    <div class="text-[11px] text-slate-600 mt-2 px-1">Logged in as superuser</div>
+    <a href="/admin/logout/" data-testid="admin-logout-desktop" class="flex items-center gap-2 text-rose-400 hover:text-rose-300 text-xs font-medium p-2 rounded-lg border border-slate-800 hover:bg-slate-800 transition">
+      <span>🚪</span> Logout Admin
+    </a>
+    <div class="text-[11px] text-slate-600 mt-1 px-1">Logged in as {{ request.session.admin_username|default:"superuser" }}</div>
   </div>
 </aside>
 

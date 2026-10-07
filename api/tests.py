@@ -673,6 +673,10 @@ class AdminSiteModificationTests(TestCase):
             "status": "pending",
             "is_deleted": False,
         })
+        session = self.client.session
+        session["is_admin_authenticated"] = True
+        session["admin_username"] = "admin"
+        session.save()
 
     def tearDown(self):
         self.sites.delete_many({"site_code": self.test_code})
@@ -800,6 +804,10 @@ class ComprehensiveFieldEditingAndLoopholeTests(TestCase):
             "status": "approved",
             "is_deleted": False,
         })
+        session = self.client.session
+        session["is_admin_authenticated"] = True
+        session["admin_username"] = "admin"
+        session.save()
 
     def tearDown(self):
         self.sites.delete_many({"site_code": self.test_code})
@@ -1056,9 +1064,309 @@ class ComprehensiveFieldEditingAndLoopholeTests(TestCase):
         self.agents.delete_many({"phone": "9777766666"})
 
 
+class AdminAuthenticationSecurityTests(TestCase):
+    """
+    Tests verifying that all /admin/... endpoints require authentication,
+    support login with admin credentials, prevent open redirects, and support logout.
+    """
+
+    def test_unauthenticated_admin_routes_redirect_to_login(self):
+        """Every protected /admin/... route must redirect unauthenticated users to /admin/login/."""
+        protected_urls = [
+            '/admin/',
+            '/admin/hub/',
+            '/admin/sites/pending/',
+            '/admin/sites/review/SITE-0012/',
+            '/admin/sites/upload/',
+            '/admin/agents/',
+            '/admin/bookings/',
+            '/admin/landmarks/',
+            '/admin/user-profile/?phone=9999999999',
+        ]
+        for url in protected_urls:
+            res = self.client.get(url)
+            self.assertEqual(res.status_code, 302, f"Expected 302 redirect for unauthenticated GET {url}")
+            self.assertIn('/admin/login/', res['Location'])
+
+    def test_admin_login_invalid_credentials_rejected(self):
+        """Invalid username or password must not authenticate the session."""
+        res = self.client.post('/admin/login/', {
+            'username': 'admin',
+            'password': 'wrong-password',
+            'next': '/admin/hub/',
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'Invalid admin username or password')
+        self.assertFalse(self.client.session.get('is_admin_authenticated', False))
+
+    def test_admin_login_valid_credentials_and_logout(self):
+        """Valid credentials establish an admin session, redirect to next, and logout clears session."""
+        # 1. Login with default admin credentials and custom next URL
+        res = self.client.post('/admin/login/', {
+            'username': 'admin',
+            'password': 'tumkur@2026',
+            'next': '/admin/sites/pending/?status=all',
+        })
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res['Location'], '/admin/sites/pending/?status=all')
+        self.assertTrue(self.client.session.get('is_admin_authenticated'))
+
+        # 2. Protected page now renders 200 OK
+        hub_res = self.client.get('/admin/hub/')
+        self.assertEqual(hub_res.status_code, 200)
+        self.assertContains(hub_res, 'Admin Dashboard')
+
+        # 3. Logout clears session and blocks subsequent access
+        logout_res = self.client.get('/admin/logout/')
+        self.assertEqual(logout_res.status_code, 302)
+        self.assertIn('/admin/login/', logout_res['Location'])
+        self.assertFalse(self.client.session.get('is_admin_authenticated', False))
+
+        blocked_res = self.client.get('/admin/hub/')
+        self.assertEqual(blocked_res.status_code, 302)
+        self.assertIn('/admin/login/', blocked_res['Location'])
+
+    def test_admin_login_with_phone_username_and_root_admin_route(self):
+        """Admin can log in using phone number 7353565562 and open root /admin/ dashboard."""
+        res = self.client.post('/admin/login/', {
+            'username': '7353565562',
+            'password': 'tumkur@2026',
+            'next': '/admin/',
+        })
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res['Location'], '/admin/')
+        self.assertTrue(self.client.session.get('is_admin_authenticated'))
+
+        root_res = self.client.get('/admin/')
+        self.assertEqual(root_res.status_code, 200)
+        self.assertContains(root_res, 'Admin Dashboard')
+
+    def test_admin_login_open_redirect_protection_and_already_authenticated_redirect(self):
+        """External next URLs are sanitized to /admin/hub/, and authenticated GET /admin/login/ redirects."""
+        res = self.client.post('/admin/login/', {
+            'username': 'admin',
+            'password': 'tumkur@2026',
+            'next': '//malicious.example.com/phish',
+        })
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res['Location'], '/admin/hub/')
+
+        # Visiting /admin/login/ while already authenticated redirects directly to next
+        already_auth_res = self.client.get('/admin/login/?next=/admin/')
+        self.assertEqual(already_auth_res.status_code, 302)
+        self.assertEqual(already_auth_res['Location'], '/admin/')
+
+    def test_admin_hub_site_stats_cache_and_invalidation(self):
+        """/admin/ caches site_collection counts in admin_hub_site_stats and invalidates on site approval."""
+        from django.core.cache import cache
+        from listings.mongo import site_collection
+
+        session = self.client.session
+        session['is_admin_authenticated'] = True
+        session.save()
+
+        test_code = "CACHE-TEST-01"
+        site_collection.delete_many({"site_code": test_code})
+        site_collection.insert_one({
+            "site_code": test_code,
+            "name": "Cache Test Plot",
+            "location": "Tumkur",
+            "price": 1200000,
+            "status": "pending",
+            "is_deleted": False,
+            "created_at": datetime.now()
+        })
+
+        try:
+            cache.delete("admin_hub_site_stats")
+            res = self.client.get('/admin/?use_cache=1')
+            self.assertEqual(res.status_code, 200)
+            cached = cache.get("admin_hub_site_stats")
+            self.assertIsNotNone(cached)
+            self.assertGreaterEqual(cached.get("pending_sites", 0), 1)
+
+            # Approving the site must invalidate both site_detail_{code} and admin_hub_site_stats
+            cache.set(f"site_detail_{test_code}", {"site_code": test_code}, timeout=15)
+            approve_res = self.client.post('/admin/sites/approve/', {
+                'site_code': test_code,
+                'action': 'approved'
+            })
+            self.assertEqual(approve_res.status_code, 302)
+            self.assertIsNone(cache.get("admin_hub_site_stats"))
+            self.assertIsNone(cache.get(f"site_detail_{test_code}"))
+        finally:
+            site_collection.delete_many({"site_code": test_code})
+
+    def test_admin_sites_pending_batch_image_hydration_and_status_counts(self):
+        """/admin/sites/pending/ batch-hydrates images from site_images_collection and computes tab counts."""
+        from listings.mongo import site_collection, site_images_collection
+
+        session = self.client.session
+        session['is_admin_authenticated'] = True
+        session.save()
+
+        code_a = "BATCH-IMG-01"
+        code_b = "BATCH-IMG-02"
+        site_collection.delete_many({"site_code": {"$in": [code_a, code_b]}})
+        site_images_collection.delete_many({"site_code": {"$in": [code_a, code_b]}})
+
+        site_collection.insert_many([
+            {
+                "site_code": code_a,
+                "name": "Batch Plot A",
+                "location": "Tumkur",
+                "price": 1500000,
+                "status": "pending",
+                "is_deleted": False,
+                "created_at": datetime.now()
+            },
+            {
+                "site_code": code_b,
+                "name": "Batch Plot B",
+                "location": "Sira Gate",
+                "price": 2500000,
+                "status": "approved",
+                "is_deleted": False,
+                "created_at": datetime.now()
+            },
+        ])
+        site_images_collection.insert_one({
+            "site_code": code_a,
+            "image_url": "sites/batch_plot_a.jpg",
+            "created_at": datetime.now()
+        })
+
+        try:
+            res = self.client.get('/admin/sites/pending/?status=all')
+            self.assertEqual(res.status_code, 200)
+            counts = res.context['counts']
+            self.assertGreaterEqual(counts['pending'], 1)
+            self.assertGreaterEqual(counts['approved'], 1)
+            self.assertGreaterEqual(counts['all'], 2)
+
+            sites_by_code = {s['site_code']: s for s in res.context['sites']}
+            self.assertIn(code_a, sites_by_code)
+            self.assertIn('/media/sites/batch_plot_a.jpg', sites_by_code[code_a]['images'])
+        finally:
+            site_collection.delete_many({"site_code": {"$in": [code_a, code_b]}})
+            site_images_collection.delete_many({"site_code": {"$in": [code_a, code_b]}})
 
 
+class SiteDetailPerformanceAndCacheTests(TestCase):
+    """
+    Tests verifying that viewing site details is fast:
+    1. `filter_sites_api` pre-warms `site_detail_{site_code}` cache entries with adjacent
+       `prev_site` and `next_site` so clicking a site from the feed performs 0 DB queries.
+    2. `site_detail_by_code_api` caches cold lookups and combines `prev_site` + `next_site`
+       into a single `$facet` aggregation round-trip.
+    3. `hydrate_sites` skips querying `site_images_collection` for `is_test` sites that
+       already have embedded images.
+    """
 
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        from django.core.cache import cache
+        cache.clear()
 
+    @patch('api.views.sites.site_collection')
+    @patch('listings.mongo.site_images_collection')
+    def test_filter_sites_prewarms_site_detail_cache_for_zero_db_detail_lookup(
+        self, mock_site_images, mock_site_collection
+    ):
+        """When filter_sites_api returns a batch, each site is pre-warmed in cache so site_detail_by_code_api makes 0 DB queries."""
+        from api.views.sites import site_detail_by_code_api
 
+        mock_site_images.find.return_value.sort.return_value = []
+        mock_site_collection.count_documents.return_value = 3
+        mock_site_collection.aggregate.return_value = [
+            {
+                "_id": "id1",
+                "site_code": "DUMMY-FAST-1",
+                "name": "Fast Plot 1",
+                "location": "Batawadi",
+                "price": 1800000,
+                "area": 1200,
+                "is_test": True,
+                "images": ["/media/sites/fast1.jpg"],
+            },
+            {
+                "_id": "id2",
+                "site_code": "DUMMY-FAST-2",
+                "name": "Fast Plot 2",
+                "location": "Kuvempu Nagar",
+                "price": 2400000,
+                "area": 1500,
+                "is_test": True,
+                "images": ["/media/sites/fast2.jpg"],
+            },
+            {
+                "_id": "id3",
+                "site_code": "DUMMY-FAST-3",
+                "name": "Fast Plot 3",
+                "location": "Sira Gate",
+                "price": 3100000,
+                "area": 2400,
+                "is_test": True,
+                "images": ["/media/sites/fast3.jpg"],
+            },
+        ]
 
+        # 1. Call filter_sites_api
+        filter_req = self.factory.get('/api/sites/filter/?location=Batawadi')
+        filter_res = filter_sites_api(filter_req)
+        self.assertEqual(filter_res.status_code, 200)
+
+        # Reset mock call counts to prove site_detail_by_code_api makes ZERO MongoDB calls
+        mock_site_collection.reset_mock()
+        mock_site_images.reset_mock()
+
+        # 2. Request detail for middle site DUMMY-FAST-2
+        detail_req = self.factory.get('/api/sites/DUMMY-FAST-2/')
+        detail_res = site_detail_by_code_api(detail_req, 'DUMMY-FAST-2')
+        self.assertEqual(detail_res.status_code, 200)
+        self.assertEqual(detail_res.data['site_code'], 'DUMMY-FAST-2')
+        self.assertEqual(detail_res.data['prev_site']['site_code'], 'DUMMY-FAST-1')
+        self.assertEqual(detail_res.data['next_site']['site_code'], 'DUMMY-FAST-3')
+
+        # Confirm zero DB calls occurred on detail view!
+        mock_site_collection.find_one.assert_not_called()
+        mock_site_collection.aggregate.assert_not_called()
+        mock_site_images.find.assert_not_called()
+
+    @patch('api.views.sites.site_collection')
+    @patch('listings.mongo.site_images_collection')
+    def test_cold_site_detail_uses_single_facet_aggregation_and_skips_test_image_query(
+        self, mock_site_images, mock_site_collection
+    ):
+        """Cold direct lookup of a DUMMY-* test site uses 1 $facet query for prev/next and 0 image collection queries."""
+        from api.views.sites import site_detail_by_code_api
+
+        mock_site_collection.find_one.return_value = {
+            "_id": "507f1f77bcf86cd799439022",
+            "site_code": "DUMMY-D3002B46",
+            "name": "Dummy Corner Plot",
+            "location": "Tumkur",
+            "price": 2200000,
+            "area": 1200,
+            "is_test": True,
+            "image": "/media/sites/dummy.jpg",
+            "images": ["/media/sites/dummy.jpg"],
+        }
+        mock_site_collection.aggregate.return_value = [
+            {
+                "prev": [{"site_code": "DUMMY-PREV", "name": "Prev Plot", "price": 2000000, "location": "Tumkur"}],
+                "next": [{"site_code": "DUMMY-NEXT", "name": "Next Plot", "price": 2500000, "location": "Tumkur"}],
+            }
+        ]
+
+        req = self.factory.get('/api/sites/DUMMY-D3002B46/')
+        res = site_detail_by_code_api(req, 'DUMMY-D3002B46')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data['site_code'], 'DUMMY-D3002B46')
+        self.assertEqual(res.data['prev_site']['site_code'], 'DUMMY-PREV')
+        self.assertEqual(res.data['next_site']['site_code'], 'DUMMY-NEXT')
+
+        # Only 1 find_one (for the site itself) + 1 aggregate ($facet for prev/next), and 0 site_images queries
+        self.assertEqual(mock_site_collection.find_one.call_count, 1)
+        self.assertEqual(mock_site_collection.aggregate.call_count, 1)
+        mock_site_images.find.assert_not_called()

@@ -12,10 +12,10 @@ test.describe('Accessibility Tests', () => {
     test(`Accessibility analysis for ${name}`, async ({ page }) => {
       await page.goto(path);
       
-      // Wait for content to load
+      // Wait for content and 700ms SiteCard fade-in transition to complete
       await page.waitForLoadState('networkidle');
       await page.evaluate(() => document.fonts.ready);
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(800);
 
       try {
         const accessibilityScanResults = await new AxeBuilder({ page }).analyze();

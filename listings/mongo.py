@@ -32,15 +32,18 @@ if 'test' in sys.argv or os.environ.get("USE_MONGOMOCK") == "1":
         except Exception as e:
             print(f"Warning: Failed to auto-seed mongomock: {e}")
 else:
-    # Configure connection pooling to withstand concurrency bursts without exhausting Atlas connection limits
+    # Configure connection pooling to withstand concurrency bursts without background reconnection storms
     client = MongoClient(
         MONGO_URI,
         maxPoolSize=50,
-        minPoolSize=5,
-        maxIdleTimeMS=45000,
-        waitQueueTimeoutMS=5000,
-        connectTimeoutMS=5000,
-        serverSelectionTimeoutMS=5000,
+        minPoolSize=0,
+        maxIdleTimeMS=300000,
+        waitQueueTimeoutMS=10000,
+        connectTimeoutMS=10000,
+        socketTimeoutMS=15000,
+        serverSelectionTimeoutMS=10000,
+        retryReads=True,
+        retryWrites=True,
     )
     db = client[MONGO_DB_NAME]
 

@@ -29,10 +29,11 @@ test.describe('SiteHub Scroll Restoration', () => {
 
     // 4. Verify we reached the detail page
     await expect(page).toHaveURL(/\/site\/.+/);
-    await expect(page.locator('text=Back to Properties')).toBeVisible({ timeout: 15000 });
+    const backBtn = page.locator('[data-testid="back-to-properties-top"]');
+    await expect(backBtn).toBeVisible({ timeout: 15000 });
 
-    // 5. Click "Back to Properties"
-    await page.locator('text=Back to Properties').click();
+    // 5. Click "Home" button
+    await backBtn.click();
 
     // 6. Verify we are back on the homepage
     await expect(page).toHaveURL('http://localhost:3000/');
